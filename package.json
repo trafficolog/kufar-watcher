@@ -23,6 +23,10 @@
     "typecheck:renderer": "nuxt typecheck",
     "typecheck:electron": "tsc -p tsconfig.electron.json --noEmit",
     "test": "vitest run",
+    "docs:ops:refresh": "tsx src/docs-ops/cli.ts refresh",
+    "docs:ops:check": "tsx src/docs-ops/cli.ts check",
+    "docs:ops:new-session": "tsx src/docs-ops/cli.ts new-session",
+    "docs:ops:new-iteration": "tsx src/docs-ops/cli.ts new-iteration",
     "postinstall": "npx --no-install install-electron && nuxt prepare"
   },
   "dependencies": {
@@ -40,6 +44,7 @@
     "electron-vite": "5.0.0",
     "eslint": "^9.35.0",
     "prettier": "^3.6.2",
+    "tsx": "^4",
     "typescript": "6.0.2",
     "vitest": "5.0.0",
     "vue-tsc": "3.3.11",
