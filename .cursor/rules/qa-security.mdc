@@ -1,0 +1,4 @@
+---
+description: QA and security rules
+---
+Test behavior from task acceptance criteria. Keep tests offline from kufar.by. Enforce Electron sandbox, context isolation, navigation restrictions, and sender validation when IPC arrives.

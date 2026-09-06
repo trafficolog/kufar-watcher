@@ -1,0 +1,69 @@
+name: verify
+
+on:
+  push:
+    branches:
+      - 'feat/**'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        shell: bash
+        run: |
+          if [[ -f package-lock.json ]]; then
+            npm ci
+          else
+            npm install
+          fi
+      - name: Unit tests
+        run: npm test
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Formatting
+        run: npm run format:check
+      - name: Build
+        run: npm run build
+      - name: Verify build outputs
+        run: |
+          test -f .output/public/index.html
+          test -f out/main/index.cjs
+          test -f out/preload/index.cjs
+      - name: Development launch smoke
+        shell: bash
+        run: |
+          set +e
+          timeout 30s xvfb-run -a npm run dev 2>&1 | tee /tmp/kufar-dev.log
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -eq 124
+          grep -q "starting electron app" /tmp/kufar-dev.log
+      - name: Production launch smoke
+        shell: bash
+        run: |
+          set +e
+          timeout 20s xvfb-run -a npm start 2>&1 | tee /tmp/kufar-prod.log
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -eq 124
+      - name: Upload generated lockfile
+        if: ${{ hashFiles('package-lock.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: package-lock.json
+          retention-days: 1
