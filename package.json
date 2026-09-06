@@ -25,6 +25,8 @@
     "test": "vitest run",
     "prisma:generate": "prisma generate",
     "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force && prisma db seed",
     "docs:ops:refresh": "tsx src/docs-ops/cli.ts refresh",
     "docs:ops:check": "tsx src/docs-ops/cli.ts check",
     "docs:ops:new-session": "tsx src/docs-ops/cli.ts new-session",
