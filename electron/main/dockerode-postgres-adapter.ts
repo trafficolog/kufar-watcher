@@ -23,10 +23,7 @@ interface DockerodeImageLike {
 }
 
 interface DockerodeModemLike {
-  followProgress(
-    stream: unknown,
-    callback: (error?: Error | null) => void,
-  ): void
+  followProgress(stream: unknown, callback: (error?: Error | null) => void): void
 }
 
 export interface DockerodeLike {
