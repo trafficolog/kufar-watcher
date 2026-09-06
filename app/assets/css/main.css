@@ -5,14 +5,53 @@
   color: #c9d6dc;
 }
 
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; min-height: 100vh; background: #080c11; }
-a { color: #4fd8c4; }
-code { color: #8fa3ac; }
-.route-check { max-width: 760px; margin: 0 auto; padding: 64px 28px 120px; line-height: 1.65; }
-.route-check h1 { margin: 6px 0 12px; font-size: clamp(2rem, 7vw, 4rem); line-height: 1; }
-.route-check nav { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 32px; }
-.eyebrow { color: #8fa3ac; text-transform: uppercase; letter-spacing: .1em; font-size: 12px; }
-.anchor-spacer { height: 70vh; }
-#seller-blacklist { scroll-margin-top: 24px; padding: 24px; border: 1px solid rgba(79, 216, 196, .3); }
-#seller-blacklist:focus { outline: 2px solid #c9d6dc; outline-offset: 4px; }
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #080c11;
+}
+a {
+  color: #4fd8c4;
+}
+code {
+  color: #8fa3ac;
+}
+.route-check {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 64px 28px 120px;
+  line-height: 1.65;
+}
+.route-check h1 {
+  margin: 6px 0 12px;
+  font-size: clamp(2rem, 7vw, 4rem);
+  line-height: 1;
+}
+.route-check nav {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 32px;
+}
+.eyebrow {
+  color: #8fa3ac;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 12px;
+}
+.anchor-spacer {
+  height: 70vh;
+}
+#seller-blacklist {
+  scroll-margin-top: 24px;
+  padding: 24px;
+  border: 1px solid rgba(79, 216, 196, 0.3);
+}
+#seller-blacklist:focus {
+  outline: 2px solid #c9d6dc;
+  outline-offset: 4px;
+}

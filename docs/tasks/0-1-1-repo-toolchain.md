@@ -1,7 +1,7 @@
 ---
-id: "0.1.1"
+id: '0.1.1'
 phase: 0
-epic: "0.1"
+epic: '0.1'
 status: in_progress
 sync_state: drifted
 last_reviewed: 2026-09-06

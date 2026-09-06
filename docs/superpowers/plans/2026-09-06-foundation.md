@@ -27,6 +27,7 @@
 ### Task 1: Stabilize the repository/toolchain (`0.1.1`)
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `.github/workflows/verify.yml`
 - Create: `package-lock.json`
@@ -34,6 +35,7 @@
 - Verify: `tests/app-protocol.test.ts`
 
 **Interfaces:**
+
 - Produces: deterministic Node/npm dependency installation and a renderer/main build that later tasks depend on.
 
 - [ ] **Step 1: Reproduce the current CI failure and preserve evidence.**
@@ -107,11 +109,13 @@ git commit -m "fix(0.1.1): stabilize toolchain verification"
 ### Task 2: Import canonical planning/docs tooling (`0.4.1` prerequisite)
 
 **Files:**
+
 - Create/replace: `docs/**` from the supplied v3.2 archive
 - Create: `src/docs-ops/cli.ts`
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Produces npm scripts `docs:ops:refresh`, `docs:ops:check`, `docs:ops:new-session`, `docs:ops:new-iteration`.
 
 - [ ] **Step 1: Import the archive documentation verbatim.**
@@ -153,6 +157,7 @@ git commit -m "docs(0.4.1): restore canonical planning tree"
 ### Task 3: Implement worker lifecycle (`0.1.2`) with TDD
 
 **Files:**
+
 - Create: `shared/runtime.ts`
 - Create: `electron/main/worker-supervisor.ts`
 - Create: `electron/worker/index.ts`
@@ -161,6 +166,7 @@ git commit -m "docs(0.4.1): restore canonical planning tree"
 - Create: `tests/worker-supervisor.test.ts`
 
 **Interfaces:**
+
 - Produces:
 
 ```ts
@@ -239,6 +245,7 @@ git commit -m "feat(0.1.2): add utility process lifecycle"
 ### Task 4: Implement typed renderer/main/worker IPC (`0.1.3`) with TDD
 
 **Files:**
+
 - Create: `shared/ipc.ts`
 - Create: `electron/main/ipc-router.ts`
 - Modify: `electron/preload/index.ts`
@@ -316,11 +323,13 @@ git commit -m "feat(0.1.3): add typed desktop IPC bridge"
 ### Task 5: Define PostgreSQL 16 container contract (`0.2.1`)
 
 **Files:**
+
 - Create: `docker-compose.yml`
 - Modify: `.env.example`
 - Modify: `.gitignore`
 
 **Interfaces:**
+
 - Produces environment keys `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `DATABASE_URL`.
 
 - [ ] **Step 1: Write compose configuration.**
@@ -353,6 +362,7 @@ git commit -m "feat(0.2.1): define local Postgres container"
 ### Task 6: Implement MVP Prisma schema and integrity (`0.3.1`, `0.3.2`) with migration tests
 
 **Files:**
+
 - Create: `prisma/schema.prisma`
 - Create: `prisma/migrations/0001_mvp_schema/migration.sql`
 - Create: `prisma/migrations/0002_integrity_indexes/migration.sql`
@@ -361,6 +371,7 @@ git commit -m "feat(0.2.1): define local Postgres container"
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Produces Prisma client types for `Monitor`, `MonitorCursor`, `Run`, `Listing`, `Match`, `Setting` only.
 
 - [ ] **Step 1: RED — clean database migration test.**
@@ -401,12 +412,14 @@ git commit -m "feat(0.3.1): add MVP Prisma schema and integrity"
 ### Task 7: Add deterministic seeds and isolated DB helper (`0.3.3`) with TDD
 
 **Files:**
+
 - Create: `prisma/seed.ts`
 - Create: `tests/helpers/database.ts`
 - Create: `tests/integration/seed.test.ts`
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Produces `resetTestDatabase()` for integration tests and npm scripts `db:seed`, `db:reset`.
 
 - [ ] **Step 1: RED — idempotent seed test.**
@@ -442,6 +455,7 @@ git commit -m "feat(0.3.3): add deterministic database fixtures"
 ### Task 8: Implement Dockerode startup supervisor (`0.2.2`) with TDD
 
 **Files:**
+
 - Create: `electron/main/docker-client.ts`
 - Create: `electron/main/database-bootstrap.ts`
 - Create: `electron/main/boot-service.ts`
@@ -497,6 +511,7 @@ git commit -m "feat(0.2.2): supervise local database startup"
 ### Task 9: Implement infrastructure boot overlay (`0.2.3`) with component tests where practical
 
 **Files:**
+
 - Create: `app/components/app/AppBootScreen.vue`
 - Create: `app/stores/boot.ts`
 - Modify: `app/app.vue`
@@ -504,6 +519,7 @@ git commit -m "feat(0.2.2): supervise local database startup"
 - Create: `tests/boot-state.test.ts`
 
 **Interfaces:**
+
 - Consumes `KufarDesktopApi.system` and `BootState` from Task 4.
 
 - [ ] **Step 1: RED — derive severity and platform guidance from state.**
@@ -538,6 +554,7 @@ git commit -m "feat(0.2.3): add infrastructure boot status overlay"
 ### Task 10: Finalize docs-ops and CI (`0.4.1`, `0.4.2`)
 
 **Files:**
+
 - Modify: `.github/workflows/verify.yml`
 - Modify: `package.json`
 - Modify through docs-ops only: `docs/operations/status/**`, generated phase/epic blocks
@@ -545,6 +562,7 @@ git commit -m "feat(0.2.3): add infrastructure boot status overlay"
 - Create: `tests/docs-ops-invalid-frontmatter.test.ts` if docs-ops is importable; otherwise add a dedicated CI shell negative test using a temporary copy.
 
 **Interfaces:**
+
 - Produces one deterministic verification workflow for every future task.
 
 - [ ] **Step 1: Replace diagnostic install with deterministic install.**

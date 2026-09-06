@@ -19,7 +19,9 @@ describe('resolveRendererPath', () => {
   })
 
   it('serves an existing generated asset directly', () => {
-    expect(resolveRendererPath(root, 'app://kufar/_nuxt/app.js')).toBe(join(root, '_nuxt', 'app.js'))
+    expect(resolveRendererPath(root, 'app://kufar/_nuxt/app.js')).toBe(
+      join(root, '_nuxt', 'app.js'),
+    )
   })
 
   it.each(['/monitors', '/settings'])('falls back to the SPA entry for route %s', (route) => {
