@@ -34,10 +34,7 @@ function updateStep(
   return { ...state, steps }
 }
 
-function publish(
-  deps: InfrastructureBootstrapDependencies,
-  state: BootState,
-): BootState {
+function publish(deps: InfrastructureBootstrapDependencies, state: BootState): BootState {
   deps.publishBootState(state)
   return state
 }
