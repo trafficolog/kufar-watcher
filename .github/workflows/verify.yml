@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -20,20 +20,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - name: Use npm 11.6.0
         run: |
           npm install --global npm@11.6.0
           npm --version
       - name: Install dependencies
+        run: npm ci
+      - name: Inspect Electron installation
         shell: bash
         run: |
-          if [[ -f package-lock.json ]]; then
-            npm ci
-          else
-            npm install
-          fi
-      - name: Bootstrap formatting
-        run: npm run format
+          {
+            echo "ignore-scripts=$(npm config get ignore-scripts)"
+            env | grep -E '^(ELECTRON|npm_config_)' || true
+            ls -la node_modules/electron || true
+            if [[ -f node_modules/electron/path.txt ]]; then
+              echo 'path.txt:'
+              cat node_modules/electron/path.txt
+            else
+              echo 'path.txt: MISSING'
+            fi
+          } | tee /tmp/kufar-electron-install.log
       - name: Unit tests
         run: npm test
       - name: Typecheck
@@ -43,14 +50,7 @@ jobs:
       - name: Formatting
         run: npm run format:check
       - name: Build
-        shell: bash
-        run: |
-          set +e
-          script -q -e -c "npm run build" /tmp/kufar-build.log
-          status=$?
-          set -e
-          cat /tmp/kufar-build.log
-          exit "$status"
+        run: npm run build
       - name: Verify build outputs
         run: |
           test -f .output/public/index.html
@@ -62,7 +62,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          script -q -e -c "timeout 30s xvfb-run -a npm run dev" /tmp/kufar-dev.log
+          timeout 30s xvfb-run -a npm run dev > /tmp/kufar-dev.log 2>&1
           status=$?
           set -e
           cat /tmp/kufar-dev.log
@@ -74,31 +74,21 @@ jobs:
         shell: bash
         run: |
           set +e
-          script -q -e -c "timeout 20s xvfb-run -a npm start" /tmp/kufar-prod.log
+          timeout 20s xvfb-run -a npm start > /tmp/kufar-prod.log 2>&1
           status=$?
           set -e
           cat /tmp/kufar-prod.log
           test "$status" -eq 124
-      - name: Upload smoke diagnostics
+      - name: Upload runtime diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: launch-smoke-diagnostics
+          name: runtime-diagnostics
           path: |
+            /tmp/kufar-electron-install.log
             /tmp/kufar-dev.log
             /tmp/kufar-prod.log
           retention-days: 1
-      - name: Commit bootstrap artifacts once
-        if: always()
-        shell: bash
-        run: |
-          if [[ -n "$(git status --porcelain)" ]]; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add -A
-            git commit -m 'chore(0.1.1): normalize formatting and lock dependencies'
-            git push
-          fi
       - name: Enforce smoke gates
         if: always()
         run: |
