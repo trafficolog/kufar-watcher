@@ -43,7 +43,14 @@ jobs:
       - name: Formatting
         run: npm run format:check
       - name: Build
-        run: npm run build
+        shell: bash
+        run: |
+          set +e
+          script -q -e -c "npm run build" /tmp/kufar-build.log
+          status=$?
+          set -e
+          cat /tmp/kufar-build.log
+          exit "$status"
       - name: Verify build outputs
         run: |
           test -f .output/public/index.html
@@ -53,18 +60,20 @@ jobs:
         shell: bash
         run: |
           set +e
-          timeout 30s xvfb-run -a npm run dev 2>&1 | tee /tmp/kufar-dev.log
-          status=${PIPESTATUS[0]}
+          script -q -e -c "timeout 30s xvfb-run -a npm run dev" /tmp/kufar-dev.log
+          status=$?
           set -e
+          cat /tmp/kufar-dev.log
           test "$status" -eq 124
           grep -q "starting electron app" /tmp/kufar-dev.log
       - name: Production launch smoke
         shell: bash
         run: |
           set +e
-          timeout 20s xvfb-run -a npm start 2>&1 | tee /tmp/kufar-prod.log
-          status=${PIPESTATUS[0]}
+          script -q -e -c "timeout 20s xvfb-run -a npm start" /tmp/kufar-prod.log
+          status=$?
           set -e
+          cat /tmp/kufar-prod.log
           test "$status" -eq 124
       - name: Commit bootstrap artifacts once
         shell: bash
