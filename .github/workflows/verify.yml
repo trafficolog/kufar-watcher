@@ -23,10 +23,18 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
+          set +e
           if [[ -f package-lock.json ]]; then
-            npm ci
+            npm ci --loglevel verbose
           else
-            npm install
+            npm install --loglevel verbose
+          fi
+          status=$?
+          set -e
+          if [[ "$status" -ne 0 ]]; then
+            echo '--- npm debug log ---'
+            cat "$HOME"/.npm/_logs/*-debug-0.log || true
+            exit "$status"
           fi
       - name: Unit tests
         run: npm test
