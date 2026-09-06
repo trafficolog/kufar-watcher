@@ -3,6 +3,7 @@ import {
   forwardBootState,
   isTrustedRendererUrl,
   registerSystemIpcHandlers,
+  routeWorkerBootEvent,
 } from '../electron/main/ipc-router'
 import { IPC, type BootState } from '../shared/ipc'
 
@@ -38,6 +39,37 @@ describe('typed IPC routing', () => {
 
     expect(send).toHaveBeenCalledOnce()
     expect(send).toHaveBeenCalledWith(state)
+  })
+
+  it('routes worker readiness to the renderer boot state without changing other steps', () => {
+    const send = vi.fn()
+    const state: BootState = {
+      phase: 'starting',
+      steps: [
+        { id: 'docker', state: 'pending', detail: 'Not started' },
+        { id: 'scheduler', state: 'running', detail: 'Starting worker' },
+      ],
+    }
+
+    const nextState = routeWorkerBootEvent({ type: 'ready' }, state, send)
+
+    expect(nextState).toEqual({
+      phase: 'starting',
+      steps: [
+        { id: 'docker', state: 'pending', detail: 'Not started' },
+        { id: 'scheduler', state: 'success', detail: 'Worker ready' },
+      ],
+    })
+    expect(send).toHaveBeenCalledOnce()
+    expect(send).toHaveBeenCalledWith(nextState)
+
+    const unchanged = routeWorkerBootEvent(
+      { type: 'journal', level: 'info', message: 'Worker note' },
+      nextState,
+      send,
+    )
+    expect(unchanged).toBe(nextState)
+    expect(send).toHaveBeenCalledOnce()
   })
 
   it('rejects a renderer sender outside the application origin', () => {
