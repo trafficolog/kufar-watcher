@@ -33,9 +33,9 @@ roles:
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
-| `2.4.1` | [Регистрация расписаний по монитору](../tasks/2-4-1-schedules.md) | ⬜ todo | 🟡 drifted |
-| `2.4.2` | [Защита от наложения обходов](../tasks/2-4-2-no-overlap.md) | ⬜ todo | 🟡 drifted |
-| `2.4.3` | [Журнал Run и состояния монитора](../tasks/2-4-3-run-journal.md) | ⬜ todo | 🟡 drifted |
+| `2.4.1` | [Регистрация расписаний pg-boss](../tasks/2-4-1-schedules.md) | ⬜ todo | 🟡 drifted |
+| `2.4.2` | [Запрет пересечения обходов одного монитора](../tasks/2-4-2-no-overlap.md) | ⬜ todo | 🟡 drifted |
+| `2.4.3` | [Журнал одного обхода](../tasks/2-4-3-run-journal.md) | ⬜ todo | 🟡 drifted |
 | `2.4.4` | [Ретраи расписания и деградация при ошибках](../tasks/2-4-4-retries.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-2.4-tasks -->
 
