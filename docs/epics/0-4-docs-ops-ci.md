@@ -25,11 +25,11 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-0.4-tasks -->
-**Задач:** 2 · **done:** 0
+**Задач:** 2 · **done:** 1
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
-| `0.4.1` | [Внедрение docs-ops CLI и npm-скриптов](../tasks/0-4-1-docs-ops.md) | 🔄 in_progress | 🟡 drifted |
+| `0.4.1` | [Внедрение docs-ops CLI и npm-скриптов](../tasks/0-4-1-docs-ops.md) | ✅ done | 🟢 aligned |
 | `0.4.2` | [CI: typecheck, lint, unit, docs:ops:check](../tasks/0-4-2-ci.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-0.4-tasks -->
 
