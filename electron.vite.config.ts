@@ -14,7 +14,6 @@ export default defineConfig({
   preload: {
     build: {
       outDir: 'out/preload',
-      isolatedEntries: true,
       externalizeDeps: false,
       rollupOptions: {
         input: resolve('electron/preload/index.ts'),
