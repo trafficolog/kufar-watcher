@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -25,63 +25,28 @@ jobs:
         run: |
           npm install --global npm@11.4.2
           npm --version
-      - name: Bootstrap lockfile with pinned npm
-        run: npm install --package-lock-only --ignore-scripts
       - name: Install dependencies
-        id: install
-        continue-on-error: true
-        shell: bash
-        run: |
-          set +e
-          npm ci --loglevel verbose 2>&1 | tee /tmp/kufar-install.log
-          status=${PIPESTATUS[0]}
-          set -e
-          exit "$status"
-      - name: Inspect Electron installation
-        if: always()
-        shell: bash
-        run: |
-          {
-            echo "ignore-scripts=$(npm config get ignore-scripts)"
-            env | grep -E '^(ELECTRON|npm_config_)' || true
-            ls -la node_modules/electron || true
-            if [[ -f node_modules/electron/path.txt ]]; then
-              echo 'path.txt:'
-              cat node_modules/electron/path.txt
-            else
-              echo 'path.txt: MISSING'
-            fi
-          } | tee /tmp/kufar-electron-install.log
+        run: npm ci
       - name: Prepare Electron Linux sandbox
-        if: steps.install.outcome == 'success'
         run: |
           sudo chown root:root node_modules/electron/dist/chrome-sandbox
           sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - name: Unit tests
-        if: steps.install.outcome == 'success'
         run: npm test
       - name: Typecheck
-        if: steps.install.outcome == 'success'
         run: npm run typecheck
       - name: Lint
-        if: steps.install.outcome == 'success'
         run: npm run lint
       - name: Formatting
-        if: steps.install.outcome == 'success'
         run: npm run format:check
       - name: Build
-        if: steps.install.outcome == 'success'
         run: npm run build
       - name: Verify build outputs
-        if: steps.install.outcome == 'success'
         run: |
           test -f .output/public/index.html
           test -f out/main/index.cjs
           test -f out/preload/index.cjs
       - name: Development launch smoke
-        if: steps.install.outcome == 'success'
-        id: dev_smoke
-        continue-on-error: true
         shell: bash
         run: |
           set +e
@@ -92,9 +57,6 @@ jobs:
           test "$status" -eq 124
           grep -q "starting electron app" /tmp/kufar-dev.log
       - name: Production launch smoke
-        if: steps.install.outcome == 'success'
-        id: prod_smoke
-        continue-on-error: true
         shell: bash
         run: |
           set +e
@@ -103,31 +65,3 @@ jobs:
           set -e
           cat /tmp/kufar-prod.log
           test "$status" -eq 124
-      - name: Commit regenerated lockfile
-        if: always()
-        shell: bash
-        run: |
-          if ! git diff --quiet -- package-lock.json; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add package-lock.json
-            git commit -m 'build(0.1.1): regenerate lockfile with npm 11.4.2'
-            git push
-          fi
-      - name: Upload runtime diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: runtime-diagnostics
-          path: |
-            /tmp/kufar-install.log
-            /tmp/kufar-electron-install.log
-            /tmp/kufar-dev.log
-            /tmp/kufar-prod.log
-          retention-days: 1
-      - name: Enforce gates
-        if: always()
-        run: |
-          test "${{ steps.install.outcome }}" = success
-          test "${{ steps.dev_smoke.outcome }}" = success
-          test "${{ steps.prod_smoke.outcome }}" = success
