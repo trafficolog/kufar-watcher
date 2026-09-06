@@ -29,7 +29,7 @@
     "docs:ops:check": "tsx src/docs-ops/cli.ts check",
     "docs:ops:new-session": "tsx src/docs-ops/cli.ts new-session",
     "docs:ops:new-iteration": "tsx src/docs-ops/cli.ts new-iteration",
-    "postinstall": "npx --no-install install-electron && prisma generate && nuxt prepare"
+    "postinstall": "npx --no-install install-electron && nuxt prepare && prisma generate"
   },
   "dependencies": {
     "@pinia/nuxt": "1.0.2",
