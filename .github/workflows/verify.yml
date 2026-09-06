@@ -29,6 +29,8 @@ jobs:
         run: npm ci
       - name: Documentation consistency
         run: npm run docs:ops:check
+      - name: Postgres compose integration
+        run: bash scripts/verify-postgres-compose.sh
       - name: Prepare Electron Linux sandbox
         run: |
           sudo chown root:root node_modules/electron/dist/chrome-sandbox
