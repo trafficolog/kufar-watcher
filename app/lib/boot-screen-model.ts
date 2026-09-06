@@ -120,14 +120,16 @@ function errorFor(state: BootState, platform: BootUiPlatform): BootScreenError |
   if (state.errorCode === 'migration-failed') {
     return {
       heading: 'Не удалось применить схему данных',
-      message: 'Postgres запущен, но миграции завершились ошибкой. Мониторинг не запущен, чтобы не работать с неизвестной схемой данных.',
+      message:
+        'Postgres запущен, но миграции завершились ошибкой. Мониторинг не запущен, чтобы не работать с неизвестной схемой данных.',
     }
   }
 
   if (state.errorCode === 'worker-failed') {
     return {
       heading: 'Не удалось запустить планировщик',
-      message: 'Локальная база готова, но рабочий процесс завершался аварийно. Повторите запуск или откройте журнал для диагностики.',
+      message:
+        'Локальная база готова, но рабочий процесс завершался аварийно. Повторите запуск или откройте журнал для диагностики.',
     }
   }
 
@@ -137,10 +139,7 @@ function errorFor(state: BootState, platform: BootUiPlatform): BootScreenError |
   }
 }
 
-export function buildBootScreenModel(
-  state: BootState,
-  platform: BootUiPlatform,
-): BootScreenModel {
+export function buildBootScreenModel(state: BootState, platform: BootUiPlatform): BootScreenModel {
   const steps = STEP_IDS.map((id) => {
     const step = state.steps.find((candidate) => candidate.id === id) ?? pendingStep(id)
     return {
