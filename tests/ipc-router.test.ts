@@ -20,7 +20,11 @@ describe('typed IPC routing', () => {
     expect(isTrustedRendererUrl('app://kufar/settings')).toBe(true)
     expect(isTrustedRendererUrl('app://other/settings')).toBe(false)
     expect(isTrustedRendererUrl('https://example.com/settings')).toBe(false)
-    expect(isTrustedRendererUrl('http://127.0.0.1:3000/settings', 'http://127.0.0.1:3000')).toBe(true)
-    expect(isTrustedRendererUrl('http://127.0.0.1:3001/settings', 'http://127.0.0.1:3000')).toBe(false)
+    expect(
+      isTrustedRendererUrl('http://127.0.0.1:3000/settings', 'http://127.0.0.1:3000'),
+    ).toBe(true)
+    expect(
+      isTrustedRendererUrl('http://127.0.0.1:3001/settings', 'http://127.0.0.1:3000'),
+    ).toBe(false)
   })
 })
