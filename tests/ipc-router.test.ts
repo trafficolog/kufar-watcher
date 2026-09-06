@@ -17,14 +17,14 @@ describe('typed IPC routing', () => {
   })
 
   it('rejects a renderer sender outside the application origin', () => {
+    const devRendererUrl = 'http://127.0.0.1:3000'
+    const trustedDevUrl = `${devRendererUrl}/settings`
+    const untrustedDevUrl = 'http://127.0.0.1:3001/settings'
+
     expect(isTrustedRendererUrl('app://kufar/settings')).toBe(true)
     expect(isTrustedRendererUrl('app://other/settings')).toBe(false)
     expect(isTrustedRendererUrl('https://example.com/settings')).toBe(false)
-    expect(
-      isTrustedRendererUrl('http://127.0.0.1:3000/settings', 'http://127.0.0.1:3000'),
-    ).toBe(true)
-    expect(
-      isTrustedRendererUrl('http://127.0.0.1:3001/settings', 'http://127.0.0.1:3000'),
-    ).toBe(false)
+    expect(isTrustedRendererUrl(trustedDevUrl, devRendererUrl)).toBe(true)
+    expect(isTrustedRendererUrl(untrustedDevUrl, devRendererUrl)).toBe(false)
   })
 })
