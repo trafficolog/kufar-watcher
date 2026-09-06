@@ -53,12 +53,7 @@ describe('preload desktop bridge', () => {
     await api.system.openJournal()
     await api.system.exit()
 
-    expect(ipcRenderer.invoked).toEqual([
-      IPC.bootGet,
-      IPC.bootRetry,
-      IPC.journalOpen,
-      IPC.appExit,
-    ])
+    expect(ipcRenderer.invoked).toEqual([IPC.bootGet, IPC.bootRetry, IPC.journalOpen, IPC.appExit])
   })
 
   it('forwards boot payloads without Electron event objects and unsubscribes', () => {
