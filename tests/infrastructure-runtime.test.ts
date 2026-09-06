@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createInfrastructureBootstrapDependencies } from '../electron/main/infrastructure-runtime'
-import type { DockerPostgresRuntime, PostgresContainerConfig } from '../electron/main/docker-postgres'
+import type {
+  DockerPostgresRuntime,
+  PostgresContainerConfig,
+} from '../electron/main/docker-postgres'
 
 const container: PostgresContainerConfig = {
   image: 'postgres:16',
