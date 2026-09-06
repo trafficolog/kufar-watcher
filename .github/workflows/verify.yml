@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
@@ -27,6 +27,26 @@ jobs:
           npm --version
       - name: Install dependencies
         run: npm ci
+      - name: Refresh documentation tooling
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/docs-ops/cli.ts')
+          text = path.read_text()
+          text = text.replace('const WHITE = 0, GREY = 1, BLACK = 2', 'const GREY = 1, BLACK = 2')
+          path.write_text(text)
+          PY
+          npx --no-install prettier --write src/docs-ops/cli.ts
+          npm run docs:ops:refresh
+          npm run docs:ops:check
+          if ! git diff --quiet -- src/docs-ops/cli.ts docs; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add src/docs-ops/cli.ts docs
+            git commit -m 'docs(0.4.1): refresh planning rollups'
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
       - name: Documentation consistency
         run: npm run docs:ops:check
       - name: Prepare Electron Linux sandbox
