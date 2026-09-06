@@ -25,7 +25,8 @@ export function createInfrastructureBootstrapDependencies(
   options: InfrastructureRuntimeOptions,
 ): InfrastructureBootstrapDependencies {
   const applyMigrations =
-    options.applyMigrations ?? createPrismaMigrationRunner({ databaseUrl: options.config.databaseUrl })
+    options.applyMigrations ??
+    createPrismaMigrationRunner({ databaseUrl: options.config.databaseUrl })
 
   return {
     pingDocker: async () => {
