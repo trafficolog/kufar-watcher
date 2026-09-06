@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": ["node", "electron", "vitest/globals"]
   },
-  "include": ["electron/**/*.ts", "electron.vite.config.ts", "tests/**/*.ts"]
+  "include": ["electron/**/*.ts", "shared/**/*.ts", "electron.vite.config.ts", "tests/**/*.ts"]
 }
