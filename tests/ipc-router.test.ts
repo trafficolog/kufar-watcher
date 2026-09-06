@@ -1,6 +1,30 @@
 import { describe, expect, it, vi } from 'vitest'
-import { forwardBootState, isTrustedRendererUrl } from '../electron/main/ipc-router'
-import type { BootState } from '../shared/ipc'
+import {
+  forwardBootState,
+  isTrustedRendererUrl,
+  registerSystemIpcHandlers,
+} from '../electron/main/ipc-router'
+import { IPC, type BootState } from '../shared/ipc'
+
+type FakeInvokeEvent = {
+  senderFrame: { url: string } | null
+}
+
+type FakeInvokeHandler = (event: FakeInvokeEvent) => unknown
+
+class FakeIpcMain {
+  handlers = new Map<string, FakeInvokeHandler>()
+
+  handle(channel: string, handler: FakeInvokeHandler): void {
+    this.handlers.set(channel, handler)
+  }
+
+  async invoke(channel: string, url: string): Promise<unknown> {
+    const handler = this.handlers.get(channel)
+    if (!handler) throw new Error(`Missing handler for ${channel}`)
+    return handler({ senderFrame: { url } })
+  }
+}
 
 describe('typed IPC routing', () => {
   it('forwards a boot state to the renderer unchanged', () => {
@@ -26,5 +50,38 @@ describe('typed IPC routing', () => {
     expect(isTrustedRendererUrl('https://example.com/settings')).toBe(false)
     expect(isTrustedRendererUrl(trustedDevUrl, devRendererUrl)).toBe(true)
     expect(isTrustedRendererUrl(untrustedDevUrl, devRendererUrl)).toBe(false)
+  })
+
+  it('rejects untrusted senders before every renderer service call', async () => {
+    const ipcMain = new FakeIpcMain()
+    const bootState: BootState = { phase: 'starting', steps: [] }
+    const services = {
+      getBootState: vi.fn(() => bootState),
+      retryBoot: vi.fn(),
+      openJournal: vi.fn(),
+      exit: vi.fn(),
+    }
+    const devRendererUrl = 'http://127.0.0.1:3000'
+
+    registerSystemIpcHandlers(ipcMain, services, devRendererUrl)
+
+    const handlers = [
+      [IPC.bootGet, services.getBootState],
+      [IPC.bootRetry, services.retryBoot],
+      [IPC.journalOpen, services.openJournal],
+      [IPC.appExit, services.exit],
+    ] as const
+
+    for (const [channel, service] of handlers) {
+      await expect(ipcMain.invoke(channel, 'https://example.com')).rejects.toThrow(
+        'Untrusted renderer',
+      )
+      expect(service).not.toHaveBeenCalled()
+    }
+
+    await expect(ipcMain.invoke(IPC.bootGet, `${devRendererUrl}/settings`)).resolves.toEqual(
+      bootState,
+    )
+    expect(services.getBootState).toHaveBeenCalledOnce()
   })
 })
