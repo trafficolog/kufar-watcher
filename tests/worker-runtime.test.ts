@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { startWorkerRuntime } from '../electron/worker/runtime'
 
 class FakeParentPort {
   messages: unknown[] = []
@@ -17,34 +18,20 @@ class FakeParentPort {
   }
 }
 
-type StartWorkerRuntime = (
-  parentPort: FakeParentPort,
-  exit: (code: number) => void,
-) => void
-
-async function loadStartWorkerRuntime(): Promise<StartWorkerRuntime | undefined> {
-  const workerModule = await import('../electron/worker/runtime').catch(() => ({}))
-  return Reflect.get(workerModule, 'startWorkerRuntime') as StartWorkerRuntime | undefined
-}
-
 describe('utility worker runtime', () => {
-  it('announces readiness when started', async () => {
+  it('announces readiness when started', () => {
     const parentPort = new FakeParentPort()
-    const startWorkerRuntime = await loadStartWorkerRuntime()
 
-    expect(startWorkerRuntime).toBeTypeOf('function')
-    startWorkerRuntime!(parentPort, () => undefined)
+    startWorkerRuntime(parentPort, () => undefined)
 
     expect(parentPort.messages).toEqual([{ type: 'ready' }])
   })
 
-  it('acknowledges shutdown before exiting cleanly', async () => {
+  it('acknowledges shutdown before exiting cleanly', () => {
     const parentPort = new FakeParentPort()
     const exits: number[] = []
-    const startWorkerRuntime = await loadStartWorkerRuntime()
 
-    expect(startWorkerRuntime).toBeTypeOf('function')
-    startWorkerRuntime!(parentPort, (code) => exits.push(code))
+    startWorkerRuntime(parentPort, (code) => exits.push(code))
     parentPort.receive({ type: 'shutdown' })
 
     expect(parentPort.messages).toEqual([{ type: 'ready' }, { type: 'shutdown-complete' }])
