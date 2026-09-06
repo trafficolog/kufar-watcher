@@ -26,12 +26,12 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-0.2-tasks -->
-**Задач:** 3 · **done:** 0
+**Задач:** 3 · **done:** 2
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
-| `0.2.1` | [docker-compose с Postgres 16](../tasks/0-2-1-compose-postgres.md) | ⬜ todo | 🟡 drifted |
-| `0.2.2` | [Супервизор контейнера через Dockerode](../tasks/0-2-2-dockerode-supervisor.md) | ⬜ todo | 🟡 drifted |
+| `0.2.1` | [docker-compose с Postgres 16](../tasks/0-2-1-compose-postgres.md) | ✅ done | 🟢 aligned |
+| `0.2.2` | [Супервизор контейнера через Dockerode](../tasks/0-2-2-dockerode-supervisor.md) | ✅ done | 🟢 aligned |
 | `0.2.3` | [Экран состояния инфраструктуры](../tasks/0-2-3-infra-status-screen.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-0.2-tasks -->
 

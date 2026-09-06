@@ -9,10 +9,10 @@ _Сгенерировано 2026-09-06_
 | `0.1.1` | Инициализация репозитория и тулчейна | 0.1 | ✅ done | 🟢 aligned |
 | `0.1.2` | Процессная модель main + utilityProcess | 0.1 | ✅ done | 🟢 aligned |
 | `0.1.3` | Типизированный IPC-контракт | 0.1 | ✅ done | 🟢 aligned |
-| `0.2.1` | docker-compose с Postgres 16 | 0.2 | ⬜ todo | 🟡 drifted |
-| `0.2.2` | Супервизор контейнера через Dockerode | 0.2 | ⬜ todo | 🟡 drifted |
+| `0.2.1` | docker-compose с Postgres 16 | 0.2 | ✅ done | 🟢 aligned |
+| `0.2.2` | Супервизор контейнера через Dockerode | 0.2 | ✅ done | 🟢 aligned |
 | `0.2.3` | Экран состояния инфраструктуры | 0.2 | ⬜ todo | 🟡 drifted |
-| `0.3.1` | Схема Prisma по доменной модели | 0.3 | ⬜ todo | 🟡 drifted |
+| `0.3.1` | Схема Prisma по доменной модели | 0.3 | ✅ done | 🟢 aligned |
 | `0.3.2` | Индексы и ограничения целостности | 0.3 | ⬜ todo | 🟡 drifted |
 | `0.3.3` | Сиды и dev-фикстуры | 0.3 | ⬜ todo | 🟡 drifted |
 | `0.3.4` | Схема среза `0.4.0`: `SellerBlock` | 0.3 | ⬜ todo | 🟡 drifted |
