@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BootPhase } from '../shared/ipc'
+import type { BootState } from '../shared/ipc'
 import { createBootScreenVisibilityGate } from '../app/lib/boot-screen-visibility'
 
 interface ScheduledTask {
@@ -36,7 +36,10 @@ function harness() {
   }
 }
 
-function update(gate: ReturnType<typeof createBootScreenVisibilityGate>, phase: BootPhase): void {
+function update(
+  gate: ReturnType<typeof createBootScreenVisibilityGate>,
+  phase: BootState['phase'],
+): void {
   gate.update(phase)
 }
 
