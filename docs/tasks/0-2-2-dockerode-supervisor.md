@@ -2,9 +2,9 @@
 id: "0.2.2"
 phase: 0
 epic: "0.2"
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-05
+last_reviewed: 2026-09-06
 roles: [BACK, DEVOPS]
 depends_on: ["0.2.1", "0.1.2"]
 estimated_hours: 4-5
@@ -14,7 +14,7 @@ tags: [docker, startup]
 
 # Задача 0.2.2 — Супервизор контейнера через Dockerode
 
-> Эпик 0.2 · Фаза 0 · ⬜ todo · зависит от: 0.2.1, 0.1.2 · оценка: 4-5 ч
+> Эпик 0.2 · Фаза 0 · 🔄 in_progress · зависит от: 0.2.1, 0.1.2 · оценка: 4-5 ч
 
 ## Цель
 
