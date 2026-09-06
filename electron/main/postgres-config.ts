@@ -5,7 +5,10 @@ export interface PostgresRuntimeConfig {
   databaseUrl: string
 }
 
-function required(env: NodeJS.ProcessEnv, key: 'POSTGRES_USER' | 'POSTGRES_PASSWORD' | 'POSTGRES_DB') {
+function required(
+  env: NodeJS.ProcessEnv,
+  key: 'POSTGRES_USER' | 'POSTGRES_PASSWORD' | 'POSTGRES_DB',
+) {
   const value = env[key]
   if (!value) throw new Error(`${key} is required`)
   return value
