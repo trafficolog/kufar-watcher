@@ -2,9 +2,9 @@
 id: "0.2.1"
 phase: 0
 epic: "0.2"
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-05
+last_reviewed: 2026-09-06
 roles: [DEVOPS]
 depends_on: ["0.1.1"]
 estimated_hours: 1-2
@@ -14,7 +14,7 @@ tags: [docker, db]
 
 # Задача 0.2.1 — docker-compose с Postgres 16
 
-> Эпик 0.2 · Фаза 0 · ⬜ todo · зависит от: 0.1.1 · оценка: 1-2 ч
+> Эпик 0.2 · Фаза 0 · 🔄 in_progress · зависит от: 0.1.1 · оценка: 1-2 ч
 
 ## Цель
 
