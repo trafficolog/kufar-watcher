@@ -19,7 +19,7 @@ _Сгенерировано 2026-09-06_
 | `0.3.5` | Схема среза `0.5.0`: `Favorite`, `PriceSnapshot` | 0.3 | ⬜ todo | 🟡 drifted |
 | `0.3.6` | Схема среза `0.6.0`: `HealthEvent`, `SchemaSnapshot` | 0.3 | ⬜ todo | 🟡 drifted |
 | `0.4.1` | Внедрение docs-ops CLI и npm-скриптов | 0.4 | ✅ done | 🟢 aligned |
-| `0.4.2` | CI: typecheck, lint, unit, docs:ops:check | 0.4 | ⬜ todo | 🟡 drifted |
+| `0.4.2` | CI: typecheck, lint, unit, docs:ops:check | 0.4 | ✅ done | 🟢 aligned |
 | `1.0.1` | Разведка выдачи по электронике | 1.0 | ⬜ todo | 🟡 drifted |
 | `1.0.2` | Разведка выдачи по недвижимости и сверка спеки | 1.0 | ⬜ todo | 🟡 drifted |
 | `1.1.1` | Разбор URL листинга в CanonicalQuery | 1.1 | ⬜ todo | 🟡 drifted |
