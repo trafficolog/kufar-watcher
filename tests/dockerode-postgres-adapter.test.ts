@@ -19,12 +19,12 @@ function notFound(): Error & { statusCode: number } {
 
 describe('createDockerodePostgresRuntime', () => {
   it('maps a missing container to null and preserves a running state', async () => {
-    const inspect = vi
-      .fn()
-      .mockRejectedValueOnce(notFound())
-      .mockResolvedValue({
-        State: { Running: true, Health: { Status: 'healthy' } },
-      })
+    let inspectCalls = 0
+    const inspect = vi.fn(async () => {
+      inspectCalls += 1
+      if (inspectCalls === 1) throw notFound()
+      return { State: { Running: true, Health: { Status: 'healthy' } } }
+    })
     const docker = {
       ping: vi.fn(async () => 'OK'),
       getContainer: vi.fn(() => ({ inspect, start: vi.fn() })),
@@ -33,10 +33,11 @@ describe('createDockerodePostgresRuntime', () => {
       createContainer: vi.fn(),
     }
     const runtime = createDockerodePostgresRuntime(docker)
+    const containerName = config.containerName
 
-    await expect(runtime.inspectContainer(config.containerName)).resolves.toBeNull()
-    await expect(runtime.inspectContainer(config.containerName)).resolves.toEqual({ running: true })
-    await expect(runtime.inspectHealth(config.containerName)).resolves.toBe('healthy')
+    await expect(runtime.inspectContainer(containerName)).resolves.toBeNull()
+    await expect(runtime.inspectContainer(containerName)).resolves.toEqual({ running: true })
+    await expect(runtime.inspectHealth(containerName)).resolves.toBe('healthy')
   })
 
   it('creates a named volume and a loopback-only Postgres container', async () => {
