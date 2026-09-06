@@ -1,8 +1,4 @@
-import type {
-  ContainerHealth,
-  DockerPostgresRuntime,
-  PostgresContainerConfig,
-} from './docker-postgres'
+import type { ContainerHealth, DockerPostgresRuntime } from './docker-postgres'
 
 interface DockerodeError extends Error {
   statusCode?: number
