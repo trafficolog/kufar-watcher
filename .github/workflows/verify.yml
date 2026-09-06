@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
@@ -27,18 +27,10 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          set +e
           if [[ -f package-lock.json ]]; then
-            npm ci --loglevel verbose
+            npm ci
           else
-            npm install --loglevel verbose
-          fi
-          status=$?
-          set -e
-          if [[ "$status" -ne 0 ]]; then
-            echo '--- npm debug log ---'
-            cat "$HOME"/.npm/_logs/*-debug-0.log || true
-            exit "$status"
+            npm install
           fi
       - name: Unit tests
         run: npm test
@@ -47,27 +39,15 @@ jobs:
       - name: Lint
         run: npm run lint
       - name: Formatting
-        id: formatting
-        continue-on-error: true
-        shell: bash
-        run: |
-          npm run format:check 2>&1 | tee /tmp/kufar-format.log
-          status=${PIPESTATUS[0]}
-          npx prettier --list-different . > /tmp/kufar-format-files.txt || true
-          exit "$status"
+        run: npm run format:check
       - name: Build
-        id: build
-        continue-on-error: true
-        shell: bash
-        run: npm run build 2>&1 | tee /tmp/kufar-build.log
+        run: npm run build
       - name: Verify build outputs
-        if: steps.build.outcome == 'success'
         run: |
           test -f .output/public/index.html
           test -f out/main/index.cjs
           test -f out/preload/index.cjs
       - name: Development launch smoke
-        if: steps.build.outcome == 'success'
         shell: bash
         run: |
           set +e
@@ -77,7 +57,6 @@ jobs:
           test "$status" -eq 124
           grep -q "starting electron app" /tmp/kufar-dev.log
       - name: Production launch smoke
-        if: steps.build.outcome == 'success'
         shell: bash
         run: |
           set +e
@@ -85,33 +64,13 @@ jobs:
           status=${PIPESTATUS[0]}
           set -e
           test "$status" -eq 124
-      - name: Collect diagnostics
-        if: always()
+      - name: Commit generated lockfile once
         shell: bash
         run: |
-          mkdir -p /tmp/kufar-diagnostics
-          cp /tmp/kufar-format.log /tmp/kufar-diagnostics/format.log 2>/dev/null || true
-          cp /tmp/kufar-format-files.txt /tmp/kufar-diagnostics/format-files.txt 2>/dev/null || true
-          cp /tmp/kufar-build.log /tmp/kufar-diagnostics/build.log 2>/dev/null || true
-          cp /tmp/kufar-dev.log /tmp/kufar-diagnostics/dev.log 2>/dev/null || true
-          cp /tmp/kufar-prod.log /tmp/kufar-diagnostics/prod.log 2>/dev/null || true
-      - name: Upload diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: verify-diagnostics
-          path: /tmp/kufar-diagnostics
-          retention-days: 1
-      - name: Upload generated lockfile
-        if: always() && hashFiles('package-lock.json') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-lock
-          path: package-lock.json
-          retention-days: 1
-      - name: Enforce diagnostic gates
-        if: always()
-        shell: bash
-        run: |
-          test "${{ steps.formatting.outcome }}" = success
-          test "${{ steps.build.outcome }}" = success
+          if ! git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add package-lock.json
+            git commit -m 'build(0.1.1): commit npm lockfile'
+            git push
+          fi
