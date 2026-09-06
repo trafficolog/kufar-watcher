@@ -19,7 +19,7 @@ function notFound(): Error & { statusCode: number } {
 
 describe('createDockerodePostgresRuntime', () => {
   it('maps a missing container to null and preserves a running state', async () => {
-    const inspect = vi.fn().mockRejectedValueOnce(notFound()).mockResolvedValueOnce({
+    const inspect = vi.fn().mockRejectedValueOnce(notFound()).mockResolvedValue({
       State: { Running: true, Health: { Status: 'healthy' } },
     })
     const docker = {
