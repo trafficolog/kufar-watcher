@@ -1,0 +1,94 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MonitorState {
+  active
+  paused
+  archived
+}
+
+enum PriceKind {
+  fixed
+  negotiable
+  free
+  unknown
+}
+
+model Monitor {
+  id                  Int            @id @default(autoincrement())
+  name                String
+  sourceUrl           String
+  query               Json
+  intervalSec         Int
+  keywords            Json
+  searchInDescription Boolean        @default(false)
+  sellerType          String?
+  state               MonitorState   @default(active)
+  cursor              MonitorCursor?
+  runs                Run[]
+  matches             Match[]
+}
+
+model MonitorCursor {
+  monitorId    Int      @id
+  boundaryTime DateTime?
+  boundaryIds  Json
+  lastRunAt    DateTime?
+  updatedAt    DateTime @updatedAt
+  monitor      Monitor  @relation(fields: [monitorId], references: [id])
+}
+
+model Run {
+  id            Int      @id @default(autoincrement())
+  monitorId     Int
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+  outcome       String?
+  httpStatus    Int?
+  seen          Int      @default(0)
+  matched       Int      @default(0)
+  error         String?
+  degradedLevel String?
+  monitor       Monitor  @relation(fields: [monitorId], references: [id])
+}
+
+model Listing {
+  listId      String    @id
+  title       String
+  priceKind   PriceKind
+  priceAmount Decimal?
+  currency    String?
+  url         String
+  region      String?
+  accountId   String?
+  isCompany   Boolean?
+  listTime    DateTime
+  description String?
+  raw         Json
+  firstSeenAt DateTime  @default(now())
+  matches     Match[]
+}
+
+model Match {
+  id           Int      @id @default(autoincrement())
+  monitorId    Int
+  listingId    String
+  matchedTerms Json
+  matchedIn    Json
+  snippet      String?
+  notifiedAt   DateTime?
+  monitor      Monitor  @relation(fields: [monitorId], references: [id])
+  listing      Listing  @relation(fields: [listingId], references: [listId])
+}
+
+model Setting {
+  key   String @id
+  value Json
+}
