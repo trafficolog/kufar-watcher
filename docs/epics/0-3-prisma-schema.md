@@ -28,12 +28,12 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-0.3-tasks -->
-**Задач:** 6 · **done:** 1
+**Задач:** 6 · **done:** 2
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `0.3.1` | [Схема Prisma по доменной модели](../tasks/0-3-1-prisma-schema.md) | ✅ done | 🟢 aligned |
-| `0.3.2` | [Индексы и ограничения целостности](../tasks/0-3-2-indexes.md) | ⬜ todo | 🟡 drifted |
+| `0.3.2` | [Индексы и ограничения целостности](../tasks/0-3-2-indexes.md) | ✅ done | 🟢 aligned |
 | `0.3.3` | [Сиды и dev-фикстуры](../tasks/0-3-3-seeds.md) | ⬜ todo | 🟡 drifted |
 | `0.3.4` | [Схема среза `0.4.0`: `SellerBlock`](../tasks/0-3-4-schema-seller-block.md) | ⬜ todo | 🟡 drifted |
 | `0.3.5` | [Схема среза `0.5.0`: `Favorite`, `PriceSnapshot`](../tasks/0-3-5-schema-favorites.md) | ⬜ todo | 🟡 drifted |
