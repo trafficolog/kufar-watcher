@@ -4,6 +4,7 @@ import { app, BrowserWindow, ipcMain, protocol, utilityProcess } from 'electron'
 import { IPC, type BootState } from '../../shared/ipc'
 import workerPath from '../worker/index?modulePath'
 import { APP_HOST, APP_ORIGIN, APP_SCHEME, registerRendererProtocol } from './app-protocol'
+import { createBootstrapRetryController } from './bootstrap-retry'
 import { createDockerClient } from './docker-client'
 import { createDockerodePostgresRuntime } from './dockerode-postgres-adapter'
 import { runInfrastructureBootstrap } from './infrastructure-bootstrap'
@@ -100,21 +101,6 @@ app.whenReady().then(async () => {
 
   loadDevelopmentEnvironment()
 
-  registerSystemIpcHandlers(
-    ipcMain,
-    {
-      getBootState: () => bootState,
-      retryBoot: () => {
-        throw new Error('Boot retry is unavailable until the bootstrap supervisor is implemented')
-      },
-      openJournal: () => {
-        throw new Error('Journal is unavailable until the journal service is implemented')
-      },
-      exit: () => app.quit(),
-    },
-    devRendererUrl,
-  )
-
   const supervisor = createWorkerSupervisor({
     spawnWorker: () =>
       utilityProcess.fork(workerPath, [], {
@@ -134,8 +120,6 @@ app.whenReady().then(async () => {
   })
   workerSupervisor = supervisor
 
-  createMainWindow()
-
   const config = readPostgresRuntimeConfig()
   const runtime = createDockerodePostgresRuntime(createDockerClient())
   const bootstrapDependencies = createInfrastructureBootstrapDependencies({
@@ -144,8 +128,29 @@ app.whenReady().then(async () => {
     startWorker: () => supervisor.start(),
     publishBootState,
   })
+  const runBootstrap = async (): Promise<void> => {
+    bootState = await runInfrastructureBootstrap(bootstrapDependencies)
+  }
+  const retryController = createBootstrapRetryController({
+    getState: () => bootState,
+    runBootstrap,
+  })
 
-  bootState = await runInfrastructureBootstrap(bootstrapDependencies)
+  registerSystemIpcHandlers(
+    ipcMain,
+    {
+      getBootState: () => bootState,
+      retryBoot: () => retryController.retry(),
+      openJournal: () => {
+        throw new Error('Journal is unavailable until the journal service is implemented')
+      },
+      exit: () => app.quit(),
+    },
+    devRendererUrl,
+  )
+
+  createMainWindow()
+  await runBootstrap()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
