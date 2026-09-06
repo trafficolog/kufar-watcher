@@ -1,4 +1,5 @@
 import { IPC, type BootState } from '../../shared/ipc'
+import type { WorkerEvent } from '../../shared/runtime'
 import { APP_HOST, APP_SCHEME } from './app-protocol'
 
 export interface SystemIpcServices {
@@ -18,6 +19,23 @@ interface IpcMainLike {
 
 export function forwardBootState(state: BootState, send: (state: BootState) => void): void {
   send(state)
+}
+
+export function routeWorkerBootEvent(
+  event: WorkerEvent,
+  state: BootState,
+  send: (state: BootState) => void,
+): BootState {
+  if (event.type !== 'ready') return state
+
+  const nextState: BootState = {
+    ...state,
+    steps: state.steps.map((step) =>
+      step.id === 'scheduler' ? { ...step, state: 'success', detail: 'Worker ready' } : step,
+    ),
+  }
+  forwardBootState(nextState, send)
+  return nextState
 }
 
 export function isTrustedRendererUrl(rawUrl: string, devRendererUrl?: string): boolean {
