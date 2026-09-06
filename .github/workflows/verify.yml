@@ -36,6 +36,8 @@ jobs:
         run: npm run docs:ops:check
       - name: Unit tests
         run: npm test
+      - name: CI failure-mode self-check
+        run: bash scripts/verify-ci-failure-modes.sh
       - name: Typecheck
         run: npm run typecheck
       - name: Lint
