@@ -29,12 +29,6 @@ jobs:
         run: npm ci
       - name: Documentation consistency
         run: npm run docs:ops:check
-      - name: Postgres compose integration
-        run: bash scripts/verify-postgres-compose.sh
-      - name: Prepare Electron Linux sandbox
-        run: |
-          sudo chown root:root node_modules/electron/dist/chrome-sandbox
-          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - name: Unit tests
         run: npm test
       - name: Typecheck
@@ -43,6 +37,12 @@ jobs:
         run: npm run lint
       - name: Formatting
         run: npm run format:check
+      - name: Postgres compose integration
+        run: bash scripts/verify-postgres-compose.sh
+      - name: Prepare Electron Linux sandbox
+        run: |
+          sudo chown root:root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - name: Build
         run: npm run build
       - name: Verify build outputs
