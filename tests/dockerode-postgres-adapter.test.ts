@@ -56,11 +56,7 @@ describe('createDockerodePostgresRuntime', () => {
     expect(docker.createContainer).toHaveBeenCalledWith({
       name: config.containerName,
       Image: config.image,
-      Env: [
-        'POSTGRES_USER=kufar',
-        'POSTGRES_PASSWORD=generated-secret',
-        'POSTGRES_DB=kufar',
-      ],
+      Env: ['POSTGRES_USER=kufar', 'POSTGRES_PASSWORD=generated-secret', 'POSTGRES_DB=kufar'],
       ExposedPorts: { '5432/tcp': {} },
       Volumes: { '/var/lib/postgresql/data': {} },
       HostConfig: {
