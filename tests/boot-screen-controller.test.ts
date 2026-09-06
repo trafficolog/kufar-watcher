@@ -11,9 +11,7 @@ interface ScheduledTask {
 function bootState(phase: BootState['phase']): BootState {
   return {
     phase,
-    steps: [
-      { id: 'docker', state: phase === 'error' ? 'error' : 'running', detail: '' },
-    ],
+    steps: [{ id: 'docker', state: phase === 'error' ? 'error' : 'running', detail: '' }],
     errorCode: phase === 'error' ? 'docker-unavailable' : undefined,
   }
 }
