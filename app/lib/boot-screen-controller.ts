@@ -20,6 +20,7 @@ export interface BootScreenControllerOptions<THandle> {
   delayMs: number
   schedule(run: () => void, delayMs: number): THandle
   cancel(handle: THandle): void
+  onChange(snapshot: BootScreenSnapshot): void
 }
 
 export interface BootScreenController {
@@ -36,13 +37,18 @@ export function createBootScreenController<THandle>(
 ): BootScreenController {
   let snapshot: BootScreenSnapshot = { view: 'pending' }
 
+  const setSnapshot = (next: BootScreenSnapshot): void => {
+    snapshot = next
+    options.onChange(snapshot)
+  }
+
   const visibility = createBootScreenVisibilityGate({
     delayMs: options.delayMs,
     show: () => {
-      snapshot = { ...snapshot, view: 'boot' }
+      setSnapshot({ ...snapshot, view: 'boot' })
     },
     hide: () => {
-      snapshot = { ...snapshot, view: 'app' }
+      setSnapshot({ ...snapshot, view: 'app' })
     },
     schedule: options.schedule,
     cancel: options.cancel,
@@ -52,10 +58,10 @@ export function createBootScreenController<THandle>(
     system: options.system,
     visibility,
     onState(state: BootState) {
-      snapshot = {
+      setSnapshot({
         ...snapshot,
         model: buildBootScreenModel(state, options.platform),
-      }
+      })
     },
   })
 
