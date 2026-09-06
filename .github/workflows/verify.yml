@@ -56,6 +56,7 @@ jobs:
           cat /tmp/kufar-dev.log
           test "$status" -eq 124
           grep -q "starting electron app" /tmp/kufar-dev.log
+          grep -q "\[worker\] ready" /tmp/kufar-dev.log
       - name: Production launch smoke
         shell: bash
         run: |
@@ -65,3 +66,4 @@ jobs:
           set -e
           cat /tmp/kufar-prod.log
           test "$status" -eq 124
+          grep -q "\[worker\] ready" /tmp/kufar-prod.log

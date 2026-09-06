@@ -1,6 +1,8 @@
 import { resolve } from 'node:path'
-import { app, BrowserWindow, protocol } from 'electron'
+import { app, BrowserWindow, protocol, utilityProcess } from 'electron'
+import workerPath from '../worker/index?modulePath'
 import { APP_HOST, APP_ORIGIN, APP_SCHEME, registerRendererProtocol } from './app-protocol'
+import { createWorkerSupervisor, type WorkerSupervisor } from './worker-supervisor'
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -16,6 +18,8 @@ protocol.registerSchemesAsPrivileged([
 
 const devRendererUrl = process.env.KUFAR_RENDERER_URL
 const productionOrigin = `${APP_ORIGIN}/`
+let workerSupervisor: WorkerSupervisor | undefined
+let quitAfterWorkerShutdown = false
 
 function isAllowedNavigation(rawUrl: string): boolean {
   try {
@@ -58,6 +62,21 @@ app.whenReady().then(async () => {
     await registerRendererProtocol(publicRoot)
   }
 
+  workerSupervisor = createWorkerSupervisor({
+    spawnWorker: () =>
+      utilityProcess.fork(workerPath, [], {
+        serviceName: 'Kufar Monitor Worker',
+      }),
+    onEvent: (event) => {
+      if (event.type === 'ready') console.info('[worker] ready')
+      if (event.type === 'journal') {
+        console.info(`[worker:${event.level}] ${event.message}`)
+      }
+    },
+    onFatal: (message) => console.error(`[worker:fatal] ${message}`),
+  })
+  workerSupervisor.start()
+
   createMainWindow()
 
   app.on('activate', () => {
@@ -65,6 +84,10 @@ app.whenReady().then(async () => {
   })
 })
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+app.on('before-quit', (event) => {
+  if (quitAfterWorkerShutdown || !workerSupervisor) return
+
+  event.preventDefault()
+  quitAfterWorkerShutdown = true
+  void workerSupervisor.shutdown().finally(() => app.quit())
 })
