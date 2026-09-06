@@ -26,8 +26,17 @@ jobs:
           npm install --global npm@11.6.0
           npm --version
       - name: Install dependencies
-        run: npm ci
+        id: install
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          npm ci --loglevel verbose 2>&1 | tee /tmp/kufar-install.log
+          status=${PIPESTATUS[0]}
+          set -e
+          exit "$status"
       - name: Inspect Electron installation
+        if: always()
         shell: bash
         run: |
           {
@@ -42,21 +51,28 @@ jobs:
             fi
           } | tee /tmp/kufar-electron-install.log
       - name: Unit tests
+        if: steps.install.outcome == 'success'
         run: npm test
       - name: Typecheck
+        if: steps.install.outcome == 'success'
         run: npm run typecheck
       - name: Lint
+        if: steps.install.outcome == 'success'
         run: npm run lint
       - name: Formatting
+        if: steps.install.outcome == 'success'
         run: npm run format:check
       - name: Build
+        if: steps.install.outcome == 'success'
         run: npm run build
       - name: Verify build outputs
+        if: steps.install.outcome == 'success'
         run: |
           test -f .output/public/index.html
           test -f out/main/index.cjs
           test -f out/preload/index.cjs
       - name: Development launch smoke
+        if: steps.install.outcome == 'success'
         id: dev_smoke
         continue-on-error: true
         shell: bash
@@ -69,6 +85,7 @@ jobs:
           test "$status" -eq 124
           grep -q "starting electron app" /tmp/kufar-dev.log
       - name: Production launch smoke
+        if: steps.install.outcome == 'success'
         id: prod_smoke
         continue-on-error: true
         shell: bash
@@ -85,12 +102,14 @@ jobs:
         with:
           name: runtime-diagnostics
           path: |
+            /tmp/kufar-install.log
             /tmp/kufar-electron-install.log
             /tmp/kufar-dev.log
             /tmp/kufar-prod.log
           retention-days: 1
-      - name: Enforce smoke gates
+      - name: Enforce gates
         if: always()
         run: |
+          test "${{ steps.install.outcome }}" = success
           test "${{ steps.dev_smoke.outcome }}" = success
           test "${{ steps.prod_smoke.outcome }}" = success
