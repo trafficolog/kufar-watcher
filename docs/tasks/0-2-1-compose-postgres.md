@@ -2,8 +2,8 @@
 id: "0.2.1"
 phase: 0
 epic: "0.2"
-status: in_progress
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-06
 roles: [DEVOPS]
 depends_on: ["0.1.1"]
@@ -14,7 +14,7 @@ tags: [docker, db]
 
 # Задача 0.2.1 — docker-compose с Postgres 16
 
-> Эпик 0.2 · Фаза 0 · 🔄 in_progress · зависит от: 0.1.1 · оценка: 1-2 ч
+> Эпик 0.2 · Фаза 0 · ✅ done · зависит от: 0.1.1 · оценка: 1-2 ч
 
 ## Цель
 
@@ -35,10 +35,10 @@ tags: [docker, db]
 
 ## Критерии приёмки
 
-- [ ] `docker compose up -d` поднимает базу, healthcheck становится healthy
-- [ ] Данные переживают `docker compose down` и повторный подъём
-- [ ] Порт недоступен с других машин в сети
-- [ ] В репозитории нет реального пароля
+- [x] `docker compose up -d` поднимает базу, healthcheck становится healthy
+- [x] Данные переживают `docker compose down` и повторный подъём
+- [x] Порт недоступен с других машин в сети
+- [x] В репозитории нет реального пароля
 
 ## Подсказки
 
