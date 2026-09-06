@@ -2,9 +2,9 @@
 id: "0.3.1"
 phase: 0
 epic: "0.3"
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-05
+last_reviewed: 2026-09-06
 roles: [DB]
 depends_on: ["0.2.1"]
 estimated_hours: 3-4
@@ -14,7 +14,7 @@ tags: [prisma, schema]
 
 # Задача 0.3.1 — Схема Prisma по доменной модели
 
-> Эпик 0.3 · Фаза 0 · ⬜ todo · зависит от: 0.2.1 · оценка: 3-4 ч
+> Эпик 0.3 · Фаза 0 · 🔄 in_progress · зависит от: 0.2.1 · оценка: 3-4 ч
 
 ## Цель
 
