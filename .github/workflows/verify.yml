@@ -21,9 +21,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Use npm 11.6.0
+      - name: Use npm 11.4.2
         run: |
-          npm install --global npm@11.6.0
+          npm install --global npm@11.4.2
           npm --version
       - name: Install dependencies
         id: install
