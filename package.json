@@ -23,7 +23,7 @@
     "typecheck:renderer": "nuxt typecheck",
     "typecheck:electron": "tsc -p tsconfig.electron.json --noEmit",
     "test": "vitest run",
-    "postinstall": "nuxt prepare"
+    "postinstall": "npx --no-install install-electron && nuxt prepare"
   },
   "dependencies": {
     "@pinia/nuxt": "1.0.2",
