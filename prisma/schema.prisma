@@ -42,7 +42,7 @@ model MonitorCursor {
   boundaryIds  Json
   lastRunAt    DateTime?
   updatedAt    DateTime  @updatedAt
-  monitor      Monitor   @relation(fields: [monitorId], references: [id])
+  monitor      Monitor   @relation(fields: [monitorId], references: [id], onDelete: Cascade)
 }
 
 model Run {
@@ -56,7 +56,9 @@ model Run {
   matched       Int       @default(0)
   error         String?
   degradedLevel String?
-  monitor       Monitor   @relation(fields: [monitorId], references: [id])
+  monitor       Monitor   @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([monitorId, startedAt(sort: Desc)])
 }
 
 model Listing {
@@ -74,6 +76,8 @@ model Listing {
   raw         Json
   firstSeenAt DateTime  @default(now())
   matches     Match[]
+
+  @@index([listTime(sort: Desc)])
 }
 
 model Match {
@@ -84,8 +88,11 @@ model Match {
   matchedIn    Json
   snippet      String?
   notifiedAt   DateTime?
-  monitor      Monitor   @relation(fields: [monitorId], references: [id])
+  monitor      Monitor   @relation(fields: [monitorId], references: [id], onDelete: Cascade)
   listing      Listing   @relation(fields: [listingId], references: [listId])
+
+  @@unique([monitorId, listingId])
+  @@index([monitorId, notifiedAt])
 }
 
 model Setting {
