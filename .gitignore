@@ -2,6 +2,7 @@ node_modules/
 .nuxt/
 .output/
 out/
+dist
 .env
 .env.*
 !.env.example
