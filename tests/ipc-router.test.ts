@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   forwardBootState,
   isTrustedRendererUrl,
+  markWorkerBootFailed,
   registerSystemIpcHandlers,
   routeWorkerBootEvent,
 } from '../electron/main/ipc-router'
@@ -70,6 +71,30 @@ describe('typed IPC routing', () => {
     )
     expect(unchanged).toBe(nextState)
     expect(send).toHaveBeenCalledOnce()
+  })
+
+  it('surfaces a fatal worker failure to the renderer', () => {
+    const send = vi.fn()
+    const state: BootState = {
+      phase: 'starting',
+      steps: [
+        { id: 'docker', state: 'pending', detail: 'Not started' },
+        { id: 'scheduler', state: 'success', detail: 'Worker ready' },
+      ],
+    }
+
+    const nextState = markWorkerBootFailed(state, 'Worker failed more than three times', send)
+
+    expect(nextState).toEqual({
+      phase: 'error',
+      errorCode: 'worker-failed',
+      steps: [
+        { id: 'docker', state: 'pending', detail: 'Not started' },
+        { id: 'scheduler', state: 'error', detail: 'Worker failed more than three times' },
+      ],
+    })
+    expect(send).toHaveBeenCalledOnce()
+    expect(send).toHaveBeenCalledWith(nextState)
   })
 
   it('rejects a renderer sender outside the application origin', () => {
