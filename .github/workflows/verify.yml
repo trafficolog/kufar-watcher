@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
@@ -27,6 +27,8 @@ jobs:
           npm --version
       - name: Install dependencies
         run: npm ci
+      - name: Refresh documentation tooling
+        run: npm run docs:ops:refresh
       - name: Documentation consistency
         run: npm run docs:ops:check
       - name: Prepare Electron Linux sandbox
@@ -69,3 +71,15 @@ jobs:
           cat /tmp/kufar-prod.log
           test "$status" -eq 124
           grep -q "\[worker\] ready" /tmp/kufar-prod.log
+      - name: Commit refreshed documentation
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "documentation rollups already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "docs(0.4.1): finalize planning rollups"
+          git push

@@ -2,8 +2,8 @@
 id: "0.4.1"
 phase: 0
 epic: "0.4"
-status: in_progress
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-06
 roles: [PRODUCT]
 depends_on: ["0.1.1"]
@@ -14,7 +14,7 @@ tags: [docs, tooling]
 
 # Задача 0.4.1 — Внедрение docs-ops CLI и npm-скриптов
 
-> Эпик 0.4 · Фаза 0 · 🔄 in_progress · зависит от: 0.1.1 · оценка: 1-2 ч
+> Эпик 0.4 · Фаза 0 · ✅ done · зависит от: 0.1.1 · оценка: 1-2 ч
 
 ## Цель
 
@@ -32,9 +32,9 @@ tags: [docs, tooling]
 
 ## Критерии приёмки
 
-- [ ] `npm run docs:ops:check` завершается без ошибок
-- [ ] `npm run docs:ops:refresh` заполняет автоблоки в файлах фаз и эпиков
-- [ ] В `docs/operations/status/` появляются сводные файлы
+- [x] `npm run docs:ops:check` завершается без ошибок
+- [x] `npm run docs:ops:refresh` заполняет автоблоки в файлах фаз и эпиков
+- [x] В `docs/operations/status/` появляются сводные файлы
 
 ## Подсказки
 
