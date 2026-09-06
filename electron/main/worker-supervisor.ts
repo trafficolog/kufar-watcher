@@ -8,6 +8,26 @@ export interface RestartPolicy {
   reset(): void
 }
 
+export interface WorkerRuntimeHandle extends WorkerProcessHandle {
+  on(event: 'message', listener: (message: unknown) => void): this
+  on(event: 'exit', listener: (code: number) => void): this
+  off(event: 'message', listener: (message: unknown) => void): this
+  off(event: 'exit', listener: (code: number) => void): this
+}
+
+export interface WorkerSupervisorOptions {
+  spawnWorker(): WorkerRuntimeHandle
+  onEvent?(event: WorkerEvent): void
+  onFatal?(message: string): void
+  maxRestarts?: number
+  shutdownTimeoutMs?: number
+}
+
+export interface WorkerSupervisor {
+  start(): void
+  shutdown(): Promise<WorkerShutdownResult>
+}
+
 function isWorkerEvent(message: unknown): message is WorkerEvent {
   if (!message || typeof message !== 'object' || !('type' in message)) return false
   const type = Reflect.get(message, 'type')
@@ -61,4 +81,69 @@ export function requestWorkerShutdown(
     worker.on('message', onMessage)
     worker.postMessage({ type: 'shutdown' })
   })
+}
+
+export function createWorkerSupervisor(options: WorkerSupervisorOptions): WorkerSupervisor {
+  const restartPolicy = createRestartPolicy(options.maxRestarts ?? 3)
+  const shutdownTimeoutMs = options.shutdownTimeoutMs ?? 5_000
+  let currentWorker: WorkerRuntimeHandle | undefined
+  let restartTimer: ReturnType<typeof setTimeout> | undefined
+  let restartAttempt = 0
+  let stopping = false
+
+  const spawn = (): void => {
+    const worker = options.spawnWorker()
+    currentWorker = worker
+
+    const onMessage = (message: unknown): void => {
+      if (isWorkerEvent(message)) options.onEvent?.(message)
+    }
+
+    const onExit = (): void => {
+      worker.off('message', onMessage)
+      worker.off('exit', onExit)
+      if (currentWorker === worker) currentWorker = undefined
+      if (stopping) return
+
+      restartAttempt += 1
+      if (restartPolicy.recordCrash() === 'fatal') {
+        options.onEvent?.({
+          type: 'journal',
+          level: 'error',
+          message: 'Worker failed more than three times',
+        })
+        options.onFatal?.('Worker failed more than three times')
+        return
+      }
+
+      const delayMs = restartDelayMs(restartAttempt)
+      options.onEvent?.({
+        type: 'journal',
+        level: 'warning',
+        message: `Worker exited unexpectedly; restart in ${delayMs} ms`,
+      })
+      restartTimer = setTimeout(() => {
+        restartTimer = undefined
+        if (!stopping) spawn()
+      }, delayMs)
+    }
+
+    worker.on('message', onMessage)
+    worker.on('exit', onExit)
+  }
+
+  return {
+    start(): void {
+      spawn()
+    },
+    async shutdown(): Promise<WorkerShutdownResult> {
+      stopping = true
+      if (restartTimer) {
+        clearTimeout(restartTimer)
+        restartTimer = undefined
+      }
+      if (!currentWorker) return 'acknowledged'
+      return requestWorkerShutdown(currentWorker, shutdownTimeoutMs)
+    },
+  }
 }
