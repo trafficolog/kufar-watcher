@@ -8,7 +8,7 @@ const emit = defineEmits<{
   exit: []
 }>()
 
-function stepClass(step: BootScreenStep): string[] {
+function stepClass(step: BootScreenStep): Array<string | Record<string, boolean>> {
   return [
     'stepline',
     {
