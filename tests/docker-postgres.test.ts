@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   ensurePostgresContainer,
   waitForPostgresHealthy,
+  type ContainerHealth,
   type DockerPostgresRuntime,
   type PostgresContainerConfig,
 } from '../electron/main/docker-postgres'
@@ -27,7 +28,7 @@ function createRuntime(state: 'missing' | 'stopped' | 'running'): DockerPostgres
     ensureImage: vi.fn(async () => undefined),
     createContainer: vi.fn(async () => undefined),
     startContainer: vi.fn(async () => undefined),
-    inspectHealth: vi.fn(async () => 'healthy'),
+    inspectHealth: vi.fn(async (): Promise<ContainerHealth> => 'healthy'),
   }
 }
 
