@@ -2,9 +2,9 @@
 id: "0.2.3"
 phase: 0
 epic: "0.2"
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-05
+last_reviewed: 2026-09-06
 roles: [FRONT]
 depends_on: ["0.2.2", "0.1.3"]
 estimated_hours: 2-3
@@ -14,7 +14,7 @@ tags: [ui, startup]
 
 # Задача 0.2.3 — Экран состояния инфраструктуры
 
-> Эпик 0.2 · Фаза 0 · ⬜ todo · зависит от: 0.2.2, 0.1.3 · оценка: 2-3 ч
+> Эпик 0.2 · Фаза 0 · 🔄 in_progress · зависит от: 0.2.2, 0.1.3 · оценка: 2-3 ч
 
 ## Цель
 
