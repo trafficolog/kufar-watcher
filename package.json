@@ -23,17 +23,21 @@
     "typecheck:renderer": "nuxt typecheck",
     "typecheck:electron": "tsc -p tsconfig.electron.json --noEmit",
     "test": "vitest run",
+    "prisma:generate": "prisma generate",
+    "db:migrate:deploy": "prisma migrate deploy",
     "docs:ops:refresh": "tsx src/docs-ops/cli.ts refresh",
     "docs:ops:check": "tsx src/docs-ops/cli.ts check",
     "docs:ops:new-session": "tsx src/docs-ops/cli.ts new-session",
     "docs:ops:new-iteration": "tsx src/docs-ops/cli.ts new-iteration",
-    "postinstall": "npx --no-install install-electron && nuxt prepare"
+    "postinstall": "npx --no-install install-electron && prisma generate && nuxt prepare"
   },
   "dependencies": {
     "@pinia/nuxt": "1.0.2",
+    "@prisma/client": "7.10.0",
     "dockerode": "5.0.1",
     "nuxt": "4.5.2",
     "pinia": "4.0.3",
+    "prisma": "7.10.0",
     "vue": "3.5.42"
   },
   "devDependencies": {
