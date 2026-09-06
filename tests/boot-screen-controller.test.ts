@@ -50,24 +50,21 @@ function harness(initial: BootState) {
 }
 
 describe('createBootScreenController', () => {
-  it(
-    'keeps the root pending during the anti-flicker window, then shows the boot model',
-    async () => {
-      const { controller, tasks } = harness(bootState('starting'))
+  it('keeps the root pending during the anti-flicker window, then shows the boot model', async () => {
+    const { controller, tasks } = harness(bootState('starting'))
 
-      expect(controller.snapshot().view).toBe('pending')
-      await controller.start()
+    expect(controller.snapshot().view).toBe('pending')
+    await controller.start()
 
-      expect(controller.snapshot().view).toBe('pending')
-      expect(tasks).toHaveLength(1)
-      expect(tasks[0]?.delayMs).toBe(150)
+    expect(controller.snapshot().view).toBe('pending')
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]?.delayMs).toBe(150)
 
-      tasks[0]?.run()
+    tasks[0]?.run()
 
-      expect(controller.snapshot().view).toBe('boot')
-      expect(controller.snapshot().model?.title).toBe('Инициализация')
-    },
-  )
+    expect(controller.snapshot().view).toBe('boot')
+    expect(controller.snapshot().model?.title).toBe('Инициализация')
+  })
 
   it('goes straight to the app for fast ready and shows fatal errors immediately', async () => {
     const ready = harness(bootState('starting'))
