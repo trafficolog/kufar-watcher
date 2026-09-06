@@ -47,15 +47,27 @@ jobs:
       - name: Lint
         run: npm run lint
       - name: Formatting
-        run: npm run format:check
+        id: formatting
+        continue-on-error: true
+        shell: bash
+        run: |
+          npm run format:check 2>&1 | tee /tmp/kufar-format.log
+          status=${PIPESTATUS[0]}
+          npx prettier --list-different . > /tmp/kufar-format-files.txt || true
+          exit "$status"
       - name: Build
-        run: npm run build
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: npm run build 2>&1 | tee /tmp/kufar-build.log
       - name: Verify build outputs
+        if: steps.build.outcome == 'success'
         run: |
           test -f .output/public/index.html
           test -f out/main/index.cjs
           test -f out/preload/index.cjs
       - name: Development launch smoke
+        if: steps.build.outcome == 'success'
         shell: bash
         run: |
           set +e
@@ -65,6 +77,7 @@ jobs:
           test "$status" -eq 124
           grep -q "starting electron app" /tmp/kufar-dev.log
       - name: Production launch smoke
+        if: steps.build.outcome == 'success'
         shell: bash
         run: |
           set +e
@@ -72,10 +85,33 @@ jobs:
           status=${PIPESTATUS[0]}
           set -e
           test "$status" -eq 124
+      - name: Collect diagnostics
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p /tmp/kufar-diagnostics
+          cp /tmp/kufar-format.log /tmp/kufar-diagnostics/format.log 2>/dev/null || true
+          cp /tmp/kufar-format-files.txt /tmp/kufar-diagnostics/format-files.txt 2>/dev/null || true
+          cp /tmp/kufar-build.log /tmp/kufar-diagnostics/build.log 2>/dev/null || true
+          cp /tmp/kufar-dev.log /tmp/kufar-diagnostics/dev.log 2>/dev/null || true
+          cp /tmp/kufar-prod.log /tmp/kufar-diagnostics/prod.log 2>/dev/null || true
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-diagnostics
+          path: /tmp/kufar-diagnostics
+          retention-days: 1
       - name: Upload generated lockfile
-        if: ${{ hashFiles('package-lock.json') != '' }}
+        if: always() && hashFiles('package-lock.json') != ''
         uses: actions/upload-artifact@v4
         with:
           name: package-lock
           path: package-lock.json
           retention-days: 1
+      - name: Enforce diagnostic gates
+        if: always()
+        shell: bash
+        run: |
+          test "${{ steps.formatting.outcome }}" = success
+          test "${{ steps.build.outcome }}" = success
