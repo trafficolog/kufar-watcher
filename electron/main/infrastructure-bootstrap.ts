@@ -65,14 +65,8 @@ export async function runInfrastructureBootstrap(
     return fail(deps, state, 'docker', 'docker-unavailable', 'Docker daemon is unavailable')
   }
 
-  state = publish(
-    deps,
-    updateStep(state, 'docker', 'success', 'Docker daemon is available'),
-  )
-  state = publish(
-    deps,
-    updateStep(state, 'database', 'running', 'Ensuring PostgreSQL container'),
-  )
+  state = publish(deps, updateStep(state, 'docker', 'success', 'Docker daemon is available'))
+  state = publish(deps, updateStep(state, 'database', 'running', 'Ensuring PostgreSQL container'))
 
   try {
     await deps.ensureDatabaseContainer()
@@ -94,10 +88,7 @@ export async function runInfrastructureBootstrap(
     return fail(deps, state, 'migrations', 'migration-failed', 'Database migrations failed')
   }
 
-  state = publish(
-    deps,
-    updateStep(state, 'migrations', 'success', 'Database migrations applied'),
-  )
+  state = publish(deps, updateStep(state, 'migrations', 'success', 'Database migrations applied'))
   state = publish(deps, updateStep(state, 'scheduler', 'running', 'Starting worker'))
   deps.startWorker()
   state = updateStep(state, 'scheduler', 'success', 'Worker started')
