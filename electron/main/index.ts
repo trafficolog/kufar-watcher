@@ -1,14 +1,20 @@
+import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { app, BrowserWindow, ipcMain, protocol, utilityProcess } from 'electron'
 import { IPC, type BootState } from '../../shared/ipc'
 import workerPath from '../worker/index?modulePath'
 import { APP_HOST, APP_ORIGIN, APP_SCHEME, registerRendererProtocol } from './app-protocol'
+import { createDockerClient } from './docker-client'
+import { createDockerodePostgresRuntime } from './dockerode-postgres-adapter'
+import { runInfrastructureBootstrap } from './infrastructure-bootstrap'
+import { createInfrastructureBootstrapDependencies } from './infrastructure-runtime'
 import {
   forwardBootState,
   markWorkerBootFailed,
   registerSystemIpcHandlers,
   routeWorkerBootEvent,
 } from './ipc-router'
+import { readPostgresRuntimeConfig } from './postgres-config'
 import { createWorkerSupervisor, type WorkerSupervisor } from './worker-supervisor'
 
 protocol.registerSchemesAsPrivileged([
@@ -29,7 +35,12 @@ let workerSupervisor: WorkerSupervisor | undefined
 let quitAfterWorkerShutdown = false
 let bootState: BootState = {
   phase: 'starting',
-  steps: [{ id: 'scheduler', state: 'running', detail: 'Starting worker' }],
+  steps: [],
+}
+
+function loadDevelopmentEnvironment(): void {
+  if (app.isPackaged || !existsSync('.env')) return
+  process.loadEnvFile('.env')
 }
 
 function isAllowedNavigation(rawUrl: string): boolean {
@@ -48,6 +59,11 @@ function sendBootState(window: BrowserWindow, state: BootState): void {
 
 function broadcastBootState(state: BootState): void {
   for (const window of BrowserWindow.getAllWindows()) sendBootState(window, state)
+}
+
+function publishBootState(state: BootState): void {
+  bootState = state
+  broadcastBootState(state)
 }
 
 function createMainWindow(): BrowserWindow {
@@ -82,6 +98,8 @@ app.whenReady().then(async () => {
     await registerRendererProtocol(publicRoot)
   }
 
+  loadDevelopmentEnvironment()
+
   registerSystemIpcHandlers(
     ipcMain,
     {
@@ -97,7 +115,7 @@ app.whenReady().then(async () => {
     devRendererUrl,
   )
 
-  workerSupervisor = createWorkerSupervisor({
+  const supervisor = createWorkerSupervisor({
     spawnWorker: () =>
       utilityProcess.fork(workerPath, [], {
         serviceName: 'Kufar Monitor Worker',
@@ -114,9 +132,20 @@ app.whenReady().then(async () => {
       console.error(`[worker:fatal] ${message}`)
     },
   })
-  workerSupervisor.start()
+  workerSupervisor = supervisor
 
   createMainWindow()
+
+  const config = readPostgresRuntimeConfig()
+  const runtime = createDockerodePostgresRuntime(createDockerClient())
+  const bootstrapDependencies = createInfrastructureBootstrapDependencies({
+    runtime,
+    config,
+    startWorker: () => supervisor.start(),
+    publishBootState,
+  })
+
+  bootState = await runInfrastructureBootstrap(bootstrapDependencies)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
