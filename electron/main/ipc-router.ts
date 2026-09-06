@@ -1,5 +1,20 @@
-import type { BootState } from '../../shared/ipc'
+import { IPC, type BootState } from '../../shared/ipc'
 import { APP_HOST, APP_SCHEME } from './app-protocol'
+
+export interface SystemIpcServices {
+  getBootState(): BootState | Promise<BootState>
+  retryBoot(): void | Promise<void>
+  openJournal(): void | Promise<void>
+  exit(): void | Promise<void>
+}
+
+interface IpcInvokeEventLike {
+  senderFrame: { url: string } | null
+}
+
+interface IpcMainLike {
+  handle(channel: string, handler: (event: IpcInvokeEventLike) => unknown): void
+}
 
 export function forwardBootState(state: BootState, send: (state: BootState) => void): void {
   send(state)
@@ -13,4 +28,37 @@ export function isTrustedRendererUrl(rawUrl: string, devRendererUrl?: string): b
   } catch {
     return false
   }
+}
+
+function assertTrustedRenderer(event: IpcInvokeEventLike, devRendererUrl?: string): void {
+  const senderUrl = event.senderFrame?.url
+  if (!senderUrl || !isTrustedRendererUrl(senderUrl, devRendererUrl)) {
+    throw new Error('Untrusted renderer')
+  }
+}
+
+export function registerSystemIpcHandlers(
+  ipcMain: IpcMainLike,
+  services: SystemIpcServices,
+  devRendererUrl?: string,
+): void {
+  ipcMain.handle(IPC.bootGet, (event) => {
+    assertTrustedRenderer(event, devRendererUrl)
+    return services.getBootState()
+  })
+
+  ipcMain.handle(IPC.bootRetry, (event) => {
+    assertTrustedRenderer(event, devRendererUrl)
+    return services.retryBoot()
+  })
+
+  ipcMain.handle(IPC.journalOpen, (event) => {
+    assertTrustedRenderer(event, devRendererUrl)
+    return services.openJournal()
+  })
+
+  ipcMain.handle(IPC.appExit, (event) => {
+    assertTrustedRenderer(event, devRendererUrl)
+    return services.exit()
+  })
 }
