@@ -1,12 +1,6 @@
 export type BootStepId = 'docker' | 'database' | 'migrations' | 'scheduler' | 'telegram'
 
-export type BootStepState =
-  | 'pending'
-  | 'running'
-  | 'success'
-  | 'skipped'
-  | 'degraded'
-  | 'error'
+export type BootStepState = 'pending' | 'running' | 'success' | 'skipped' | 'degraded' | 'error'
 
 export interface BootStep {
   id: BootStepId
