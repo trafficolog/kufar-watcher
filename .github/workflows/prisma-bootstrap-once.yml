@@ -23,6 +23,8 @@ jobs:
         run: npm install --global npm@11.4.2
       - name: Install and synchronize lockfile
         run: npm install --ignore-scripts
+      - name: Prepare Nuxt types
+        run: npx nuxt prepare
       - name: Format and validate Prisma schema
         run: |
           npx prisma format
