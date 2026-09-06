@@ -19,6 +19,7 @@ function bootState(phase: BootState['phase']): BootState {
 function harness(initial: BootState) {
   let listener: ((state: BootState) => void) | undefined
   const tasks: ScheduledTask[] = []
+  const changes: string[] = []
   const system: KufarDesktopApi['system'] = {
     getBootState: vi.fn(async () => initial),
     retryBoot: vi.fn(async () => undefined),
@@ -44,9 +45,12 @@ function harness(initial: BootState) {
     cancel(task) {
       task.cancelled = true
     },
+    onChange(snapshot) {
+      changes.push(snapshot.view)
+    },
   })
 
-  return { controller, tasks, emit: (state: BootState) => listener?.(state), system }
+  return { controller, tasks, changes, emit: (state: BootState) => listener?.(state), system }
 }
 
 describe('createBootScreenController', () => {
@@ -81,6 +85,16 @@ describe('createBootScreenController', () => {
     expect(failed.controller.snapshot().view).toBe('boot')
     expect(failed.controller.snapshot().model?.error?.heading).toBe('Docker недоступен')
     expect(failed.controller.snapshot().model?.error?.message).toContain('служба docker')
+  })
+
+  it('notifies the renderer whenever the visible snapshot changes', async () => {
+    const { controller, tasks, changes, emit } = harness(bootState('starting'))
+    await controller.start()
+    tasks[0]?.run()
+    emit(bootState('ready'))
+
+    expect(changes).toContain('boot')
+    expect(changes.at(-1)).toBe('app')
   })
 
   it('delegates actions through the boot session and disposes pending work', async () => {
