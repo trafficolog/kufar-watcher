@@ -1,2 +1,4 @@
-// The product-level contextBridge API is introduced by task 0.1.3.
-export {}
+import { contextBridge, ipcRenderer } from 'electron'
+import { createDesktopApi } from './desktop-api'
+
+contextBridge.exposeInMainWorld('kufar', createDesktopApi(ipcRenderer))
