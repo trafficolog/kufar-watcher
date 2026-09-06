@@ -3,7 +3,12 @@ import { app, BrowserWindow, ipcMain, protocol, utilityProcess } from 'electron'
 import { IPC, type BootState } from '../../shared/ipc'
 import workerPath from '../worker/index?modulePath'
 import { APP_HOST, APP_ORIGIN, APP_SCHEME, registerRendererProtocol } from './app-protocol'
-import { forwardBootState, registerSystemIpcHandlers, routeWorkerBootEvent } from './ipc-router'
+import {
+  forwardBootState,
+  markWorkerBootFailed,
+  registerSystemIpcHandlers,
+  routeWorkerBootEvent,
+} from './ipc-router'
 import { createWorkerSupervisor, type WorkerSupervisor } from './worker-supervisor'
 
 protocol.registerSchemesAsPrivileged([
@@ -104,7 +109,10 @@ app.whenReady().then(async () => {
         console.info(`[worker:${event.level}] ${event.message}`)
       }
     },
-    onFatal: (message) => console.error(`[worker:fatal] ${message}`),
+    onFatal: (message) => {
+      bootState = markWorkerBootFailed(bootState, message, broadcastBootState)
+      console.error(`[worker:fatal] ${message}`)
+    },
   })
   workerSupervisor.start()
 

@@ -38,6 +38,23 @@ export function routeWorkerBootEvent(
   return nextState
 }
 
+export function markWorkerBootFailed(
+  state: BootState,
+  message: string,
+  send: (state: BootState) => void,
+): BootState {
+  const nextState: BootState = {
+    ...state,
+    phase: 'error',
+    errorCode: 'worker-failed',
+    steps: state.steps.map((step) =>
+      step.id === 'scheduler' ? { ...step, state: 'error', detail: message } : step,
+    ),
+  }
+  forwardBootState(nextState, send)
+  return nextState
+}
+
 export function isTrustedRendererUrl(rawUrl: string, devRendererUrl?: string): boolean {
   try {
     const url = new URL(rawUrl)
