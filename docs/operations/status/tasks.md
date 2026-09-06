@@ -14,7 +14,7 @@ _Сгенерировано 2026-09-06_
 | `0.2.3` | Экран состояния инфраструктуры | 0.2 | ✅ done | 🟢 aligned |
 | `0.3.1` | Схема Prisma по доменной модели | 0.3 | ✅ done | 🟢 aligned |
 | `0.3.2` | Индексы и ограничения целостности | 0.3 | ✅ done | 🟢 aligned |
-| `0.3.3` | Сиды и dev-фикстуры | 0.3 | ⬜ todo | 🟡 drifted |
+| `0.3.3` | Сиды и dev-фикстуры | 0.3 | ✅ done | 🟢 aligned |
 | `0.3.4` | Схема среза `0.4.0`: `SellerBlock` | 0.3 | ⬜ todo | 🟡 drifted |
 | `0.3.5` | Схема среза `0.5.0`: `Favorite`, `PriceSnapshot` | 0.3 | ⬜ todo | 🟡 drifted |
 | `0.3.6` | Схема среза `0.6.0`: `HealthEvent`, `SchemaSnapshot` | 0.3 | ⬜ todo | 🟡 drifted |
