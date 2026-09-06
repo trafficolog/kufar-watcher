@@ -32,6 +32,8 @@ jobs:
           else
             npm install
           fi
+      - name: Bootstrap formatting
+        run: npm run format
       - name: Unit tests
         run: npm test
       - name: Typecheck
@@ -64,13 +66,13 @@ jobs:
           status=${PIPESTATUS[0]}
           set -e
           test "$status" -eq 124
-      - name: Commit generated lockfile once
+      - name: Commit bootstrap artifacts once
         shell: bash
         run: |
-          if ! git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
+          if [[ -n "$(git status --porcelain)" ]]; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add package-lock.json
-            git commit -m 'build(0.1.1): commit npm lockfile'
+            git add -A
+            git commit -m 'chore(0.1.1): normalize formatting and lock dependencies'
             git push
           fi
