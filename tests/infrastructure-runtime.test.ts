@@ -21,7 +21,7 @@ describe('createInfrastructureBootstrapDependencies', () => {
       ensureImage: vi.fn(async () => undefined),
       createContainer: vi.fn(async () => undefined),
       startContainer: vi.fn(async () => undefined),
-      inspectHealth: vi.fn(async () => 'healthy'),
+      inspectHealth: vi.fn(async () => 'healthy' as const),
     }
     const applyMigrations = vi.fn(async () => undefined)
     const startWorker = vi.fn()
