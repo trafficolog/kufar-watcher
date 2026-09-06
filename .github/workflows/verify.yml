@@ -52,6 +52,11 @@ jobs:
               echo 'path.txt: MISSING'
             fi
           } | tee /tmp/kufar-electron-install.log
+      - name: Prepare Electron Linux sandbox
+        if: steps.install.outcome == 'success'
+        run: |
+          sudo chown root:root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - name: Unit tests
         if: steps.install.outcome == 'success'
         run: npm test
