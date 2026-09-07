@@ -6,6 +6,8 @@ import {
   type KufarTransportResponse,
 } from '../../electron/worker/kufar-http-client'
 
+const TEST_URL = 'https://api.kufar.by/search-api/v2/search/count'
+
 const response = (overrides: Partial<KufarTransportResponse> = {}): KufarTransportResponse => ({
   status: 200,
   headers: { 'content-type': 'application/json' },
@@ -39,6 +41,23 @@ const createTransport = (...results: KufarTransportResponse[]) => {
   }
 }
 
+const createScriptedTransport = (steps: Array<KufarTransportResponse | Error>) => {
+  const request = vi.fn()
+  for (const step of steps) {
+    if (step instanceof Error) request.mockRejectedValueOnce(step)
+    else request.mockResolvedValueOnce(step)
+  }
+  const close = vi.fn().mockResolvedValue(undefined)
+
+  return {
+    transport: { request, close } satisfies KufarTransport,
+    request,
+  }
+}
+
+const transportError = (code: string): Error & { code: string } =>
+  Object.assign(new Error(code), { code })
+
 describe('KufarHttpClient', () => {
   it('routes a successful GET through the limiter and preserves raw data', async () => {
     const { limiter, schedule } = createLimiter()
@@ -46,11 +65,11 @@ describe('KufarHttpClient', () => {
     const { transport, request } = createTransport(raw)
     const client = new KufarHttpClient({ limiter, transport })
 
-    const result = await client.get('https://api.kufar.by/search-api/v2/search/count')
+    const result = await client.get(TEST_URL)
 
     expect(schedule).toHaveBeenCalledTimes(1)
     expect(request).toHaveBeenCalledWith({
-      url: new URL('https://api.kufar.by/search-api/v2/search/count'),
+      url: new URL(TEST_URL),
       method: 'GET',
       headers: undefined,
     })
@@ -68,16 +87,127 @@ describe('KufarHttpClient', () => {
     const { transport, request, close } = createTransport(response())
     const client = new KufarHttpClient({ limiter, transport })
 
-    await client.get('https://api.kufar.by/search-api/v2/search/count', {
-      accept: 'application/json',
-    })
+    await client.get(TEST_URL, { accept: 'application/json' })
     await client.close()
 
     expect(request).toHaveBeenCalledWith({
-      url: new URL('https://api.kufar.by/search-api/v2/search/count'),
+      url: new URL(TEST_URL),
       method: 'GET',
       headers: { accept: 'application/json' },
     })
     expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries a network failure through the limiter and succeeds', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined)
+    const scripted = createScriptedTransport([new Error('socket reset'), response()])
+    const { limiter, schedule } = createLimiter()
+    const client = new KufarHttpClient({ limiter, transport: scripted.transport, sleep })
+
+    const result = await client.get(TEST_URL)
+
+    expect(schedule).toHaveBeenCalledTimes(2)
+    expect(scripted.request).toHaveBeenCalledTimes(2)
+    expect(sleep).toHaveBeenCalledWith(500)
+    expect(result).toMatchObject({ ok: true, attempts: 2 })
+  })
+
+  it('retries a 5xx response and succeeds', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined)
+    const scripted = createScriptedTransport([response({ status: 503 }), response()])
+    const { limiter, schedule } = createLimiter()
+    const client = new KufarHttpClient({ limiter, transport: scripted.transport, sleep })
+
+    const result = await client.get(TEST_URL)
+
+    expect(schedule).toHaveBeenCalledTimes(2)
+    expect(sleep).toHaveBeenCalledWith(500)
+    expect(result).toMatchObject({ ok: true, attempts: 2 })
+  })
+
+  it('returns the last 5xx as temporary after bounded retries', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined)
+    const scripted = createScriptedTransport([
+      response({ status: 503 }),
+      response({ status: 502 }),
+      response({ status: 500 }),
+    ])
+    const { limiter, schedule } = createLimiter()
+    const client = new KufarHttpClient({ limiter, transport: scripted.transport, sleep })
+
+    const result = await client.get(TEST_URL)
+
+    expect(schedule).toHaveBeenCalledTimes(3)
+    expect(sleep.mock.calls).toEqual([[500], [1_000]])
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'temporary',
+      code: 'http-5xx',
+      status: 500,
+      attempts: 3,
+    })
+  })
+
+  it('classifies all Undici timeout stages as temporary and bounded', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined)
+    const scripted = createScriptedTransport([
+      transportError('UND_ERR_CONNECT_TIMEOUT'),
+      transportError('UND_ERR_HEADERS_TIMEOUT'),
+      transportError('UND_ERR_BODY_TIMEOUT'),
+    ])
+    const { limiter, schedule } = createLimiter()
+    const client = new KufarHttpClient({ limiter, transport: scripted.transport, sleep })
+
+    const result = await client.get(TEST_URL)
+
+    expect(schedule).toHaveBeenCalledTimes(3)
+    expect(sleep.mock.calls).toEqual([[500], [1_000]])
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'temporary',
+      code: 'timeout',
+      status: null,
+      attempts: 3,
+    })
+  })
+
+  it('returns a non-429 4xx immediately as permanent', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined)
+    const scripted = createScriptedTransport([response({ status: 404 })])
+    const { limiter, schedule } = createLimiter()
+    const client = new KufarHttpClient({ limiter, transport: scripted.transport, sleep })
+
+    const result = await client.get(TEST_URL)
+
+    expect(schedule).toHaveBeenCalledTimes(1)
+    expect(scripted.request).toHaveBeenCalledTimes(1)
+    expect(sleep).not.toHaveBeenCalled()
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'permanent',
+      code: 'http-4xx',
+      status: 404,
+      attempts: 1,
+    })
+  })
+
+  it('returns a redirect immediately as an unexpected permanent response', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined)
+    const scripted = createScriptedTransport([response({ status: 302 })])
+    const { limiter, schedule } = createLimiter()
+    const client = new KufarHttpClient({ limiter, transport: scripted.transport, sleep })
+
+    const result = await client.get(TEST_URL)
+
+    expect(schedule).toHaveBeenCalledTimes(1)
+    expect(scripted.request).toHaveBeenCalledTimes(1)
+    expect(sleep).not.toHaveBeenCalled()
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'permanent',
+      code: 'unexpected-http',
+      status: 302,
+      attempts: 1,
+    })
   })
 })
