@@ -1,20 +1,20 @@
 # Spec — контракт площадки kufar.by
 
-> Статус: **частично подтверждён живой разведкой.** Электроника search API,
-> pagination, `/count`, базовые поля и нулевая договорная цена подтверждены
-> raw fixtures задачи `1.0.1` от 2026-09-07. HTML embedded state и detail-status
-> contract электроники ещё не подтверждены. Недвижимость проверяется отдельно в
-> `1.0.2`. Не переносить выводы между вертикалями без отдельной фикстуры.
+> Статус: **электроника подтверждена живой разведкой `1.0.1`.** Search API,
+> pagination, `/count`, обязательные поля, договорная цена, detail availability
+> semantics и HTML embedded state подтверждены dated fixtures/evidence от
+> 2026-09-07. Недвижимость проверяется отдельно в `1.0.2`; выводы между
+> вертикалями автоматически не переносить.
 
 ## Основной канал
 
 Сайт работает поверх собственного JSON-API. Это первичный источник; HTML —
-только фолбэк.
+проверенный fallback, DOM-разбор — последний рубеж.
 
 | Категория | Хост поисковой выдачи |
 |-----------|----------------------|
-| Недвижимость | `api.kufar.by` — **требует проверки в 1.0.2**; вторичные browser-наблюдения 2026 года указывают на этот API-host, а пользовательские страницы живут на `re.kufar.by` |
-| Электроника и прочие товары | `api.kufar.by` — **подтверждено live в 1.0.1** raw fixture от 2026-09-07 |
+| Недвижимость | `api.kufar.by` — **требует проверки в 1.0.2**; пользовательские страницы живут на `re.kufar.by` |
+| Электроника и прочие товары | `api.kufar.by` — **подтверждено live в 1.0.1** |
 | Авто | `auto.kufar.by` — вне периметра проекта |
 
 Пользовательские адреса живут на нескольких поддоменах. Официальный Help Center
@@ -50,30 +50,32 @@
 
 ## Параметры запроса
 
-Электроника `1.0.1` проверена минимальным живым запросом. Разделяем параметры,
-которые реально были отправлены, и параметры других вертикалей/неиспользованных
-фильтров.
+Подтверждённый минимальный electronics contract:
 
-| Параметр | Статус и значение |
-|----------|-------------------|
-| `query` | **electronics live:** поисковая строка; `query=ps5` работает; пользовательский URL использует `q~ps5` |
-| `cat` | **electronics live:** идентификатор категории; `5040` = «Игры и приставки» в снятой фикстуре |
-| `rgn` | **electronics live:** регион; `7` = Минск; пользовательский URL использует `r~minsk` |
-| `sort` | **electronics live:** `lst.d` принят API; снятые страницы отсортированы по времени размещения убыванием |
-| `size` | **electronics live:** размер страницы; `size=2` дал две записи на странице |
-| `cursor` | **electronics live:** opaque token из `pagination.pages[]` с `label == "next"`; передаётся как `cursor=<token>` |
-| `lang` | **electronics live:** `lang=ru` принят API; обязательность параметра без отдельного A/B probe не утверждается |
-| `typ` | real-estate operation (`let` / `sell`); применимость к товарам не нужна для подтверждённого electronics query и проверяется только при появлении требования |
-| `ar` | район внутри региона; в electronics response присутствует как `ad_parameters[].pu == "ar"`; использование как request-filter текущим probe не проверялось |
-| `cur` | валюта request-side текущим electronics probe не использовалась; response-side валюта подтверждена отдельно |
-| `cnd` | condition request-filter текущим probe не использовался; condition присутствует в `ad_parameters` |
-| `otype` / историческое `ot` | seller-type request-filter текущим probe не использовался; seller type в response надёжно доступен через `company_ad` |
+| Параметр | Подтверждённое значение |
+|----------|-------------------------|
+| `query` | поисковая строка; `query=ps5` работает; пользовательский URL использует `q~ps5` |
+| `cat` | идентификатор категории; `5040` = «Игры и приставки» в снятой фикстуре |
+| `rgn` | регион; `7` = Минск; пользовательский URL использует `r~minsk` |
+| `sort` | `lst.d` принят API; снятые страницы отсортированы по времени размещения убыванием |
+| `size` | размер страницы; `size=2` дал две записи на странице |
+| `cursor` | opaque token из `pagination.pages[]` с `label == "next"`; передаётся как `cursor=<token>` |
+| `lang` | `lang=ru` принят API и входит в проверенный request shape |
+
+Параметры `ar`, `cur`, `cnd`, `otype`/исторический `ot` не входят в минимальный
+request contract `1.0.1`. Их нельзя автоматически добавлять или интерпретировать
+как обязательные до появления отдельного требования. Response-side район,
+condition и seller type уже доступны через `ad_parameters` / `company_ad` и не
+требуют этих request-фильтров для MVP.
+
+`typ` относится к real-estate operation (`let` / `sell`) и рассматривается в
+`1.0.2`, а не в electronics adapter.
 
 Пользовательский URL
 `https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5` и raw API probe
 подтверждают практическое отображение `r~minsk → rgn=7` и `q~ps5 → query=ps5`
 для проверенного примера. Задача `1.1.1` строит нормализатор по этому контракту,
-не пытаясь угадывать значения непроверенных фильтров.
+не пытаясь угадывать дополнительные фильтры.
 
 ## Пагинация обязательна
 
@@ -110,13 +112,9 @@ Raw page 1 от 2026-09-07 содержит:
 как следующий `cursor`. Нельзя полагаться на индекс элемента в массиве:
 на page 1 `next` идёт после `self`, а на page 2 перед ними появляется `prev`.
 
-### Что проверить про порядок выдачи
-
-Отдельно выяснить в разведке: гарантирует ли площадка вторичный порядок при
-одинаковом времени размещения. Если нет — алгоритм водяного знака не имеет права
-на него опираться и обязан проходить всю временную границу целиком, отбрасывая
-уже виденные идентификаторы. Задача `1.4.1` спроектирована именно так, то есть
-не зависит от ответа; но знать его всё равно нужно.
+Вторичный порядок при одинаковом `list_time` не является частью контракта.
+Алгоритм водяного знака `1.4.1` обязан проходить всю временную границу и
+отбрасывать уже виденные идентификаторы, не предполагая стабильный tie-breaker.
 
 ## Цена бывает не числом
 
@@ -124,32 +122,35 @@ Raw page 1 от 2026-09-07 содержит:
 актуальный товар:
 
 - `https://www.kufar.by/item/1082715190` показывает цену `Договорная`;
-- raw response для `query=NHL 27` содержит `ad_id=1082715190`,
-  `price_byn="0"`, `price_usd="0"`, `currency="BYR"` и нулевые значения
-  calculator currencies.
+- raw search response содержит `ad_id=1082715190`, `price_byn="0"`,
+  `price_usd="0"`, `currency="BYR"` и нулевые calculator values;
+- raw detail response и embedded `__NEXT_DATA__` той же карточки подтверждают
+  ту же семантику.
 
-Raw fixture:
-`tests/fixtures/kufar/2026-09-07-electronics-negotiable.json`.
+Fixtures/evidence:
+
+- `tests/fixtures/kufar/2026-09-07-electronics-negotiable.json`;
+- `tests/fixtures/kufar/2026-09-07-electronics-negotiable-detail.json`;
+- `tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.html`.
 
 Для **подтверждённого electronics sample** нулевая `price_byn` означает
-`Договорная`, а не бесплатный товар. Это достаточное правило для сохранённой
-фикстуры и адаптерных тестов. `price_byn == null` в live electronics sample не
-наблюдался; его возможную семантику нельзя считать подтверждённой только по
-secondary source.
+`Договорная`, а не бесплатный товар. `price_byn == null` в live electronics
+sample не наблюдался и не входит в подтверждённый contract.
 
 Модель обязана различать числовую и договорную цену. Переход между видами
 (`150 BYN` → договорная и обратно) считается изменением цены и порождает
 уведомление.
 
-## Сопутствующие эндпоинты
+## Сопутствующие данные и endpoints
 
-- Информация о продавце: исторически использовался
-  `www.kufar.by/item/api/aduserinfo/{user_id}` — **требует проверки перед использованием**.
-- Изображения: live electronics fixtures подтверждают `images[].media_storage`
-  и относительный `images[].path`; в снятых ответах `media_storage="rms"`.
+- Для seller type использовать прямой `company_ad`; отдельный historical
+  `www.kufar.by/item/api/aduserinfo/{user_id}` не нужен MVP и не входит в
+  контракт `1.0.1`.
+- Live electronics fixtures подтверждают `images[].media_storage` и
+  относительный `images[].path`; в снятых ответах `media_storage="rms"`.
   В MVP фотографии в уведомлениях не используются.
-- Список категорий существует; точный актуальный путь **требует проверки**.
-  Нужен Post-MVP (конструктор фильтров), в MVP-1 не вызывается.
+- Список категорий нужен только Post-MVP для конструктора фильтров и не входит
+  в сетевой контракт MVP-1.
 
 ## Что нужно от ответа выдачи
 
@@ -160,12 +161,12 @@ secondary source.
 | `listId` | `ad_id`; также наблюдается совпадающий `list_id` | обязательно: на нём держится дедупликация |
 | `listTime` | `list_time`, ISO timestamp string | обязательно: на нём держится водяной знак |
 | `title` | `subject` | обязательно |
-| `price` + валюта | `price_byn` string в minor units, `price_usd` string, `currency="BYR"`; для проверенного negotiable sample `price_byn="0"` | обязательно |
+| `price` + валюта | `price_byn` string в minor units, `price_usd` string, `currency="BYR"`; для negotiable sample `price_byn="0"` | обязательно |
 | `accountId` | `account_id` string | нужно для чёрного списка |
 | признак юрлица | `company_ad` boolean: live fixtures содержат и `false`, и `true` | нужно для фильтра продавца |
 | регион | элемент `ad_parameters[]` с `p="region"`, `pu="rgn"`; live `v=7`, `vl="Минск"` | желательно, идёт в уведомление |
 | район | элемент `ad_parameters[]` с `p="area"`, `pu="ar"` | опционально |
-| краткое описание | `body_short`; в снятых search fixtures поле присутствует и равно `null`; `body` также присутствует и равно `null` | опционально |
+| краткое описание | `body_short`; в снятых search fixtures поле присутствует и равно `null`; detail/embedded state содержат `body` | опционально |
 
 Дополнительно live electronics fixtures подтверждают `ad_link`, `category`,
 `images`, `account_parameters`, `phone_hidden`, `remuneration_type`,
@@ -190,43 +191,66 @@ seller type, поскольку для этого уже есть прямой `
 
 ## HTML-состояние
 
-Live `1.0.1` подтвердил, что серверно отрендеренный HTML товарной выдачи содержит
-карточки, ссылки `/item/{id}`, цену (включая `Договорная` и `Бесплатно`),
-локацию и seller-type UI — то есть DOM технически пригоден для разбора.
+Live `1.0.1` подтвердил два уровня HTML evidence:
 
-Secondary browser-evidence 2026 года указывает на SSR
-`<script id="__NEXT_DATA__">` и пути внутри `props.initialState` для listing и
-detail. В Opera `view-source:` живой electronics detail page был открыт, но
-Browser Connector запрещает чтение содержимого и screenshot для этой URL scheme.
-Поэтому **исходные HTML-байты и точный embedded-state shape электроники всё ещё
-не подтверждены первичной dated fixture**. Это один из двух оставшихся blocker
-задачи `1.0.1`.
+1. Server-rendered DOM товарной выдачи содержит карточки, `/item/{id}` links,
+   цену (включая `Договорная` и `Бесплатно`), локацию и seller-type UI.
+2. Исходный HTML detail page `1082715190` содержит
+   `<script id="__NEXT_DATA__" type="application/json">` со structured state.
 
-DOM-разбор остаётся последним рубежом, а не автоматически выбранным MVP-фолбэком.
+Browser Connector не читает `view-source:` scheme, поэтому exact script block
+был вручную скопирован пользователем из заранее открытой нами source page.
+Полный block проверен как валидный JSON; в repo сохранён минимальный точный
+непрерывный fragment:
+
+`tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.html`.
+
+Подтверждённые пути/значения:
+
+- page `/item/[id]`, query `id=1082715190`;
+- `props.initialState.adView.data`;
+- `props.initialState.adView.data.initial`;
+- UI-layer `price="Договорная"`;
+- `initial.price_byn="0"`, `initial.price_usd="0"`, `currency="BYR"`;
+- `initial.ad_id`, `list_id`, `list_time`, `account_id`, `company_ad`,
+  `ad_parameters`, `body`, `subject`.
+
+HTML embedded state является проверенным fallback shape. Primary path всё равно
+остаётся JSON API; DOM-разбор — последний рубеж.
 
 ## Статус объявления и проверка цены
 
-Search fixtures электроники содержат цену, но не содержат отдельного очевидного
-platform-status field (`active` / `sold` / `removed`). Это первичное наблюдение
-только про search response и не позволяет доказать отсутствие status в detail
-response.
+Первично подтверждён detail endpoint:
 
-Живые detail pages через доступное DOM-представление показывают цену и контент,
-но Connector не предоставляет raw network/detail state. Самый свежий найденный
-consumer 2026-09-06 также не моделирует status и выводит собственный `INACTIVE`
-по исчезновению external ID после полного sync; это остаётся secondary signal,
-не доказательством протокола Kufar.
+`https://api.kufar.by/search-api/v2/item/{id}/rendered?lang=ru`
 
-Следовательно, **price+platform-status same-request contract пока не закрыт**.
-До raw detail/embedded-state capture нельзя выбирать архитектуру часовой проверки
-цен в эпике `3.4` исходя из предположения, что status приходит вместе с price.
-Это второй оставшийся blocker `1.0.1`.
+Для активного `1082715190` raw response содержит `price_byn="0"`, описание и
+seller data, но **не содержит отдельного platform-status field** (`status`,
+`active`, `sold`, `removed`). Fixture:
+
+`tests/fixtures/kufar/2026-09-07-electronics-negotiable-detail.json`.
+
+Для заведомо старого недоступного `210670642` тот же endpoint вернул
+`404 ASR0006 ad not found`. Fixture:
+
+`tests/fixtures/kufar/2026-09-07-electronics-detail-not-found.json`.
+
+Embedded `__NEXT_DATA__` активной карточки согласуется с detail API: в
+`adView.data` и `adView.data.initial` есть цена, но нет status-like поля.
+
+Контракт для эпика `3.4`:
+
+- один detail request одновременно получает цену и проверяет доступность;
+- успешный payload означает доступную карточку;
+- `404 ASR0006` означает, что карточка больше недоступна через detail endpoint;
+- Kufar payload не даёт отдельной причины `sold` vs `removed`, поэтому доменная
+  модель не должна обещать это различие без нового источника evidence.
 
 ## Уровни деградации
 
-1. **JSON-API** — основной путь; для electronics search подтверждён raw fixtures.
-2. **Встроенные данные HTML-страницы.** Могут стать фолбэком только после
-   первичной проверки структуры.
+1. **JSON-API** — основной путь; для electronics search/detail подтверждён raw fixtures.
+2. **Встроенные данные HTML-страницы** — проверенный fallback через
+   `__NEXT_DATA__` / `props.initialState.adView.data.initial`.
 3. **Разбор DOM** — последний рубеж, Post-MVP.
 
 Переключение уровня — событие, о котором пользователь узнаёт: работа на втором
@@ -235,9 +259,9 @@ consumer 2026-09-06 также не моделирует status и выводи�
 ## Порядок работ
 
 Этот документ проверяется **до** того, как по нему проектируется сетевой слой.
-Эпик `1.0` выполняется первым в фазе 1: снимаются живые ответы, сверяются имена
-полей, поведение курсора, поддомены, `/count`, HTML state и detail contract.
-Только после этого пишется нормализатор адресов и адаптер.
+Electronics slice `1.0.1` закрыт live evidence; следующий отдельный recon slice —
+недвижимость `1.0.2`. Только после соответствующей разведки пишутся
+нормализатор адресов и адаптер конкретной вертикали.
 
 Отдельно учесть: внешние обращения к страницам площадки могут получать отказ в
 доступе в зависимости от того, как выполнен запрос. Если разведка получает
