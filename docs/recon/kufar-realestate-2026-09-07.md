@@ -2,150 +2,155 @@
 
 ## Статус
 
-Задача `1.0.2` начата как bounded spike и остановлена по контракту вежливости
-после первого `403` от live `re.kufar.by` web-fetch. Статус задачи —
-`blocked / aligned`: карточка соответствует фактическому состоянию, но acceptance
-criteria ещё не закрыты.
+Задача `1.0.2` завершена как bounded spike. Первая live-сессия была остановлена
+после `403 Forbidden` от `re.kufar.by` в соответствии с `docs/AGENTS.md`.
+После нового явного разрешения пользователя разведка была начата как новая
+сессия; Opera Browser Connector снова позволил выполнять последовательные
+запросы, и raw API fixtures были сняты без `403/429`.
 
-После `403` новые запросы к Kufar в этой сессии не выполнялись. Proxy/VPN,
-ротация адресов, подмена fingerprint/User-Agent и другие способы обхода не
-использовались.
+Proxy/VPN, ротация адресов, fingerprint/User-Agent spoofing, параллельные обходы
+и другие способы обхода ограничений не использовались.
 
-## Primary live evidence до stop-condition
+## Пользовательский слой
 
-### Пользовательские маршруты
-
-Свежая публичная выдача 2026-09-07 подтвердила real-estate host
-`re.kufar.by` и, в частности, маршруты:
+Свежая публичная выдача 2026-09-07 подтвердила real-estate host `re.kufar.by` и
+маршруты:
 
 - `https://re.kufar.by/l/minsk/kupit/kvartiru` — продажа квартир в Минске;
 - `https://re.kufar.by/l/minsk/kupit/kvartiru/1k` — однокомнатные квартиры;
-- `https://re.kufar.by/l/minsk-zavodskoj-rajon/snyat` — долгосрочная аренда в
-  Заводском районе Минска;
-- карточка имеет real-estate route вида
-  `https://re.kufar.by/vi/.../{external_id}`.
+- `https://re.kufar.by/l/minsk-zavodskoj-rajon/snyat` — аренда в районе;
+- карточки используют route `/vi/.../{external_id}`.
 
-На основной странице одновременно наблюдались UI-состояния `Купить`, `Снять`,
-`Посуточно`, регион `Минск`, категория `Квартиры`, сортировка по новизне и
-карточки с ценой, площадью, комнатами, этажом, адресом и кратким описанием.
+User-layer page 2 показал opaque `cursor`, `size=30` и отдельный `cur=USD`.
 
-### Cursor на пользовательской выдаче
+## Primary live API evidence
 
-Ссылка `2` на текущей странице раскрыла фактический page-2 href:
-
-`https://re.kufar.by/l/minsk/kupit/kvartiru?cur=USD&cursor=eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTI5NzUifQ%3D%3D&size=30`
-
-Это первично подтверждает, что пользовательский real-estate listing использует
-opaque `cursor` token и передаёт `size=30`; `cur=USD` здесь является отдельным
-параметром отображения валюты, а не cursor. Сам body второй страницы получить не
-удалось: переход завершился cache-miss на web-fetch до получения ответа Kufar,
-поэтому page-2 fixture не создавалась.
-
-### Актуальный внешний идентификатор
-
-Клик по первой карточке основной выдачи раскрыл текущий route:
-
-`https://re.kufar.by/vi/minsk/kupit/kvartiru/v-novostrojke/1083107250?...`
-
-Наблюдаемый real-estate external id: `1083107250`.
-
-Дополнительно свежая публичная карточка аренды в индексе имеет id
-`1075744810` и route `/vi/minskij-rajon/snyat/dom/1075744810`.
-
-Эти значения находятся в том же десятизначном диапазоне, что и electronics ids
-из `1.0.1`, однако совпадения конкретного id между вертикалями не наблюдалось.
-Одинаковый числовой диапазон не доказывает ни глобальную уникальность, ни
-коллизию namespace.
-
-## Secondary evidence — только для сужения следующего probe
-
-Открытый real-estate клиент с commit `7bd35843b05008b698b1d727ba8970e3f23dc161`
-(2026-01-27) использует:
+Подтверждён тот же search endpoint, что у electronics:
 
 `https://api.kufar.by/search-api/v2/search/rendered-paginated`
 
-и request shape для продажи квартир в Минске:
+Matched page-1 request:
+
+`cat=1010&cur=USD&gtsy=country-belarus~province-minsk~locality-minsk&lang=ru&size=1&sort=lst.d&typ=sell`
+
+Raw page 1:
+
+- `ad_id=list_id=1079260955`;
+- `total=11637`;
+- `pagination.pages`: `self=1`, `next=2`;
+- exact next token:
+  `eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTMwMDYifQ==`.
+
+Этот токен был передан без декодирования как `cursor=<token>` в следующий
+запрос. Raw page 2 вернул:
+
+- `ad_id=list_id=1083434940`;
+- `prev=1`, `self=2`, `next=3`;
+- тот же `total=11637`.
+
+Fixtures:
+
+- `tests/fixtures/kufar/2026-09-07-realestate-search-page-1.json`;
+- `tests/fixtures/kufar/2026-09-07-realestate-search-page-2.json`.
+
+Механика cursor совпадает с electronics: искать `pagination.pages[]` с
+`label == "next"` и передавать его opaque `token` как следующий `cursor`.
+
+## Request-параметры
+
+Для проверенного sale/apartment/Минск slice первично подтверждены:
 
 - `cat=1010`;
-- `cur=USD`;
-- `gtsy=country-belarus~province-minsk~locality-minsk`;
-- `lang=ru`;
 - `typ=sell`;
+- `gtsy=country-belarus~province-minsk~locality-minsk`;
+- `cur=USD`;
+- `lang=ru`;
 - `sort=lst.d`;
-- `size=30`;
-- optional rooms `rms=v.or:...`;
-- optional price `prc=r:min,max`.
+- `size`;
+- optional `cursor`.
 
-Несколько более старых открытых клиентов показывают тот же endpoint и базовые
-параметры. Это **не raw live fixture 1.0.2** и не считается подтверждением
-контракта до прямого ответа площадки.
+Пробный secondary-параметр аренды `rnt=2` вернул пустую выдачу (`total=0`) и не
+считается подтверждённым rental contract. Значения не перебирались.
 
-## Что уже можно сравнить с electronics
+## Сравнение response shape с electronics
 
-Observed user-layer различия:
+Core shape совпадает:
 
-- товарная выдача живёт на `www.kufar.by/l/...`, real estate — на
-  `re.kufar.by/l/...`;
-- real-estate route кодирует операцию (`kupit` / `snyat`) и тип объекта
-  (`kvartiru`, `dom`) в path;
-- page-2 real-estate href содержит `cur=USD`, `cursor`, `size=30`;
-- карточка недвижимости использует `/vi/.../{id}`, а товарная карточка —
-  `/item/{id}`.
+- `ad_id`, совпадающий `list_id`;
+- `list_time`;
+- `subject`;
+- `price_byn`, `price_usd`, `currency`;
+- `account_id`;
+- `company_ad`;
+- `ad_parameters` с region/area;
+- `body_short`;
+- `ad_link`, `category`, `images`, `calculator`, `type`.
 
-Secondary API evidence предполагает, что различия остаются в основном в
-параметрах (`typ`, `gtsy`, `rms`, `prc`) при том же JSON endpoint, но это ещё
-нужно подтвердить primary raw responses.
+Real-estate-specific различия:
 
-## Предварительный вывод по SourceAdapter
+- `ad_parameters` заметно богаче: rooms, size, floor, house type, condition,
+  metro, coordinates, district/complex и другие характеристики;
+- `calculator` содержит `price_per_meter`;
+- `body_short` в обеих снятых search fixtures непустой;
+- `currency` у page-1 записи — `USD`, у page-2 записи — `BYR`, хотя request
+  содержит `cur=USD`; `cur` нельзя трактовать как гарантию response currency;
+- company record может содержать публичные реквизиты (`vat_number`,
+  `company_address`, `contact_person`) в `account_parameters`.
 
-На текущих данных нет оснований менять задуманный общий интерфейс
-`page(CanonicalQuery, cursor) -> normalized listings + nextCursor`: различия
-выглядят как ответственность конкретного адаптера при построении request и
-нормализации response.
+Эти дополнительные характеристики не нужны для правил MVP и не должны
+протекать в общий `SourceAdapter` как обязательные поля.
 
-Это **предварительный** вывод. Карточку `1.3.1` не меняем до сравнения raw page-1
-и page-2 JSON обеих вертикалей.
+## Повторное чтение и namespace идентификаторов
 
-## Проверка глобального `Listing.listId`
+Подтверждён общий detail endpoint:
 
-Текущая Prisma-модель использует `Listing.listId String @id`, то есть предполагает
-глобальную уникальность external id между адаптерами.
+`https://api.kufar.by/search-api/v2/item/{id}/rendered?lang=ru`
 
-На этом checkpoint:
+Повторное чтение real-estate объявления `1079260955` вернуло:
 
-- real-estate ids стабильным повторным raw-чтением ещё не проверены;
-- concrete cross-vertical collision не наблюдалась;
-- одинаковый диапазон id показывает, что нельзя считать пространства заведомо
-  раздельными только по числовому виду;
-- переход на составной ключ `source + externalId` пока **не обоснован primary
-  evidence**, но и глобальная уникальность ещё не доказана.
+- `ad_id=list_id=1079260955`;
+- тот же `list_time=2026-09-07T11:21:31Z`;
+- тот же `subject`;
+- те же `price_byn=36903600` и `price_usd=12000000`;
+- те же region/area values.
 
-Поэтому `0.3.1` и Prisma schema сейчас не меняются. Решение принимается только
-после продолжения `1.0.2`.
+Fixture:
 
-## Stop-condition
+`tests/fixtures/kufar/2026-09-07-realestate-item-1079260955-detail.json`.
 
-После успешного чтения нескольких live cached/user-layer представлений попытка
-открыть `https://re.kufar.by/l/minsk` через live web-fetch 2026-09-07 вернула
-`403 Forbidden`.
+`account_id` в search и detail для этого sample различается. Поэтому стабильность
+seller identity нельзя выводить из detail `account_id`; для blacklist и
+normalization использовать search response.
 
-Согласно `docs/AGENTS.md` и утверждённому spike design разведка немедленно
-остановлена. Не выполнялись повторные probes, смена сети, proxy/VPN или иной
-fallback для обхода ответа площадки.
+Electronics и real estate используют один search API и один detail endpoint,
+где lookup key состоит только из `{id}` и не содержит vertical/source
+ discriminator. Это структурное evidence общего платформенного ID namespace.
+В снятых fixtures cross-vertical collision не наблюдалось, а real-estate ID
+стабилен при повторном чтении.
 
-Отдельно Opera Browser Connector в этой сессии умел читать список вкладок, но
-операция навигации возвращала `Tabs are unchanged` даже для `www.kufar.by`.
-Это browser-layer ограничение, не HTTP-ответ Kufar.
+Следовательно, текущий `Listing.listId String @id` остаётся обоснованным; переход
+на `source + externalId` не требуется. Если площадка когда-либо вернёт один ID
+для двух разных записей или detail lookup станет неоднозначным, это будет
+contract/schema drift и отдельный migration trigger.
 
-## Что осталось для закрытия 1.0.2
+## Вывод по SourceAdapter
 
-В следующей разрешённой live-сессии, начиная заново и по одному запросу:
+Задуманный интерфейс
 
-1. получить raw page 1 по real-estate API;
-2. взять `next` cursor только из raw response и получить raw page 2;
-3. сохранить обе dated fixtures;
-4. подтвердить API host/path и фактические `cat`, `typ`, location parameters;
-5. сравнить response fields с electronics fixtures;
-6. повторно прочитать один real-estate id и проверить стабильность;
-7. проверить namespace ids достаточно сильным evidence для решения о ключе;
-8. финализировать вывод по `SourceAdapter`, contract spec и acceptance checklist.
+`page(CanonicalQuery, cursor) -> normalized listings + nextCursor`
+
+достаточен для обеих вертикалей. Различия находятся в request mapping и
+normalization конкретных adapters:
+
+- electronics: `query`, `cat`, `rgn`, user host/routes `www.kufar.by`;
+- real estate: `typ`, `cat`, `gtsy`, `cur`, user host/routes `re.kufar.by`.
+
+Cursor и core normalized listing shape совпадают. Карточку `1.3.1` менять не
+требуется.
+
+## История stop-condition
+
+В предыдущей live-сессии запрос `https://re.kufar.by/l/minsk` через web-fetch
+вернул `403 Forbidden`, после чего разведка была немедленно остановлена. Новая
+сессия началась только после отдельного явного указания пользователя продолжить.
+Это не считалось retry/fallback на тот же stop-condition.
