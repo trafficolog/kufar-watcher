@@ -144,7 +144,7 @@ block из уже открытой нами страницы. Полный ск�
 валидный JSON. В репозитории сохранён минимальный **точный непрерывный фрагмент**
 этого source без нормализации данных:
 
-`tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.html`.
+`tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.txt`.
 
 Первично подтверждён shape:
 
