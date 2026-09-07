@@ -45,10 +45,7 @@ function decodePathSegment(segment: string): string {
   try {
     return decodeURIComponent(segment)
   } catch {
-    throw new KufarUrlParseError(
-      'invalid-url',
-      'The URL contains an invalid encoded path segment',
-    )
+    throw new KufarUrlParseError('invalid-url', 'The URL contains an invalid encoded path segment')
   }
 }
 

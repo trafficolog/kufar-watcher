@@ -38,9 +38,7 @@ describe('parseKufarListingUrl', () => {
   })
 
   it('parses a goods listing without a region and preserves unknown parameters', () => {
-    const result = parseKufarListingUrl(
-      'https://www.kufar.by/l/elektronika?cur=BYN',
-    )
+    const result = parseKufarListingUrl('https://www.kufar.by/l/elektronika?cur=BYN')
 
     expect(result).toEqual({
       host: 'www.kufar.by',
@@ -88,9 +86,7 @@ describe('parseKufarListingUrl', () => {
   })
 
   it('accepts an Auto listing syntactically and leaves scope decisions to routing', () => {
-    const result = parseKufarListingUrl(
-      'https://auto.kufar.by/l/avtomobili?source=copy',
-    )
+    const result = parseKufarListingUrl('https://auto.kufar.by/l/avtomobili?source=copy')
 
     expect(result.host).toBe('auto.kufar.by')
     expect(result.category).toBe('avtomobili')
