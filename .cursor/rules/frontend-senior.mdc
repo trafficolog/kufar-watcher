@@ -1,0 +1,4 @@
+---
+description: Frontend rules for Nuxt renderer
+---
+Renderer is Nuxt 4 SPA. Treat prototypes as behavioral/visual specs, not source code. No `v-html` for Kufar data; use typed product-level IPC only when task 0.1.3 introduces it.

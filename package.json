@@ -1,0 +1,61 @@
+{
+  "name": "kufar-watcher",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "out/main/index.cjs",
+  "packageManager": "npm@11.4.2",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "dev": "concurrently -k -s first \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "dev:renderer": "nuxt dev --host 127.0.0.1 --port 3000",
+    "dev:electron": "wait-on http://127.0.0.1:3000 && cross-env KUFAR_RENDERER_URL=http://127.0.0.1:3000 electron-vite dev",
+    "build": "npm run build:renderer && npm run build:electron",
+    "build:renderer": "nuxt generate",
+    "build:electron": "electron-vite build",
+    "start": "electron-vite preview --skipBuild",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck:renderer && npm run typecheck:electron",
+    "typecheck:renderer": "nuxt typecheck",
+    "typecheck:electron": "tsc -p tsconfig.electron.json --noEmit",
+    "test": "vitest run",
+    "prisma:generate": "prisma generate",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force && prisma db seed",
+    "docs:ops:refresh": "tsx src/docs-ops/cli.ts refresh",
+    "docs:ops:check": "tsx src/docs-ops/cli.ts check",
+    "docs:ops:new-session": "tsx src/docs-ops/cli.ts new-session",
+    "docs:ops:new-iteration": "tsx src/docs-ops/cli.ts new-iteration",
+    "postinstall": "npx --no-install install-electron && nuxt prepare && prisma generate"
+  },
+  "dependencies": {
+    "@pinia/nuxt": "1.0.2",
+    "@prisma/client": "7.10.0",
+    "dockerode": "5.0.1",
+    "nuxt": "4.5.2",
+    "pinia": "4.0.3",
+    "prisma": "7.10.0",
+    "vue": "3.5.42"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "1.17.0",
+    "@types/dockerode": "4.0.1",
+    "@types/node": "^22.18.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0",
+    "electron": "44.2.0",
+    "electron-vite": "5.0.0",
+    "eslint": "^9.35.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4",
+    "typescript": "6.0.2",
+    "vitest": "5.0.0",
+    "vue-tsc": "3.3.11",
+    "wait-on": "^8.0.4"
+  }
+}

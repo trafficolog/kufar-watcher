@@ -1,0 +1,5 @@
+---
+description: Orchestrate Kufar Monitor work by task cards
+alwaysApply: true
+---
+Read `docs/AGENTS.md`, `docs/ROADMAP.MD`, and the active `docs/tasks/` card first. Keep scope to the card, require verification before status=done, and reject unrelated refactors.

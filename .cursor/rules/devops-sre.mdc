@@ -1,0 +1,4 @@
+---
+description: Build and platform rules
+---
+Target Windows and Linux. Electron main/preload use electron-vite; Nuxt owns renderer. No `file://`, no native addons, no installer work before its task.

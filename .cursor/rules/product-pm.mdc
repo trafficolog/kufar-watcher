@@ -1,0 +1,4 @@
+---
+description: Product documentation rules
+---
+Canonical scope lives in `docs/phases`, `docs/epics`, and `docs/tasks`. Do not mark tasks done until acceptance criteria and required checks are evidenced.

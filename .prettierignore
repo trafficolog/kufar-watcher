@@ -1,0 +1,7 @@
+.nuxt
+.output
+out
+node_modules
+package-lock.json
+docs
+prototypes

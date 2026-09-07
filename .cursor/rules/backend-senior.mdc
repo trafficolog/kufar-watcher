@@ -1,0 +1,4 @@
+---
+description: Backend rules for Electron main and worker
+---
+Follow `docs/AGENTS.md`. Keep heavy work out of Electron main, use strict TypeScript, no native addons, and preserve polite Kufar request semantics.
