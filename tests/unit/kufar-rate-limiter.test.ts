@@ -48,34 +48,41 @@ describe('RateLimiter', () => {
 
     await vi.runAllTimersAsync()
 
-    await expect(Promise.all(promises)).resolves.toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    await expect(Promise.all(promises)).resolves.toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+    ])
     expect(starts.map(({ id }) => id)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    expect(starts.map(({ at }) => at)).toEqual([0, 100, 200, 300, 400, 500, 600, 700, 800, 900])
+    expect(starts.map(({ at }) => at)).toEqual([
+      0, 100, 200, 300, 400, 500, 600, 700, 800, 900,
+    ])
     expect(maxInFlight).toBe(1)
   })
 
   it.each([
     { random: 0, expectedGap: 2000 },
     { random: 0.9999999999999999, expectedGap: 5000 },
-  ])('maps production defaults to the inclusive cadence boundary', async ({ random, expectedGap }) => {
-    const limiter = new RateLimiter({
-      ...KUFAR_RATE_LIMITER_DEFAULTS,
-      random: () => random,
-    })
-    const starts: number[] = []
+  ])(
+    'maps production defaults to the inclusive cadence boundary',
+    async ({ random, expectedGap }) => {
+      const limiter = new RateLimiter({
+        ...KUFAR_RATE_LIMITER_DEFAULTS,
+        random: () => random,
+      })
+      const starts: number[] = []
 
-    const first = limiter.schedule(async () => {
-      starts.push(Date.now())
-    })
-    const second = limiter.schedule(async () => {
-      starts.push(Date.now())
-    })
+      const first = limiter.schedule(async () => {
+        starts.push(Date.now())
+      })
+      const second = limiter.schedule(async () => {
+        starts.push(Date.now())
+      })
 
-    await vi.runAllTimersAsync()
-    await Promise.all([first, second])
+      await vi.runAllTimersAsync()
+      await Promise.all([first, second])
 
-    expect(starts).toEqual([0, expectedGap])
-  })
+      expect(starts).toEqual([0, expectedGap])
+    },
+  )
 
   it('does not add another full wait after a long callback', async () => {
     const limiter = fixedLimiter()
