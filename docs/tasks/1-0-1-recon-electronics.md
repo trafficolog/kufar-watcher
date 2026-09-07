@@ -23,15 +23,12 @@ tags: [recon, contract, spike]
 
 ## Контекст
 
-Спецификация контракта собрана по открытым источникам и целиком состоит из
-гипотез. Пока они не проверены, любая работа над сетевым слоем — угадывание.
-Известно также, что внешние обращения к страницам площадки могут получать отказ
-в доступе в зависимости от способа запроса; это тоже надо выяснить здесь, а не
-на середине реализации адаптера.
+Спецификация контракта первоначально была собрана по открытым источникам и
+состояла из гипотез. В этой задаче гипотезы проверяются живыми ручными запросами
+до реализации сетевого слоя.
 
 Задача исследовательская: её результат — не код, а обновлённая спека и файлы
-фикстур. Ограничение по времени жёсткое: два-три часа, дальше уходим в
-реализацию с тем, что есть.
+фикстур. Запросы выполняются вручную, по одному, без обхода ограничений Kufar.
 
 ## Что должно быть сделано
 
@@ -56,43 +53,63 @@ tags: [recon, contract, spike]
 
 ## Промежуточный результат разведки — 2026-09-07
 
-Зафиксированы [журнал разведки](../recon/kufar-electronics-2026-09-07.md) и
-[ручной raw-probe runbook](../recon/kufar-electronics-manual-probe.md).
+Актуальный журнал: [kufar-electronics-2026-09-07.md](../recon/kufar-electronics-2026-09-07.md).
 
-На живом пользовательском слое подтверждены `www.kufar.by` для товарной
-выдачи, сегменты `r~minsk` и `q~ps5`, маршрут карточки `/item/{id}`, наличие
-числовой/договорной цены, seller-type UI и платформенная метка `Неактивно` в
-выдаче. Серверно отрендеренный HTML содержит карточки, ссылки, цены и локацию,
-то есть пригодность DOM fallback подтверждена.
+После подключения Opera Browser Connector первично подтверждены живыми raw
+ответами:
 
-Сырой JSON из текущего execution-окружения получить не удалось. Обычный direct
-probe не проходит DNS, а одиночная попытка с `curl --resolve` и публично
-наблюдавшимся IP `api.kufar.by` завершается на TCP connect до HTTP. Это не
-классифицировано как отказ Kufar. Повторный перебор адресов, proxy и другие
-обходы не предпринимались.
+- host `api.kufar.by`;
+- search endpoint `/search-api/v2/search/rendered-paginated`;
+- рабочий electronics query `cat=5040&rgn=7&query=ps5&size=2&sort=lst.d&lang=ru`;
+- top-level `ads`, `pagination`, `total`;
+- cursor mechanics: `pagination.pages[]` → элемент `label == "next"` → `token`
+  → следующий запрос `cursor=<token>`;
+- page 1 и page 2 одного согласованного snapshot с `total=1229`;
+- `/search-api/v2/search/count` с ответом `{"count":1229}`, совпавшим с
+  `search.total` для тех же effective filters;
+- поля `ad_id`, `list_id`, `list_time`, `subject`, `price_byn`, `price_usd`,
+  `currency`, `account_id`, `company_ad`, `ad_parameters` region/area,
+  `body_short`, `body`;
+- объявление `1082715190`: публичная карточка показывает `Договорная`, а raw
+  search response той же записи содержит `price_byn="0"` и `price_usd="0"`.
 
-Свежие secondary sources 2026 года, включая consumer от 2026-09-06, сходятся на
-`api.kufar.by/search-api/v2/search/rendered-paginated`, cursor token в
-pagination и v2 `/count`; отдельный consumer от того же дня подтверждает
-`__NEXT_DATA__`/`listing.ads` и сообщает о `403` для datacenter IP. Эти данные
-уточняют target ручной проверки, но **не заменяют raw fixture этой задачи**.
+Сохранены dated raw fixtures:
 
-Поэтому page1/page2 raw JSON, `/count`, фактические electronics JSON-поля,
-representation договорной цены и price+status contract detail response пока
-остаются непроверенными.
+- `tests/fixtures/kufar/2026-09-07-electronics-search-page-1.json`;
+- `tests/fixtures/kufar/2026-09-07-electronics-search-page-2.json`;
+- `tests/fixtures/kufar/2026-09-07-electronics-count.json`;
+- `tests/fixtures/kufar/2026-09-07-electronics-negotiable.json`.
 
-**Blocker:** обязательные raw fixtures требуют прямого HTTPS probe из обычной
-пользовательской сети. Текущее execution-окружение не достигает HTTP-уровня, а
-смена канала через proxy/VPN противоречит правилам проекта. До снятия blocker
-задача имеет `blocked / aligned`, а не `done`.
+Пользовательский слой подтвердил маршруты `www.kufar.by/l/...`, сегменты
+`r~minsk` и `q~ps5`, `/item/{id}` и пригодность server-rendered DOM для разбора.
+Официальный Help Center отдельно подтверждает набор допустимых пользовательских
+поддоменов.
+
+### Оставшийся blocker
+
+Задача остаётся `blocked / aligned`, потому что не закрыты два первичных пункта:
+
+1. Opera открывает `view-source:` живой карточки, но Browser Connector запрещает
+   читать содержимое этой URL scheme. Поэтому exact electronics embedded state
+   (`__NEXT_DATA__` и его shape) пока подтверждён только secondary evidence, а
+   не dated raw capture.
+2. В открытых клиентах найден public detail target
+   `/search-api/v2/item/{id}/rendered?lang=ru`, но непосредственно перед его
+   live-probe Browser Connector временно потерял авторизацию и вернул ошибку
+   соединения **до HTTP-запроса к Kufar**. Поэтому ещё не зафиксировано, приходят
+   ли цена и platform status одним detail response.
+
+Успешные browser probes не получили от Kufar `403` или `429`. Proxy/VPN,
+подмена User-Agent/fingerprint, ротация адресов и другие способы обхода не
+использовались.
 
 ## Критерии приёмки
 
-- [ ] Фикстуры первой и второй страницы выдачи сохранены с датой
-- [ ] Фикстура объявления с договорной ценой сохранена
+- [x] Фикстуры первой и второй страницы выдачи сохранены с датой
+- [x] Фикстура объявления с договорной ценой сохранена
 - [ ] В спеке контракта для электроники не осталось непроверенных пометок
-- [ ] Механика курсорной пагинации описана в спеке
-- [ ] Зафиксировано, работает ли `/count` и что именно он считает
+- [x] Механика курсорной пагинации описана в спеке
+- [x] Зафиксировано, работает ли `/count` и что именно он считает
 - [ ] Зафиксировано, приходит ли статус объявления тем же запросом, что и цена
 
 ## Подсказки
