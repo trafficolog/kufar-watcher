@@ -143,7 +143,8 @@ Classification:
 
 - `2xx` -> success immediately;
 - network transport error -> retry, then `temporary/network` when exhausted;
-- Undici timeout codes (`UND_ERR_CONNECT_TIMEOUT`, `UND_ERR_HEADERS_TIMEOUT`, `UND_ERR_BODY_TIMEOUT`, and timeout-like abort) -> retry, then `temporary/timeout` when exhausted;
+- Undici timeout codes `UND_ERR_CONNECT_TIMEOUT`, `UND_ERR_HEADERS_TIMEOUT`, and `UND_ERR_BODY_TIMEOUT` -> retry, then `temporary/timeout` when exhausted;
+- other thrown Undici/transport errors, including a generic `UND_ERR_ABORTED`, -> retry as `network` because this task exposes no caller cancellation API;
 - `5xx` -> retry, then `temporary/http-5xx` when exhausted;
 - `429` -> never retry; impose global cooldown and return `rate-limited` immediately;
 - other `4xx` -> `permanent/http-4xx`, no retry;
