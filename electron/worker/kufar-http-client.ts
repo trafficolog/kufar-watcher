@@ -41,6 +41,38 @@ const isTimeoutError = (error: unknown): boolean => {
 
 export type KufarHeaders = Record<string, string | string[]>
 
+const getHeader = (headers: KufarHeaders, name: string): string | undefined => {
+  const wanted = name.toLowerCase()
+
+  for (const [headerName, value] of Object.entries(headers)) {
+    if (headerName.toLowerCase() !== wanted) continue
+    return Array.isArray(value) ? value[0] : value
+  }
+
+  return undefined
+}
+
+const parseRetryAfterMs = (
+  rawValue: string | undefined,
+  nowMs: number,
+  defaultCooldownMs: number,
+  maxCooldownMs: number,
+): number => {
+  let candidateMs = defaultCooldownMs
+
+  if (rawValue !== undefined) {
+    if (/^\d+$/.test(rawValue)) {
+      const parsedMs = Number(rawValue) * 1000
+      if (Number.isFinite(parsedMs) && parsedMs > 0) candidateMs = parsedMs
+    } else {
+      const parsedMs = Date.parse(rawValue) - nowMs
+      if (Number.isFinite(parsedMs) && parsedMs > 0) candidateMs = parsedMs
+    }
+  }
+
+  return Math.min(candidateMs, maxCooldownMs)
+}
+
 export interface KufarTransportRequest {
   url: URL
   method: 'GET'
@@ -144,8 +176,11 @@ export class KufarHttpClient {
   private readonly transport: KufarTransport
   private readonly limiter: KufarLimiter
   private readonly retrySleep: (ms: number) => Promise<void>
+  private readonly now: () => number
   private readonly maxAttempts: number
   private readonly retryBaseDelayMs: number
+  private readonly defaultRateLimitCooldownMs: number
+  private readonly maxRateLimitCooldownMs: number
 
   constructor(options: KufarHttpClientOptions = {}) {
     this.transport =
@@ -157,8 +192,13 @@ export class KufarHttpClient {
       })
     this.limiter = options.limiter ?? kufarRateLimiter
     this.retrySleep = options.sleep ?? sleep
+    this.now = options.now ?? Date.now
     this.maxAttempts = options.maxAttempts ?? KUFAR_HTTP_DEFAULTS.maxAttempts
     this.retryBaseDelayMs = options.retryBaseDelayMs ?? KUFAR_HTTP_DEFAULTS.retryBaseDelayMs
+    this.defaultRateLimitCooldownMs =
+      options.defaultRateLimitCooldownMs ?? KUFAR_HTTP_DEFAULTS.defaultRateLimitCooldownMs
+    this.maxRateLimitCooldownMs =
+      options.maxRateLimitCooldownMs ?? KUFAR_HTTP_DEFAULTS.maxRateLimitCooldownMs
   }
 
   async get(url: string | URL, headers?: Record<string, string>): Promise<KufarHttpResult> {
@@ -204,13 +244,23 @@ export class KufarHttpClient {
       }
 
       if (response.status === 429) {
+        const retryAfterMs = parseRetryAfterMs(
+          getHeader(response.headers, 'retry-after'),
+          this.now(),
+          this.defaultRateLimitCooldownMs,
+          this.maxRateLimitCooldownMs,
+        )
+
+        this.limiter.imposeCooldown(retryAfterMs)
+
         return {
           ok: false,
-          kind: 'temporary',
-          code: 'unexpected-http',
-          status: response.status,
+          kind: 'rate-limited',
+          code: 'rate-limited',
+          status: 429,
           attempts: attempt,
-          message: 'Kufar returned HTTP 429',
+          message: 'Kufar rate limit received; global request pace reduced',
+          retryAfterMs,
         }
       }
 
