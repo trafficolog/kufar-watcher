@@ -238,34 +238,34 @@ describe('KufarHttpClient', () => {
     })
   })
 
-  it.each(RATE_LIMIT_CASES)('handles 429 with $label without retrying', async ({
-    headers,
-    expectedCooldownMs,
-  }) => {
-    const sleep = vi.fn().mockResolvedValue(undefined)
-    const scripted = createScriptedTransport([response({ status: 429, headers })])
-    const { limiter, schedule, imposeCooldown } = createLimiter()
-    const client = new KufarHttpClient({
-      limiter,
-      transport: scripted.transport,
-      sleep,
-      now: () => RATE_LIMIT_NOW,
-    })
+  it.each(RATE_LIMIT_CASES)(
+    'handles 429 with $label without retrying',
+    async ({ headers, expectedCooldownMs }) => {
+      const sleep = vi.fn().mockResolvedValue(undefined)
+      const scripted = createScriptedTransport([response({ status: 429, headers })])
+      const { limiter, schedule, imposeCooldown } = createLimiter()
+      const client = new KufarHttpClient({
+        limiter,
+        transport: scripted.transport,
+        sleep,
+        now: () => RATE_LIMIT_NOW,
+      })
 
-    const result = await client.get(TEST_URL)
+      const result = await client.get(TEST_URL)
 
-    expect(result).toMatchObject({
-      ok: false,
-      kind: 'rate-limited',
-      code: 'rate-limited',
-      status: 429,
-      attempts: 1,
-      retryAfterMs: expectedCooldownMs,
-    })
-    expect(scripted.request).toHaveBeenCalledTimes(1)
-    expect(schedule).toHaveBeenCalledTimes(1)
-    expect(sleep).not.toHaveBeenCalled()
-    expect(imposeCooldown).toHaveBeenCalledTimes(1)
-    expect(imposeCooldown).toHaveBeenCalledWith(expectedCooldownMs)
-  })
+      expect(result).toMatchObject({
+        ok: false,
+        kind: 'rate-limited',
+        code: 'rate-limited',
+        status: 429,
+        attempts: 1,
+        retryAfterMs: expectedCooldownMs,
+      })
+      expect(scripted.request).toHaveBeenCalledTimes(1)
+      expect(schedule).toHaveBeenCalledTimes(1)
+      expect(sleep).not.toHaveBeenCalled()
+      expect(imposeCooldown).toHaveBeenCalledTimes(1)
+      expect(imposeCooldown).toHaveBeenCalledWith(expectedCooldownMs)
+    },
+  )
 })
