@@ -1,0 +1,410 @@
+{
+  "ads": [
+    {
+      "account_id": "O7rIEl9s3ROIilr9xxUsVlI",
+      "account_parameters": [
+        {
+          "pl": "Имя",
+          "vl": "",
+          "p": "name",
+          "v": "Максим ",
+          "pu": "nme"
+        }
+      ],
+      "ad_id": 1084212880,
+      "ad_link": "https://www.kufar.by/item/1084212880",
+      "ad_parameters": [
+        {
+          "pl": "Категория",
+          "vl": "Игры и приставки",
+          "p": "category",
+          "v": 5040,
+          "pu": "cat"
+        },
+        {
+          "pl": "Регион",
+          "vl": "Минск",
+          "p": "region",
+          "v": 7,
+          "pu": "rgn"
+        },
+        {
+          "pl": "Город / Район",
+          "vl": "Октябрьский",
+          "p": "area",
+          "v": "28",
+          "pu": "ar"
+        },
+        {
+          "pl": "Тип оплаты",
+          "vl": "Цена",
+          "p": "remuneration_type",
+          "v": "1",
+          "pu": "rtr"
+        },
+        {
+          "pl": "Тип",
+          "vl": "Игры для приставок, подписки, коды",
+          "p": "consoles_type",
+          "v": "2",
+          "pu": "cte"
+        },
+        {
+          "pl": "Состояние",
+          "vl": "Б/у",
+          "p": "condition",
+          "v": "1",
+          "pu": "cnd"
+        },
+        {
+          "pl": "Товары с Куфар Доставкой",
+          "vl": "-",
+          "p": "delivery_enabled",
+          "v": false,
+          "pu": "dle"
+        }
+      ],
+      "body": null,
+      "body_short": null,
+      "calculator": [
+        {
+          "currency": "USD",
+          "price": "5853",
+          "price_per_meter": null
+        },
+        {
+          "currency": "EUR",
+          "price": "5038",
+          "price_per_meter": null
+        },
+        {
+          "currency": "BYN",
+          "price": "18000",
+          "price_per_meter": null
+        },
+        {
+          "currency": "RUB",
+          "price": "504753",
+          "price_per_meter": null
+        }
+      ],
+      "category": "5040",
+      "company_ad": false,
+      "currency": "BYR",
+      "feedback_info": null,
+      "images": [
+        {
+          "id": "0000",
+          "media_storage": "rms",
+          "path": "adim1/f5bcc14d-2d1c-4433-ab92-5b25736dfd62.jpg",
+          "yams_storage": false
+        }
+      ],
+      "is_mine": false,
+      "list_id": 1084212880,
+      "list_time": "2026-09-07T08:08:34Z",
+      "message_id": "adid1084212880",
+      "paid_services": {
+        "halva": false,
+        "highlight": false,
+        "polepos": false,
+        "ribbons": null
+      },
+      "phone_hidden": true,
+      "price_byn": "18000",
+      "price_usd": "5853",
+      "remuneration_type": "1",
+      "show_parameters": {
+        "show_call": false,
+        "show_chat": false,
+        "show_import_link": false,
+        "show_web_shop_link": false
+      },
+      "subject": "007 First Light PS5 Игра",
+      "travel": null,
+      "type": "sell"
+    },
+    {
+      "account_id": "O8_3btDN2kTgy9PwAukKYu8",
+      "account_parameters": [
+        {
+          "pl": "УНП",
+          "vl": "",
+          "p": "vat_number",
+          "v": "AE5561659",
+          "pu": "vn"
+        },
+        {
+          "pl": "Контактное лицо",
+          "vl": "",
+          "p": "contact_person",
+          "v": "Шибко Константин Григорьевич ",
+          "pu": "cp"
+        },
+        {
+          "pl": "Адрес торговой точки",
+          "vl": "",
+          "p": "shop_address",
+          "v": "Минск, пр-т Независимости, 109",
+          "pu": "sa"
+        },
+        {
+          "pl": "Юридический адрес/Адрес регистрации",
+          "vl": "",
+          "p": "company_address",
+          "v": "Минск, пр-т Независимости,109",
+          "pu": "ca"
+        },
+        {
+          "pl": "Ссылка на интернет-магазин",
+          "vl": "",
+          "p": "web_shop_link",
+          "v": "https://t.me/Psplaypass",
+          "pu": "wsl"
+        },
+        {
+          "pl": "Имя",
+          "vl": "",
+          "p": "name",
+          "v": "Шибко Константин Григорьевич",
+          "pu": "nme"
+        }
+      ],
+      "ad_id": 1052779226,
+      "ad_link": "https://www.kufar.by/item/1052779226",
+      "ad_parameters": [
+        {
+          "pl": "Категория",
+          "vl": "Игры и приставки",
+          "p": "category",
+          "v": 5040,
+          "pu": "cat"
+        },
+        {
+          "pl": "Регион",
+          "vl": "Минск",
+          "p": "region",
+          "v": 7,
+          "pu": "rgn"
+        },
+        {
+          "pl": "Город / Район",
+          "vl": "Заводской",
+          "p": "area",
+          "v": "26",
+          "pu": "ar"
+        },
+        {
+          "pl": "Тип оплаты",
+          "vl": "Цена",
+          "p": "remuneration_type",
+          "v": "1",
+          "pu": "rtr"
+        },
+        {
+          "pl": "Тип",
+          "vl": "Игры для приставок, подписки, коды",
+          "p": "consoles_type",
+          "v": "2",
+          "pu": "cte"
+        },
+        {
+          "pl": "Состояние",
+          "vl": "Новое",
+          "p": "condition",
+          "v": "2",
+          "pu": "cnd"
+        },
+        {
+          "pl": "Гарантийный срок",
+          "vl": "",
+          "p": "shop_guarantee",
+          "v": "На весь период подписки",
+          "pu": "sg"
+        },
+        {
+          "pl": "Товары с Куфар Доставкой",
+          "vl": "-",
+          "p": "delivery_enabled",
+          "v": false,
+          "pu": "dle"
+        },
+        {
+          "pl": "Товары с Куфар Оплатой",
+          "vl": "-",
+          "p": "safedeal_enabled",
+          "v": false,
+          "pu": "sde"
+        },
+        {
+          "pl": "Доставка от продавца",
+          "vl": "Да",
+          "p": "delivery_pro",
+          "v": true,
+          "pu": "dlpr"
+        },
+        {
+          "pl": "Рассрочка от продавца",
+          "vl": "Да",
+          "p": "installment_pro",
+          "v": true,
+          "pu": "inpr"
+        },
+        {
+          "pl": "Ключевые слова",
+          "vl": "",
+          "p": "users_synonyms",
+          "v": "Подписка пс плюс, PlayStation Plus, PS Plus, Подписка PS Plus, Купить PS Plus, Продлить PS Plus, PS Plus Беларусь, PS Plus Украина, Оформление PS Plus, Активация PS Plus, подписка пс плюс, PS PLUS, ps, скидки подписка playstation plus ps plus",
+          "pu": "usn"
+        },
+        {
+          "pl": "Товары с доставкой в регионы",
+          "vl": "Да",
+          "p": "multiregion_enabled",
+          "v": true,
+          "pu": "mle"
+        },
+        {
+          "pl": "Компания",
+          "vl": "",
+          "p": "trademark",
+          "v": "PS Play Pass ✅",
+          "pu": "trd"
+        },
+        {
+          "pl": "Товары с доставкой в регионы",
+          "vl": [
+            "Вся Беларусь",
+            "Брестская",
+            "Гомельская",
+            "Гродненская",
+            "Могилевская",
+            "Минская",
+            "Витебская",
+            "Минск"
+          ],
+          "p": "multiregion_regions",
+          "v": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "pu": "mlr"
+        }
+      ],
+      "body": null,
+      "body_short": null,
+      "calculator": [
+        {
+          "currency": "USD",
+          "price": "163",
+          "price_per_meter": null
+        },
+        {
+          "currency": "EUR",
+          "price": "140",
+          "price_per_meter": null
+        },
+        {
+          "currency": "BYN",
+          "price": "500",
+          "price_per_meter": null
+        },
+        {
+          "currency": "RUB",
+          "price": "14021",
+          "price_per_meter": null
+        }
+      ],
+      "category": "5040",
+      "company_ad": true,
+      "currency": "BYR",
+      "feedback_info": null,
+      "images": [
+        {
+          "id": "0000",
+          "media_storage": "rms",
+          "path": "adim1/6d7d9c12-d54d-4c2c-bdb2-5c53bae6835b.jpg",
+          "yams_storage": false
+        },
+        {
+          "id": "0000",
+          "media_storage": "rms",
+          "path": "adim1/f5b37672-d7a8-4723-8b9a-1ad173dbf307.jpg",
+          "yams_storage": false
+        },
+        {
+          "id": "0000",
+          "media_storage": "rms",
+          "path": "adim1/377f85f6-7413-49e0-8b28-f0edfc8a7e3b.jpg",
+          "yams_storage": false
+        },
+        {
+          "id": "0000",
+          "media_storage": "rms",
+          "path": "adim1/5a1b76ef-b21c-446c-a4a2-12488c1d9983.jpg",
+          "yams_storage": false
+        }
+      ],
+      "is_mine": false,
+      "list_id": 1052779226,
+      "list_time": "2026-09-07T08:04:11Z",
+      "message_id": "adid1052779226",
+      "paid_services": {
+        "halva": false,
+        "highlight": false,
+        "polepos": false,
+        "ribbons": null
+      },
+      "phone_hidden": false,
+      "price_byn": "500",
+      "price_usd": "163",
+      "remuneration_type": "1",
+      "show_parameters": {
+        "show_call": false,
+        "show_chat": false,
+        "show_import_link": false,
+        "show_web_shop_link": false
+      },
+      "subject": "Подписка PlayStation Plus (PS Plus / ПС Плюс / Подписка PS) для PS4/PS5. Гарантия. Цены в описании",
+      "travel": null,
+      "type": "sell"
+    }
+  ],
+  "page_type": "search_page",
+  "pagination": {
+    "pages": [
+      {
+        "label": "self",
+        "num": 1,
+        "token": null
+      },
+      {
+        "label": "next",
+        "num": 2,
+        "token": "eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTI4MTQifQ=="
+      },
+      {
+        "label": "",
+        "num": 3,
+        "token": "eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MywicGl0IjoiMjk4MTI4MTQifQ=="
+      },
+      {
+        "label": "",
+        "num": 4,
+        "token": "eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6NCwicGl0IjoiMjk4MTI4MTQifQ=="
+      },
+      {
+        "label": "",
+        "num": 5,
+        "token": "eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6NSwicGl0IjoiMjk4MTI4MTQifQ=="
+      }
+    ]
+  },
+  "total": 1229
+}
