@@ -35,7 +35,7 @@ roles:
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `1.0.1` | [Разведка выдачи по электронике](../tasks/1-0-1-recon-electronics.md) | ✅ done | 🟢 aligned |
-| `1.0.2` | [Разведка выдачи по недвижимости и сверка спеки](../tasks/1-0-2-recon-realestate.md) | ⬜ todo | 🟡 drifted |
+| `1.0.2` | [Разведка выдачи по недвижимости и сверка спеки](../tasks/1-0-2-recon-realestate.md) | ⛔ blocked | 🟢 aligned |
 <!-- docs:ops:end epic-1.0-tasks -->
 
 ## Критерии приёмки эпика
