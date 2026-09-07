@@ -92,11 +92,11 @@ class UndiciKufarTransport implements KufarTransport {
   }
 
   async request(input: KufarTransportRequest): Promise<KufarTransportResponse> {
+    // Undici 7.29.1 core request() returns 3xx directly unless a redirect interceptor is composed.
     const result = await undiciRequest(input.url, {
       method: input.method,
       headers: input.headers,
       dispatcher: this.agent,
-      maxRedirections: 0,
     })
 
     const headers: KufarHeaders = {}
