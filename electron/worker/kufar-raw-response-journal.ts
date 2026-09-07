@@ -62,7 +62,8 @@ export class FileKufarRawResponseJournal {
   }
 
   async record(input: KufarRawResponseSnapshotInput): Promise<KufarRawResponseSnapshot> {
-    const requestUrl = typeof input.requestUrl === 'string' ? input.requestUrl : input.requestUrl.href
+    const requestUrl =
+      typeof input.requestUrl === 'string' ? input.requestUrl : input.requestUrl.href
     const endpoint = endpointFromInput(input.requestUrl)
     const capturedAt = this.now()
     const id = this.createId()

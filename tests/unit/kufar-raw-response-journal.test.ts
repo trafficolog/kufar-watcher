@@ -34,8 +34,7 @@ describe('FileKufarRawResponseJournal', () => {
     const journal = createJournal()
 
     const snapshot = await journal.record({
-      requestUrl:
-        'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040',
+      requestUrl: 'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040',
       status: 200,
       body,
     })
@@ -44,8 +43,7 @@ describe('FileKufarRawResponseJournal', () => {
       version: 1,
       id: 'snapshot-1',
       endpoint: 'api.kufar.by/search-api/v2/search/rendered-paginated',
-      requestUrl:
-        'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040',
+      requestUrl: 'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040',
       status: 200,
       capturedAt: '2026-09-08T10:15:30.000Z',
       bodyBase64: Buffer.from(body).toString('base64'),
@@ -58,8 +56,7 @@ describe('FileKufarRawResponseJournal', () => {
     const journal = createJournal()
 
     await journal.record({
-      requestUrl:
-        'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040',
+      requestUrl: 'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040',
       status: 200,
       body: Uint8Array.of(1),
     })
@@ -68,8 +65,7 @@ describe('FileKufarRawResponseJournal', () => {
     currentTime = new Date('2026-09-08T10:15:31.000Z')
 
     await journal.record({
-      requestUrl:
-        'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=1010',
+      requestUrl: 'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=1010',
       status: 200,
       body: Uint8Array.of(2),
     })
