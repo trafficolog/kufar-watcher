@@ -97,7 +97,7 @@ Snapshot filenames contain a sortable timestamp plus ID. Only journal-owned snap
 
 Default retention is exactly **5 snapshots per endpoint**.
 
-After a new envelope is durably written, the journal enumerates that endpoint bucket and removes journal-owned snapshots older than the newest five. Different query strings share one endpoint bucket, while different endpoint paths have independent retention windows.
+After a new envelope is successfully written, the journal enumerates that endpoint bucket and removes journal-owned snapshots older than the newest five. Different query strings share one endpoint bucket, while different endpoint paths have independent retention windows.
 
 The limit is configurable only for tests; production uses five.
 
@@ -139,7 +139,7 @@ The export path is provided by the caller. The journal does not open dialogs, ch
 
 ## Error handling
 
-- Filesystem errors from direct journal API calls reject with ordinary typed/diagnostic `Error` objects; no raw response bytes are included in messages.
+- Filesystem errors from direct journal API calls reject with ordinary `Error` objects; no raw response bytes are included in messages.
 - Missing snapshot IDs reject explicitly rather than silently creating an empty fixture.
 - Malformed stored envelope files are treated as journal corruption and rejected by `list`/export rather than being silently rewritten.
 - HTTP-client integration catches journal persistence errors, calls the safe warning hook, and preserves the successful HTTP result.
