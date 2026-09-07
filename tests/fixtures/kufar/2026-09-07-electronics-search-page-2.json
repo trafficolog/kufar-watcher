@@ -1,0 +1,382 @@
+{
+  "ads": [
+    {
+      "account_id": "O8LHHUU6lF-4a7R2KqJV8Fg",
+      "account_parameters": [
+        {
+          "pl": "Имя",
+          "vl": "",
+          "p": "name",
+          "v": "daniil ",
+          "pu": "nme"
+        }
+      ],
+      "ad_id": 1084209064,
+      "ad_link": "https://www.kufar.by/item/1084209064",
+      "ad_parameters": [
+        {
+          "pl": "Категория",
+          "vl": "Игры и приставки",
+          "p": "category",
+          "v": 5040,
+          "pu": "cat"
+        },
+        {
+          "pl": "Регион",
+          "vl": "Минск",
+          "p": "region",
+          "v": 7,
+          "pu": "rgn"
+        },
+        {
+          "pl": "Город / Район",
+          "vl": "Первомайский",
+          "p": "area",
+          "v": "24",
+          "pu": "ar"
+        },
+        {
+          "pl": "Тип оплаты",
+          "vl": "Цена",
+          "p": "remuneration_type",
+          "v": "1",
+          "pu": "rtr"
+        },
+        {
+          "pl": "Тип",
+          "vl": "Игры для приставок, подписки, коды",
+          "p": "consoles_type",
+          "v": "2",
+          "pu": "cte"
+        },
+        {
+          "pl": "Состояние",
+          "vl": "Б/у",
+          "p": "condition",
+          "v": "1",
+          "pu": "cnd"
+        },
+        {
+          "pl": "Товары с Куфар Доставкой",
+          "vl": "Да",
+          "p": "delivery_enabled",
+          "v": true,
+          "pu": "dle"
+        }
+      ],
+      "body": null,
+      "body_short": null,
+      "calculator": [
+        {
+          "currency": "USD",
+          "price": "1788",
+          "price_per_meter": null
+        },
+        {
+          "currency": "EUR",
+          "price": "1539",
+          "price_per_meter": null
+        },
+        {
+          "currency": "BYN",
+          "price": "5500",
+          "price_per_meter": null
+        },
+        {
+          "currency": "RUB",
+          "price": "154230",
+          "price_per_meter": null
+        }
+      ],
+      "category": "5040",
+      "company_ad": false,
+      "currency": "BYR",
+      "feedback_info": null,
+      "images": [
+        {
+          "id": "0000",
+          "media_storage": "rms",
+          "path": "adim1/aacfea9e-1484-4e15-b3c4-32ea5773cc6e.jpg",
+          "yams_storage": false
+        },
+        {
+          "id": "0000",
+          "media_storage": "rms",
+          "path": "adim1/ce47ac78-ed98-42d6-92e2-2b2a0e5dbbcc.jpg",
+          "yams_storage": false
+        }
+      ],
+      "is_mine": false,
+      "list_id": 1084209064,
+      "list_time": "2026-09-07T07:53:04Z",
+      "message_id": "adid1084209064",
+      "paid_services": {
+        "halva": false,
+        "highlight": false,
+        "polepos": false,
+        "ribbons": null
+      },
+      "phone_hidden": true,
+      "price_byn": "5500",
+      "price_usd": "1788",
+      "remuneration_type": "1",
+      "show_parameters": {
+        "show_call": false,
+        "show_chat": false,
+        "show_import_link": false,
+        "show_web_shop_link": false
+      },
+      "subject": "Диск  ps 4   ps 5",
+      "travel": null,
+      "type": "sell"
+    },
+    {
+      "account_id": "O4WP3kkgvQIuQzwwPKq24vc",
+      "account_parameters": [
+        {
+          "pl": "УНП",
+          "vl": "",
+          "p": "vat_number",
+          "v": "190985493",
+          "pu": "vn"
+        },
+        {
+          "pl": "Адрес торговой точки",
+          "vl": "",
+          "p": "shop_address",
+          "v": "пр-т Независимости,155/1,ТЦ Счастье, пав.48",
+          "pu": "sa"
+        },
+        {
+          "pl": "Юридический адрес/Адрес регистрации",
+          "vl": "",
+          "p": "company_address",
+          "v": "пр-т Независимости,123/2-67",
+          "pu": "ca"
+        },
+        {
+          "pl": "Ссылка на интернет-магазин",
+          "vl": "",
+          "p": "web_shop_link",
+          "v": "https://gamepark.by/",
+          "pu": "wsl"
+        },
+        {
+          "pl": "Имя",
+          "vl": "",
+          "p": "name",
+          "v": "ИП Бондаренко Д.В.",
+          "pu": "nme"
+        }
+      ],
+      "ad_id": 1002198312,
+      "ad_link": "https://www.kufar.by/item/1002198312",
+      "ad_parameters": [
+        {
+          "pl": "Категория",
+          "vl": "Игры и приставки",
+          "p": "category",
+          "v": 5040,
+          "pu": "cat"
+        },
+        {
+          "pl": "Регион",
+          "vl": "Минск",
+          "p": "region",
+          "v": 7,
+          "pu": "rgn"
+        },
+        {
+          "pl": "Город / Район",
+          "vl": "Первомайский",
+          "p": "area",
+          "v": "24",
+          "pu": "ar"
+        },
+        {
+          "pl": "Тип оплаты",
+          "vl": "Цена",
+          "p": "remuneration_type",
+          "v": "1",
+          "pu": "rtr"
+        },
+        {
+          "pl": "Тип",
+          "vl": "Приставки",
+          "p": "consoles_type",
+          "v": "1",
+          "pu": "cte"
+        },
+        {
+          "pl": "Состояние",
+          "vl": "Новое",
+          "p": "condition",
+          "v": "2",
+          "pu": "cnd"
+        },
+        {
+          "pl": "Товары с Куфар Доставкой",
+          "vl": "-",
+          "p": "delivery_enabled",
+          "v": false,
+          "pu": "dle"
+        },
+        {
+          "pl": "Товары с Куфар Оплатой",
+          "vl": "-",
+          "p": "safedeal_enabled",
+          "v": false,
+          "pu": "sde"
+        },
+        {
+          "pl": "Доставка от продавца",
+          "vl": "Да",
+          "p": "delivery_pro",
+          "v": true,
+          "pu": "dlpr"
+        },
+        {
+          "pl": "Товары с доставкой в регионы",
+          "vl": "Да",
+          "p": "multiregion_enabled",
+          "v": true,
+          "pu": "mle"
+        },
+        {
+          "pl": "Компания",
+          "vl": "",
+          "p": "trademark",
+          "v": "GamePark",
+          "pu": "trd"
+        },
+        {
+          "pl": "Товары с доставкой в регионы",
+          "vl": [
+            "Вся Беларусь",
+            "Брестская",
+            "Гомельская",
+            "Гродненская",
+            "Могилевская",
+            "Минская",
+            "Витебская",
+            "Минск"
+          ],
+          "p": "multiregion_regions",
+          "v": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "pu": "mlr"
+        }
+      ],
+      "body": null,
+      "body_short": null,
+      "calculator": [
+        {
+          "currency": "USD",
+          "price": "133288",
+          "price_per_meter": null
+        },
+        {
+          "currency": "EUR",
+          "price": "114734",
+          "price_per_meter": null
+        },
+        {
+          "currency": "BYN",
+          "price": "409900",
+          "price_per_meter": null
+        },
+        {
+          "currency": "RUB",
+          "price": "11494350",
+          "price_per_meter": null
+        }
+      ],
+      "category": "5040",
+      "company_ad": true,
+      "currency": "BYR",
+      "feedback_info": null,
+      "images": [
+        {
+          "id": "0000",
+          "media_storage": "rms",
+          "path": "adim1/a76285ab-f69a-4e9c-b644-d9641736886f.jpg",
+          "yams_storage": false
+        },
+        {
+          "id": "0000",
+          "media_storage": "rms",
+          "path": "adim1/a66bce8b-15c5-45a2-b800-f6d4635e9633.jpg",
+          "yams_storage": false
+        },
+        {
+          "id": "0000",
+          "media_storage": "rms",
+          "path": "adim1/61030cf2-f0ea-4b6d-a836-64701677022a.jpg",
+          "yams_storage": false
+        }
+      ],
+      "is_mine": false,
+      "list_id": 1002198312,
+      "list_time": "2026-09-07T07:50:59Z",
+      "message_id": "adid1002198312",
+      "paid_services": {
+        "halva": false,
+        "highlight": true,
+        "polepos": false,
+        "ribbons": null
+      },
+      "phone_hidden": false,
+      "price_byn": "409900",
+      "price_usd": "133288",
+      "remuneration_type": "1",
+      "show_parameters": {
+        "show_call": false,
+        "show_chat": false,
+        "show_import_link": false,
+        "show_web_shop_link": false
+      },
+      "subject": "Sony PlayStation 5 PRO (2 ревизия)",
+      "travel": null,
+      "type": "sell"
+    }
+  ],
+  "page_type": "search_page",
+  "pagination": {
+    "pages": [
+      {
+        "label": "prev",
+        "num": 1,
+        "token": "eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MX0="
+      },
+      {
+        "label": "self",
+        "num": 2,
+        "token": null
+      },
+      {
+        "label": "next",
+        "num": 3,
+        "token": "eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MywicGl0IjoiMjk4MTI4MTQifQ=="
+      },
+      {
+        "label": "",
+        "num": 4,
+        "token": "eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6NCwicGl0IjoiMjk4MTI4MTQifQ=="
+      },
+      {
+        "label": "",
+        "num": 5,
+        "token": "eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6NSwicGl0IjoiMjk4MTI4MTQifQ=="
+      }
+    ]
+  },
+  "total": 1229
+}

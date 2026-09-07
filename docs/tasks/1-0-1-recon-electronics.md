@@ -2,9 +2,9 @@
 id: "1.0.1"
 phase: 1
 epic: "1.0"
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-05
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-07
 roles: [BACK, QA]
 depends_on: []
 estimated_hours: 2-3
@@ -14,7 +14,7 @@ tags: [recon, contract, spike]
 
 # Задача 1.0.1 — Разведка выдачи по электронике
 
-> Эпик 1.0 · Фаза 1 · ⬜ todo · зависит от: — · оценка: 2-3 ч
+> Эпик 1.0 · Фаза 1 · ✅ done · зависит от: — · оценка: 2-3 ч
 
 ## Цель
 
@@ -23,15 +23,12 @@ tags: [recon, contract, spike]
 
 ## Контекст
 
-Спецификация контракта собрана по открытым источникам и целиком состоит из
-гипотез. Пока они не проверены, любая работа над сетевым слоем — угадывание.
-Известно также, что внешние обращения к страницам площадки могут получать отказ
-в доступе в зависимости от способа запроса; это тоже надо выяснить здесь, а не
-на середине реализации адаптера.
+Спецификация контракта первоначально была собрана по открытым источникам и
+состояла из гипотез. В этой задаче гипотезы проверяются живыми ручными запросами
+до реализации сетевого слоя.
 
 Задача исследовательская: её результат — не код, а обновлённая спека и файлы
-фикстур. Ограничение по времени жёсткое: два-три часа, дальше уходим в
-реализацию с тем, что есть.
+фикстур. Запросы выполняются вручную, по одному, без обхода ограничений Kufar.
 
 ## Что должно быть сделано
 
@@ -54,14 +51,73 @@ tags: [recon, contract, spike]
 - Обновить `docs/superpowers/specs/kufar-api-contract.md` по факту, сняв или
   уточнив каждую пометку «требует проверки»
 
+## Итог разведки — 2026-09-07
+
+Актуальный журнал: [kufar-electronics-2026-09-07.md](../recon/kufar-electronics-2026-09-07.md).
+
+Первично подтверждены живыми raw responses / exact source fragment:
+
+- host `api.kufar.by`;
+- search endpoint `/search-api/v2/search/rendered-paginated`;
+- рабочий electronics query `cat=5040&rgn=7&query=ps5&size=2&sort=lst.d&lang=ru`;
+- top-level `ads`, `pagination`, `total`;
+- cursor mechanics: `pagination.pages[]` → элемент `label == "next"` → `token`
+  → следующий запрос `cursor=<token>`;
+- page 1 и page 2 одного согласованного snapshot с `total=1229`;
+- `/search-api/v2/search/count` с ответом `{"count":1229}`, совпавшим с
+  `search.total` для тех же effective filters;
+- поля `ad_id`, `list_id`, `list_time`, `subject`, `price_byn`, `price_usd`,
+  `currency`, `account_id`, `company_ad`, `ad_parameters` region/area,
+  `body_short`, `body`;
+- объявление `1082715190`: публичная карточка показывает `Договорная`, а raw
+  search/detail/embedded state содержат `price_byn="0"`;
+- public detail endpoint `/search-api/v2/item/{id}/rendered?lang=ru`;
+- для активного `1082715190` detail response содержит цену и данные карточки,
+  но не содержит отдельного platform-status поля;
+- для заведомо старого снятого `210670642` тот же endpoint отвечает
+  `404` с `ASR0006 / ad not found`;
+- исходный HTML карточки содержит `<script id="__NEXT_DATA__">` с путём
+  `props.initialState.adView.data.initial` и пригодным для разбора structured
+  state.
+
+Сохранены dated fixtures/evidence:
+
+- `tests/fixtures/kufar/2026-09-07-electronics-search-page-1.json`;
+- `tests/fixtures/kufar/2026-09-07-electronics-search-page-2.json`;
+- `tests/fixtures/kufar/2026-09-07-electronics-count.json`;
+- `tests/fixtures/kufar/2026-09-07-electronics-negotiable.json`;
+- `tests/fixtures/kufar/2026-09-07-electronics-negotiable-detail.json`;
+- `tests/fixtures/kufar/2026-09-07-electronics-detail-not-found.json`;
+- `tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.txt`.
+
+Пользовательский слой подтвердил маршруты `www.kufar.by/l/...`, сегменты
+`r~minsk` и `q~ps5`, `/item/{id}` и пригодность server-rendered DOM для разбора.
+Официальный Help Center отдельно подтверждает набор допустимых пользовательских
+поддоменов.
+
+### Что зафиксировано про status
+
+Detail-запрос не отдаёт explicit `status` рядом с ценой. Для доступного
+объявления он возвращает `200`-payload с `price_byn`; для старого недоступного
+объявления — `404 ASR0006 ad not found`. Поэтому один detail request можно
+использовать как сигнал «доступно / больше не разрешается», но он не различает
+причину недоступности (`sold` против `removed`) отдельным полем. Embedded
+`__NEXT_DATA__` активной карточки согласуется с этим: цена есть, status-like
+поля нет. Архитектура эпика `3.4` не должна рассчитывать на explicit
+platform-status в payload.
+
+Успешные browser probes не получили от Kufar `403` или `429`. Proxy/VPN,
+подмена User-Agent/fingerprint, ротация адресов и другие способы обхода не
+использовались.
+
 ## Критерии приёмки
 
-- [ ] Фикстуры первой и второй страницы выдачи сохранены с датой
-- [ ] Фикстура объявления с договорной ценой сохранена
-- [ ] В спеке контракта для электроники не осталось непроверенных пометок
-- [ ] Механика курсорной пагинации описана в спеке
-- [ ] Зафиксировано, работает ли `/count` и что именно он считает
-- [ ] Зафиксировано, приходит ли статус объявления тем же запросом, что и цена
+- [x] Фикстуры первой и второй страницы выдачи сохранены с датой
+- [x] Фикстура объявления с договорной ценой сохранена
+- [x] В спеке контракта для электроники не осталось непроверенных пометок
+- [x] Механика курсорной пагинации описана в спеке
+- [x] Зафиксировано, работает ли `/count` и что именно он считает
+- [x] Зафиксировано, приходит ли статус объявления тем же запросом, что и цена
 
 ## Подсказки
 
