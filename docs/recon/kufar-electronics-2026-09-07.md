@@ -2,15 +2,9 @@
 
 ## Статус
 
-Промежуточный результат задачи `1.0.1`. После подключения Opera Browser
-Connector получены и сохранены **первичные живые JSON-ответы** electronics
-search API: первая страница, вторая страница по cursor, `/count` и отдельное
-объявление с договорной ценой.
-
-Задача всё ещё не закрыта: Browser Connector не даёт читать `view-source:` и в
-конце сессии временно потерял авторизацию до выполнения найденного detail
-запроса. Поэтому точный embedded-state shape исходного HTML и контракт
-`price + platform status` detail response остаются непроверенными.
+Задача `1.0.1` закрыта первичными live evidence. Вручную, по одному запросу,
+подтверждены electronics search API, cursor-pagination, `/count`, базовые поля,
+договорная цена, detail contract и structured embedded state из исходного HTML.
 
 Никаких попыток обхода ограничений площадки не предпринималось: не использовались
 прокси, VPN, ротация адресов, подмена fingerprint/User-Agent, авторизация Kufar
@@ -118,7 +112,7 @@ Raw fixtures первично подтверждают:
 
 `https://www.kufar.by/item/1082715190`
 
-Заголовок живой страницы прямо содержит `цена Договорная`; товар —
+Пользовательский слой показывает `Договорная`; товар —
 `NHL 27 для PS5 и Xbox Series X/S`.
 
 Отдельный минимальный raw search probe для той же записи сохранён как:
@@ -138,46 +132,72 @@ Raw fixtures первично подтверждают:
 означает `Договорная`, а не бесплатный товар. `price_byn=null` в live sample не
 наблюдался и не считается подтверждённым вариантом договорной цены.
 
-## HTML / DOM
+## HTML / embedded state — primary live evidence
 
-Живой server-rendered пользовательский слой содержит карточки объявлений,
-`/item/{id}` links, цену, локацию и seller-type UI. В выдаче наблюдаются
-числовые цены, `Договорная` и `Бесплатно`. Поэтому DOM технически пригоден для
-разбора без выполнения дополнительного клиентского JS.
+Для той же карточки `1082715190` в Opera был открыт:
 
-Однако acceptance требует также проверить структурированное embedded state в
-исходном HTML. Opera открывает
-`view-source:https://www.kufar.by/item/1082715190`, но Browser Connector
-запрещает чтение accessibility tree и screenshot для `view-source:` scheme.
-Поэтому наличие и точный electronics shape `__NEXT_DATA__` **не считаются
-первично подтверждёнными**.
+`view-source:https://www.kufar.by/item/1082715190`
 
-Secondary evidence 2026 года независимо указывает на `<script id="__NEXT_DATA__">`
-и `props.initialState.adView.data`, но это не заменяет dated raw capture.
+Browser Connector не умеет читать `view-source:` scheme, поэтому пользователь
+вручную скопировал exact `<script id="__NEXT_DATA__" type="application/json">`
+block из уже открытой нами страницы. Полный скопированный block был проверен как
+валидный JSON. В репозитории сохранён минимальный **точный непрерывный фрагмент**
+этого source без нормализации данных:
 
-## Detail response / platform status
+`tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.html`.
 
-Search fixtures содержат цену, но не содержат отдельного очевидного поля
-platform status (`active` / `sold` / `removed`). Из этого нельзя вывести, что
-такого поля нет в detail response.
+Первично подтверждён shape:
 
-В открытых клиентах найден актуальный-looking публичный detail target:
+- Next page: `/item/[id]`, query `id=1082715190`;
+- `props.initialState.adView.data`;
+- `props.initialState.adView.data.initial`;
+- UI-layer `price="Договорная"`;
+- `initial.price_byn="0"`, `initial.price_usd="0"`, `currency="BYR"`;
+- `initial.ad_id=1082715190`, `list_id`, `list_time`, `account_id`,
+  `company_ad`, `ad_parameters`, `body`, `subject`;
+- region/area доступны как в UI-layer (`region="Минск, Партизанский"`), так и
+  в `initial.ad_parameters`.
+
+Следовательно, HTML действительно содержит пригодное для машинного разбора
+structured state. Это допустимый проверенный fallback shape; primary path всё
+равно остаётся JSON API.
+
+## Detail response / platform status — primary live evidence
+
+Первично подтверждён public detail endpoint:
 
 `https://api.kufar.by/search-api/v2/item/{id}/rendered?lang=ru`
 
-Его используют, в частности, открытые клиенты `ZemichPS/kufar-eco-system` и
-`dmitriyTarasovWeb/kufarNotify`. Это **secondary evidence и probe target**, а не
-подтверждённый контракт нашей задачи.
+Для активного `1082715190` ответ сохранён как:
 
-Сразу после обнаружения target Opera Browser Connector потерял авторизацию и
-вернул ошибку соединения аккаунта **до HTTP-запроса к Kufar**. Независимый
-web-fetch не разрешил открыть неиндексированный exact API URL. Поэтому этот
-endpoint и вопрос `price + platform status in the same response` пока остаются
-открытыми. Ошибка не классифицируется как `403`/`429` или иной ответ Kufar.
+`tests/fixtures/kufar/2026-09-07-electronics-negotiable-detail.json`.
+
+Он содержит цену (`price_byn="0"`), описание, seller/account data и остальные
+данные карточки, но не содержит отдельного platform-status поля вроде
+`status`, `active`, `sold` или `removed`.
+
+Для заведомо старого недоступного `210670642` тот же endpoint вернул:
+
+`404` + `ASR0006` + `ad not found`.
+
+Raw fixture:
+`tests/fixtures/kufar/2026-09-07-electronics-detail-not-found.json`.
+
+Практический контракт для эпика `3.4`:
+
+- один detail request одновременно проверяет текущую цену и факт доступности;
+- успешный detail payload означает, что карточка доступна и содержит цену;
+- `404 ASR0006` означает, что карточка больше недоступна через этот endpoint;
+- payload **не различает** причину недоступности (`sold` против `removed`) через
+  explicit status field.
+
+Скопированный `__NEXT_DATA__` активной карточки независимо подтверждает то же:
+в `adView.data` и `adView.data.initial` есть цена и данные объявления, но нет
+отдельного status-like поля.
 
 ## Secondary evidence 2026
 
-Secondary evidence использовался только для выбора минимального live target;
+Secondary evidence использовался только для выбора минимальных live targets;
 после первичных fixtures он не подменяет подтверждённые значения.
 
 ### Январь 2026
@@ -213,7 +233,8 @@ response `ads`, `total`, `pagination` и поля `ad_id`, `account_id`,
 выбирает cursor через `pagination.pages[]` с `label == "next"`, моделирует
 основные ad fields и интерпретирует zero/null price как negotiable. Его DTO не
 моделирует platform status и выводит локальный `INACTIVE` по исчезновению ID;
-это не доказывает отсутствие status в сыром Kufar response.
+это не доказывало протокол само по себе, но теперь согласуется с primary live
+probe `1.0.1`.
 
 Источники:
 
@@ -228,20 +249,18 @@ response `ads`, `total`, `pagination` и поля `ad_id`, `account_id`,
 на `api.kufar.by/search-api/v2/...` и именно он является source of truth для
 последующих задач.
 
-## Что остаётся для закрытия `1.0.1`
+## Итог `1.0.1`
 
-Уже закрыто raw evidence:
+Первичным dated evidence закрыты:
 
-- первая страница;
-- вторая страница и cursor mechanics;
-- `/count` и его совпадение с `total` для согласованного запроса;
-- electronics fields;
-- negotiable `price_byn="0"` sample.
+- первая и вторая страницы выдачи;
+- cursor mechanics;
+- `/count` и совпадение с `total` для согласованного запроса;
+- обязательные electronics fields;
+- negotiable `price_byn="0"` sample;
+- public detail endpoint и availability semantics;
+- exact `__NEXT_DATA__` structured-state fragment.
 
-Остаются два первичных гейта:
-
-1. получить исходный HTML актуальной electronics page и подтвердить точный
-   structured embedded-state shape;
-2. выполнить public detail probe `/search-api/v2/item/{id}/rendered?lang=ru`
-   и зафиксировать, приходят ли price и platform status одним ответом или для
-   статуса нужна отдельная стратегия.
+Непроверенных electronics-гейтов задачи `1.0.1` не осталось. Недвижимость
+проверяется отдельно в `1.0.2`; выводы между вертикалями автоматически не
+переносятся.
