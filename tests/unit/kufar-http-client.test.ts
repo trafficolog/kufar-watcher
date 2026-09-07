@@ -16,14 +16,17 @@ const response = (
 })
 
 const createLimiter = () => {
-  const schedule = vi.fn(async <T>(operation: () => Promise<T>): Promise<T> => operation())
+  const schedule = vi.fn()
   const imposeCooldown = vi.fn()
-
-  return {
-    limiter: { schedule, imposeCooldown } satisfies KufarLimiter,
-    schedule,
+  const limiter: KufarLimiter = {
+    schedule: async <T>(operation: () => Promise<T>): Promise<T> => {
+      schedule()
+      return operation()
+    },
     imposeCooldown,
   }
+
+  return { limiter, schedule, imposeCooldown }
 }
 
 const createTransport = (...results: KufarTransportResponse[]) => {
