@@ -1,0 +1,152 @@
+{
+  "ads": [
+    {
+      "account_id": "OyIomFQ-hAyFqnlz6FWDglc",
+      "account_parameters": [
+        {
+          "pl": "Имя",
+          "vl": "",
+          "p": "name",
+          "v": "Ирина ",
+          "pu": "nme"
+        }
+      ],
+      "ad_id": 1082715190,
+      "ad_link": "https://www.kufar.by/item/1082715190",
+      "ad_parameters": [
+        {
+          "pl": "Категория",
+          "vl": "Игры и приставки",
+          "p": "category",
+          "v": 5040,
+          "pu": "cat"
+        },
+        {
+          "pl": "Регион",
+          "vl": "Минск",
+          "p": "region",
+          "v": 7,
+          "pu": "rgn"
+        },
+        {
+          "pl": "Город / Район",
+          "vl": "Партизанский",
+          "p": "area",
+          "v": "25",
+          "pu": "ar"
+        },
+        {
+          "pl": "Тип оплаты",
+          "vl": "Цена",
+          "p": "remuneration_type",
+          "v": "1",
+          "pu": "rtr"
+        },
+        {
+          "pl": "Тип",
+          "vl": "Игры для приставок, подписки, коды",
+          "p": "consoles_type",
+          "v": "2",
+          "pu": "cte"
+        },
+        {
+          "pl": "Состояние",
+          "vl": "Новое",
+          "p": "condition",
+          "v": "2",
+          "pu": "cnd"
+        }
+      ],
+      "body": null,
+      "body_short": null,
+      "calculator": [
+        {
+          "currency": "USD",
+          "price": "0",
+          "price_per_meter": null
+        },
+        {
+          "currency": "EUR",
+          "price": "0",
+          "price_per_meter": null
+        },
+        {
+          "currency": "BYN",
+          "price": "0",
+          "price_per_meter": null
+        },
+        {
+          "currency": "RUB",
+          "price": "0",
+          "price_per_meter": null
+        }
+      ],
+      "category": "5040",
+      "company_ad": false,
+      "currency": "BYR",
+      "feedback_info": null,
+      "images": [
+        {
+          "id": "0000",
+          "media_storage": "rms",
+          "path": "adim1/c18219b9-ffce-4b6d-9a36-8ecce071186b.jpg",
+          "yams_storage": false
+        }
+      ],
+      "is_mine": false,
+      "list_id": 1082715190,
+      "list_time": "2026-09-07T07:30:49Z",
+      "message_id": "adid1082715190",
+      "paid_services": {
+        "halva": false,
+        "highlight": false,
+        "polepos": false,
+        "ribbons": null
+      },
+      "phone_hidden": true,
+      "price_byn": "0",
+      "price_usd": "0",
+      "remuneration_type": "1",
+      "show_parameters": {
+        "show_call": false,
+        "show_chat": false,
+        "show_import_link": false,
+        "show_web_shop_link": false
+      },
+      "subject": "NHL 27 для PS5 и Xbox Series X/S",
+      "travel": null,
+      "type": "sell"
+    }
+  ],
+  "page_type": "search_page",
+  "pagination": {
+    "pages": [
+      {
+        "label": "self",
+        "num": 1,
+        "token": null
+      },
+      {
+        "label": "next",
+        "num": 2,
+        "token": "eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTI4MDkifQ=="
+      },
+      {
+        "label": "",
+        "num": 3,
+        "token": "eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MywicGl0IjoiMjk4MTI4MDkifQ=="
+      },
+      {
+        "label": "",
+        "num": 4,
+        "token": "eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6NCwicGl0IjoiMjk4MTI4MDkifQ=="
+      },
+      {
+        "label": "",
+        "num": 5,
+        "token": "eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6NSwicGl0IjoiMjk4MTI4MDkifQ=="
+      }
+    ]
+  },
+  "total": 8
+}
