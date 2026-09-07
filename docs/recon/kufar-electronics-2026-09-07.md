@@ -126,6 +126,42 @@ JSON search API использует тот же hostname или те же им�
 Источник:
 `https://github.com/TrofimGest/padel-monitor/blob/9c43f3ac8544b4a18abb4b0d2254ad766e48d2f4/browser-harness/domain-skills/kufar/commercial-rent-monitoring.md`.
 
+### Август–сентябрь 2026 — самый свежий production-style client
+
+Репозиторий `shmelidzee/flatio`, состояние от 2026-09-06, использует base URL
+`https://api.kufar.by` и path `/search-api/v2/search/rendered-paginated`.
+Клиент передаёт `cat`, `typ`, `lang`, `size` и опциональный `cursor`.
+
+Важные уточнения:
+
+- следующий курсор выбирается не по позиции массива, а как элемент
+  `pagination.pages[]` с `label == "next"`; затем используется его `token`;
+- top-level response моделируется как `ads`, `pagination`, `total`;
+- объявление моделирует `ad_id`, `subject`, `body`, `price_byn`, `currency`,
+  `ad_link`, `account`, `account_parameters`, `ad_parameters`, `company_ad`,
+  `images`, `list_time`;
+- `price_byn == null || price_byn == 0` интерпретируется как
+  `isNegotiable=true`;
+- комментарий клиента фиксирует live sample от 2026-08-18: 60 объявлений в
+  четырёх real-estate категориях, у 60/60 street-level `address` был найден в
+  `account_parameters`.
+
+`KufarAd` DTO этого проекта не моделирует платформенный status, а локальный
+`INACTIVE` определяется исчезновением external ID после полного sync. Это
+**не доказывает**, что status отсутствует в JSON: DTO игнорирует неизвестные
+properties. Но это сильный secondary signal, что рассчитывать на status без
+live-проверки нельзя.
+
+Источники:
+
+- `https://github.com/shmelidzee/flatio/blob/680863b4a6d79faf3a4eea43d1903218224aeef9/src/main/resources/application.yml`;
+- `https://github.com/shmelidzee/flatio/blob/680863b4a6d79faf3a4eea43d1903218224aeef9/src/main/java/com/flatio/integration/kufar/client/KufarApiClient.java`;
+- `https://github.com/shmelidzee/flatio/blob/680863b4a6d79faf3a4eea43d1903218224aeef9/src/main/java/com/flatio/integration/kufar/dto/KufarAd.java`.
+
+В репозитории есть JSON test fixture с ожидаемым API shape, но его данные
+выглядят санитизированными/синтетическими. Поэтому он полезен только как
+secondary contract fixture и не считается raw live evidence нашей задачи.
+
 ### Рабочая гипотеза probe
 
 Следующий live probe электроники должен начинаться с минимального запроса к:
@@ -135,14 +171,14 @@ JSON search API использует тот же hostname или те же им�
 и отдельно проверить:
 
 1. действительно ли endpoint отвечает электронике в текущем контракте;
-2. находится ли следующий cursor в `pagination.pages[].token`;
+2. содержит ли `pagination.pages[]` элемент `label == "next"` с `token`;
 3. работает ли вторая страница при `cursor=<token>`;
 4. совпадает ли `total` с семантикой счётчика;
 5. что возвращает `https://api.kufar.by/search-api/v2/search/count` и является
    ли его `count` тем же числом до локальной фильтрации;
 6. точные типы и nullable-семантику обязательных полей;
-7. representation `Договорная` — отсутствующая/нулевая цена,
-   `remuneration_type` или другой признак;
+7. действительно ли `Договорная` означает `price_byn == null || 0`, и нужен ли
+   дополнительный признак;
 8. есть ли в detail/search response отдельный платформенный статус объявления.
 
 До raw live response все восемь пунктов остаются гипотезами.
@@ -169,7 +205,7 @@ DOM-разбора, но не получил **исходные HTML-байты*
 - `/category_tree/v1/category_tree`;
 - параметры вроде `size`, `sort=lst.d`, `cur`, `cat`, `rgn`, `lang`.
 
-Три независимых источника 2026 года выше уже указывают на `api.kufar.by` и
+Четыре независимых источника 2026 года выше указывают на `api.kufar.by` и
 `search-api/v2`. Поэтому старый `cre-api`/v1 теперь рассматривается только как
 исторический контракт и не является первым target для live probe.
 
