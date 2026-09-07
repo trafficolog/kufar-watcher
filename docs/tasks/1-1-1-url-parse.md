@@ -2,7 +2,7 @@
 id: "1.1.1"
 phase: 1
 epic: "1.1"
-status: todo
+status: done
 sync_state: aligned
 last_reviewed: 2026-09-07
 roles: [BACK]
@@ -14,7 +14,7 @@ tags: [parser, tdd]
 
 # Задача 1.1.1 — Разбор URL листинга в CanonicalQuery
 
-> Эпик 1.1 · Фаза 1 · ⬜ todo · зависит от: 0.1.3, 1.0.2 · оценка: 4-5 ч
+> Эпик 1.1 · Фаза 1 · ✅ done · зависит от: 0.1.3, 1.0.2 · оценка: 4-5 ч
 
 ## Цель
 
@@ -34,10 +34,18 @@ TDD. Превратить адрес отфильтрованной выдачи
 
 ## Критерии приёмки
 
-- [ ] Все тестовые адреса разбираются корректно
-- [ ] Неизвестные параметры сохраняются в структуре
-- [ ] Адрес не с kufar.by отклоняется с внятной ошибкой
-- [ ] Тесты написаны до реализации, что видно по истории коммитов
+- [x] Все тестовые адреса разбираются корректно
+- [x] Неизвестные параметры сохраняются в структуре
+- [x] Адрес не с kufar.by отклоняется с внятной ошибкой
+- [x] Тесты написаны до реализации, что видно по истории коммитов
+
+## Результат — 2026-09-07
+
+- `shared/canonical-query.ts` содержит каноническую структуру без зависимости от Electron, сети или UI.
+- `shared/kufar-url.ts` реализует чистый parser goods/real-estate URL, сохраняет неизвестные query-параметры и повторные значения, отбрасывает только pagination state `cursor`/`size`, декодирует path-segments и выдаёт стабильные коды ошибок для malformed URL, неподдерживаемого протокола, чужого host и не-listing маршрута.
+- `tests/unit/url-parse.test.ts` покрывает 10 сценариев; полный unit suite на финальном code SHA — 81/81 тестов.
+- RED зафиксирован отдельным tests-only коммитом `c3f1b8b8f84ef4cba5e0b53a82fcdd738ff9c030`: GitHub Actions run #208 прошёл docs consistency и 71 существующий тест, после чего единственная новая suite упала с `ERR_MODULE_NOT_FOUND` на отсутствующем `shared/kufar-url`.
+- GREEN/verification: SHA `3411bdec52697e91a6e95172fb21ae4fc9b0e4ae`, GitHub Actions run #214 — success для docs consistency, 81/81 unit tests, CI failure-mode self-check, typecheck, lint, Prettier, PostgreSQL compose integration, build, build outputs, development smoke и production smoke.
 
 ## Design alignment — 2026-09-07
 
