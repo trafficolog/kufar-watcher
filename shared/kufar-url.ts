@@ -1,10 +1,7 @@
 import type { CanonicalQuery } from './canonical-query'
 
 export type KufarUrlParseErrorCode =
-  | 'invalid-url'
-  | 'unsupported-protocol'
-  | 'foreign-host'
-  | 'not-listing-url'
+  'invalid-url' | 'unsupported-protocol' | 'foreign-host' | 'not-listing-url'
 
 export class KufarUrlParseError extends Error {
   readonly code: KufarUrlParseErrorCode
@@ -45,10 +42,7 @@ function decodePathSegment(segment: string): string {
   try {
     return decodeURIComponent(segment)
   } catch {
-    throw new KufarUrlParseError(
-      'invalid-url',
-      'The URL contains an invalid encoded path segment',
-    )
+    throw new KufarUrlParseError('invalid-url', 'The URL contains an invalid encoded path segment')
   }
 }
 
