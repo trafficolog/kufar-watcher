@@ -11,7 +11,7 @@
 | **Canonical product docs** | `phases/`, `epics/`, `tasks/` | Что строим: фазы, эпики, карточки задач. Источник истины для scope и критериев приёмки. |
 | **Documentation operations** | `operations/` | Как строим: журналы сессий/итераций, авто-сводки статусов. |
 | **Design & planning** | `superpowers/` | Архитектурные specs и implementation plans. |
-| **Справочники** | корень `docs/` | ROADMAP, тестирование, конституция агентов. |
+| **Справочники** | корень `docs/` | ROADMAP, тестирование, release process, конституция агентов. |
 | **Security** | `security/` | Threat model, отчёты pen-test. |
 
 **`sync_state: drifted`** = карточка опережает реализацию (планируемое состояние). Это не ошибка.
@@ -22,8 +22,10 @@
 docs/
 ├── README.md            # Этот файл
 ├── ROADMAP.MD           # Тактический план: порядок, вехи, стек
+├── RELEASING.md         # Версии, release gate, tags и GitHub Releases
 ├── AGENTS.md            # Конституция проекта для AI-агентов
 ├── TESTING.md           # Стратегия тестирования
+├── releases/            # проверенные release notes по версиям
 ├── phases/              # фазы N
 ├── epics/               # эпики N.M
 ├── tasks/               # карточки N.M.K
@@ -129,7 +131,8 @@ npm run docs:ops:check          # проверить консистентнос�
 
 1. `docs/AGENTS.md` — конституция (нерушимые принципы)
 2. `docs/ROADMAP.MD` — следующая задача и порядок
-3. `docs/tasks/{id}.md` — карточка задачи
-4. `docs/epics/{epic}.md` → `docs/phases/{phase}.md` — контекст
-5. `docs/superpowers/specs/` — контракт Kufar API и правила матчинга
-6. `docs/operations/status/current-state.md` — снимок состояния
+3. `docs/RELEASING.md` — release cadence и gate при закрытии среза поставки
+4. `docs/tasks/{id}.md` — карточка задачи
+5. `docs/epics/{epic}.md` → `docs/phases/{phase}.md` — контекст
+6. `docs/superpowers/specs/` — контракт Kufar API и правила матчинга
+7. `docs/operations/status/current-state.md` — снимок состояния
