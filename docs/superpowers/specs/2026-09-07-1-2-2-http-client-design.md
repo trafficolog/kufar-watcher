@@ -6,201 +6,224 @@ Epic: `1.2` HTTP client and limiter
 
 ## Scope
 
-Introduce the worker-process HTTP entrypoint used by all Kufar adapters and later detail-page fetches. The client sits on top of the global `kufarRateLimiter` from `1.2.1`, applies bounded timeouts and retries, and converts transport/status failures into a typed result instead of leaking raw exceptions.
+Introduce the first worker-process Kufar HTTP client on top of the global rate limiter from `1.2.1`. The client owns request timeout/retry/error policy and converts transport/status failures into a structured result instead of leaking raw exceptions.
 
-This task does not parse listing schemas, switch to HTML fallback, persist raw response snapshots, schedule monitors, or create `HealthEvent`. `HealthEvent` intentionally arrives only in slice `0.6.0`; until then the data-model spec assigns rate-limit health information to `Run`. Because `Run` lifecycle/persistence is introduced in `2.4.3`, this client emits a structured rate-limit health signal that the run journal will persist there. It does not create a second temporary persistence mechanism.
+Every actual HTTP attempt, including retries, must pass through the same global limiter. The client does not parse Kufar JSON schemas, switch fallback channels, persist raw response snapshots, schedule monitors, or create `HealthEvent`.
+
+Task `2.4.3` owns `Run` creation/finalization. The data-model spec says that, before `HealthEvent` exists in slice `0.6.0`, rate-limit health information is stored on `Run`. Therefore `1.2.2` returns a run-ready `rate-limited` outcome; it does not write Prisma records itself or invent a temporary persistence layer.
 
 ## Dependency choice
 
-Use explicit dependency `undici@7.29.1`.
+Add Undici as an explicit runtime dependency.
 
-Rationale:
+The repository declares `node >=22 <23`. Undici's current LTS table says:
 
-- the repository engine is `node >=22 <23`;
-- Undici 7 supports Node >=20.18.1, including the full supported Node 22 range used by the project;
-- Undici 8 currently requires Node >=22.19.0, which is narrower than the repository engine declaration;
-- `7.29.1` is the current patched 7.x release for the September 2026 cache advisory affecting earlier 7.x builds.
+- 7.x supports Node `>=20.18.1`, including the repository's full Node 22 range;
+- 8.x requires Node `>=22.19.0`, which is narrower than the repository engine declaration.
 
-No retry interceptor or Undici cache interceptor is used. Retry policy remains explicit project code so `429` can never be retried accidentally.
+Use the current 7.x release (`7.29.1` at design time) and do not change the repository Node engine for this task. Retry behavior remains explicit project code rather than an Undici retry interceptor so project-specific `429` semantics cannot be bypassed accidentally.
 
-## Production surface
+## Architecture
 
-Create `electron/worker/kufar-http-client.ts`.
+Keep two responsibilities separate in `electron/worker/`:
 
-Export only domain-facing types plus one production client:
+1. `kufar-rate-limiter.ts` remains the single global FIFO/concurrency-one scheduling gate and receives only one new capability: a temporary global cooldown.
+2. new `kufar-http-client.ts` owns transport invocation, timeout configuration, HTTP classification, bounded retries, exponential backoff, and `429` handling.
 
-```ts
-export interface KufarHttpClient {
-  get(url: string | URL): Promise<KufarHttpResult>
-}
+The client uses `undici.request` with an explicit `Agent` dispatcher. It does not call `setGlobalDispatcher()`, because changing process-global Undici state could affect unrelated HTTP users later.
 
-export type KufarHttpResult =
-  | KufarHttpSuccess
-  | KufarHttpTemporaryFailure
-  | KufarHttpPermanentFailure
-  | KufarHttpRateLimited
+The transport, limiter, and retry sleep are injectable for unit tests. Production defaults use the worker's shared limiter and an Undici-backed transport. This is dependency injection for testability, not a second production request path: all production Kufar requests must enter through `KufarHttpClient`.
 
-export const kufarHttpClient: KufarHttpClient
-```
-
-Do not export Undici `request`, the dispatcher, a raw transport, or a production factory that accepts an alternate limiter. Unit tests mock the imported modules rather than exposing a bypass-oriented construction API.
-
-The client accepts only `https:` URLs whose hostname is `kufar.by` or ends with `.kufar.by`. Invalid/foreign input returns a typed permanent `invalid-request` result without entering the limiter or transport.
-
-## Result contract
-
-Success:
-
-```ts
-interface KufarHttpSuccess {
-  ok: true
-  status: number
-  body: string
-  attempts: number
-}
-```
-
-Temporary exhausted failure:
-
-```ts
-interface KufarHttpTemporaryFailure {
-  ok: false
-  kind: 'temporary'
-  reason: 'network' | 'timeout' | 'server'
-  status: number | null
-  attempts: number
-  message: string
-}
-```
-
-Permanent failure:
-
-```ts
-interface KufarHttpPermanentFailure {
-  ok: false
-  kind: 'permanent'
-  reason: 'client' | 'invalid-request' | 'unexpected-status'
-  status: number | null
-  attempts: number
-  message: string
-}
-```
-
-Rate limit:
-
-```ts
-interface KufarHttpRateLimited {
-  ok: false
-  kind: 'rate-limited'
-  status: 429
-  attempts: number
-  retryAfterMs: number
-  message: string
-  health: {
-    kind: 'rate-limit'
-    endpoint: string
-  }
-}
-```
-
-`endpoint` contains origin + pathname only, never query parameters. Error messages are stable/safe summaries and do not include raw exception dumps.
-
-## Undici and timeout configuration
-
-One module-private `Agent` is created for the worker process with:
-
-- `connectTimeout = 5_000 ms`;
-- `headersTimeout = 15_000 ms`;
-- `bodyTimeout = 15_000 ms`.
-
-Every attempt calls Undici `request()` with method `GET` and that dispatcher, then consumes `body.text()` before classifying the completed response. Undici documents timeout errors including `UND_ERR_CONNECT_TIMEOUT`, `UND_ERR_HEADERS_TIMEOUT`, `UND_ERR_BODY_TIMEOUT`, and `UND_ERR_ABORTED`; these map to `reason: 'timeout'`.
-
-Other thrown transport failures map to `reason: 'network'` after bounded retries. Invalid URL/host is validated before transport and is never retried.
-
-## Retry policy
-
-Defaults:
-
-- maximum attempts: `3` total;
-- exponential backoff base: `2_000 ms`;
-- after attempt 1 temporary failure: wait `2_000 ms` before queuing attempt 2;
-- after attempt 2 temporary failure: wait `4_000 ms` before queuing attempt 3;
-- no fourth attempt.
-
-Each actual network attempt is independently wrapped in `kufarRateLimiter.schedule(...)`. Backoff waits happen before submitting the next attempt, so retries obey both exponential backoff and the global platform cadence.
-
-Classification:
-
-- `2xx` -> success immediately;
-- network error -> retry, then `temporary/network` when exhausted;
-- Undici timeout/abort timeout code -> retry, then `temporary/timeout` when exhausted;
-- `5xx` -> retry, then `temporary/server` when exhausted;
-- `429` -> never retry; apply limiter cooldown and return `rate-limited` immediately;
-- other `4xx` -> `permanent/client`, no retry;
-- other non-2xx statuses (for example an unexpected `3xx`) -> `permanent/unexpected-status`, no retry.
-
-The client does not follow application-level fallback channels. `1.3.4` may later choose fallback only for temporary failures, never for `rate-limited`.
-
-## 429 cooldown
+## Rate limiter cooldown
 
 Extend `RateLimiter` with:
 
 ```ts
-deferNextStart(delayMs: number): void
+imposeCooldown(delayMs: number): void
 ```
 
-The value is a finite non-negative integer. The limiter stores a global `notBefore` timestamp using `max(currentNotBefore, Date.now() + delayMs)`. Its existing scheduling gate becomes the later of:
+`delayMs` must be a finite non-negative integer. The limiter stores `cooldownUntil` and updates it as:
 
-- normal previous-start + sampled cadence delay;
-- `notBefore`.
+```ts
+cooldownUntil = Math.max(cooldownUntil, Date.now() + delayMs)
+```
 
-Once wall-clock time reaches the deferred timestamp, normal 2–5 second cadence automatically resumes. This satisfies the project rule that a 429 slows the shared limiter but does not rewrite a monitor's user-configured schedule.
+Before each queued operation starts, the limiter waits until the later of:
 
-For HTTP `429`:
+- the existing previous-start plus sampled 2–5 second cadence gate;
+- `cooldownUntil`.
 
-- parse `Retry-After` as integer seconds or HTTP-date when valid;
-- choose `cooldownMs = max(5_000, parsedRetryAfterMs)`;
-- when absent/invalid/past, use `5_000 ms`;
-- call `kufarRateLimiter.deferNextStart(cooldownMs)`;
-- return `kind: 'rate-limited'` with `retryAfterMs = cooldownMs`;
-- perform no retry and no fallback.
+A shorter later cooldown never shortens an already active cooldown. Once wall-clock time passes `cooldownUntil`, the normal 2–5 second cadence resumes automatically. The limiter does not mutate `Monitor.intervalSec` or any persistent schedule setting.
 
-The five-second floor matches the product health prototype wording `ответ 429, темп снижен до 5 с` and stays within the established courtesy model without inventing persistent adaptive scheduling.
+## Transport boundary
 
-## Health persistence boundary
+The policy client depends on a narrow transport interface:
 
-The domain model explicitly says pre-`0.6.0` health events are stored in `Run`; task `2.4.3` owns creation/finalization of `Run` and specifically requires that a `429` event appears there. Therefore `1.2.2` returns the typed `health` descriptor above. `2.4.3` persists that descriptor into `Run.outcome` / `Run.error` as part of the actual run lifecycle.
+```ts
+interface KufarTransport {
+  request(input: {
+    url: URL
+    method: 'GET'
+    headers?: Record<string, string>
+  }): Promise<{
+    status: number
+    headers: Record<string, string | string[]>
+    body: Uint8Array
+  }>
 
-This is deliberate dependency alignment, not silent loss of the health requirement: persisting a synthetic `Run` inside a low-level HTTP client would require a monitor/run identity that does not exist for every caller (for example future preview requests) and would duplicate the run-journal responsibility.
+  close(): Promise<void>
+}
+```
 
-## TDD plan
+Production transport uses one `Agent` for its lifetime and calls `undici.request(..., { dispatcher: agent })`.
 
-Use Vitest fake timers and module mocks; no real network requests.
+Timeout defaults:
 
-RED coverage:
+- `connectTimeout = 10_000 ms`;
+- `headersTimeout = 15_000 ms`;
+- `bodyTimeout = 30_000 ms`.
 
-1. rate limiter `deferNextStart()` holds the next queued start until the global cooldown and automatically returns to normal cadence;
-2. success goes through `kufarRateLimiter.schedule`, consumes text, and returns status/body/attempt count;
-3. a network failure followed by success retries after virtual backoff and schedules both attempts through the limiter;
-4. Undici timeout error is classified as timeout and obeys the same bounded retry policy;
-5. `503` retries and eventually succeeds; three `5xx` responses exhaust into `temporary/server`;
-6. non-429 `4xx` returns `permanent/client` after one attempt;
-7. unexpected `3xx` returns permanent without retry;
-8. `429` returns a distinct signal, never retries, and calls `deferNextStart(5000)` when no valid header exists;
-9. `Retry-After` seconds/date values extend the global cooldown above the five-second floor;
-10. invalid/foreign URLs are rejected before limiter/transport;
-11. module exports contain no raw Undici request/dispatcher/factory path.
+These are application operational defaults, not inferred Kufar platform limits. They remain configurable for tests.
 
-Then implement the minimal code, update the dependency lockfile, run exact-SHA full CI, align task/docs, create a technical PR, require PR merge-result CI, and normal-merge into `main`.
+An attempt is considered complete only after its response body has been fully consumed into `Uint8Array`. The whole attempt, including body consumption, remains inside `limiter.schedule(...)`; another Kufar attempt must not start while the current response is still being consumed.
+
+The transport owns its Agent and exposes `close()`. Task `1.2.2` does not wire the client into `worker/runtime.ts`, because the runtime does not yet own network traversals. The first real owner of the client will create/close it when traversal lifecycle is introduced.
+
+Only `GET` is required in this increment. Confirmed search/count/detail access is read-only, so POST/streaming support is YAGNI here.
+
+## HTTP client API and result contract
+
+`KufarHttpClient` exposes GET and close operations. Construction accepts injectable transport, limiter, retry sleep, and policy values; production defaults use the Undici transport and global limiter.
+
+Structured result:
+
+```ts
+type KufarHttpResult =
+  | {
+      ok: true
+      status: number
+      body: Uint8Array
+      headers: Record<string, string | string[]>
+      attempts: number
+    }
+  | {
+      ok: false
+      kind: 'temporary' | 'permanent' | 'rate-limited'
+      code:
+        | 'network'
+        | 'timeout'
+        | 'http-4xx'
+        | 'http-5xx'
+        | 'unexpected-http'
+        | 'rate-limited'
+      status: number | null
+      attempts: number
+      message: string
+      retryAfterMs?: number
+    }
+```
+
+`attempts` is the number of network attempts actually made. JSON parsing and response-shape validation remain adapter responsibilities in later tasks.
+
+Messages are stable/safe summaries. They do not include raw exception dumps or raw response bodies.
+
+## Retry and classification policy
+
+Defaults:
+
+- maximum attempts: `3` total;
+- exponential retry delay base: `500 ms`;
+- after attempt 1 temporary failure: wait `500 ms`;
+- after attempt 2 temporary failure: wait `1_000 ms`;
+- no fourth attempt.
+
+The retry sleep occurs before the next call to `limiter.schedule(...)`. Therefore each retry obeys both the HTTP-level backoff and the global platform cadence.
+
+Classification:
+
+- `2xx` -> success immediately;
+- network transport error -> retry, then `temporary/network` when exhausted;
+- Undici timeout codes (`UND_ERR_CONNECT_TIMEOUT`, `UND_ERR_HEADERS_TIMEOUT`, `UND_ERR_BODY_TIMEOUT`, and timeout-like abort) -> retry, then `temporary/timeout` when exhausted;
+- `5xx` -> retry, then `temporary/http-5xx` when exhausted;
+- `429` -> never retry; impose global cooldown and return `rate-limited` immediately;
+- other `4xx` -> `permanent/http-4xx`, no retry;
+- all other non-`2xx` statuses, including `3xx` -> `permanent/unexpected-http`, no retry.
+
+Automatic redirect following is not enabled for the Kufar API client. An unexpected redirect should surface as a classified result rather than silently changing the endpoint contract.
+
+HTTP-level retries here are distinct from task `2.4.4`, which later retries a whole failed traversal/job. `1.2.2` retries only a single HTTP request attempt sequence.
+
+## 429 policy
+
+On `429`:
+
+1. do not retry;
+2. do not switch to fallback;
+3. parse `Retry-After` when present as either integer seconds or HTTP-date;
+4. if the header is missing, invalid, or resolves to a non-positive delay, use a conservative default cooldown of `60_000 ms`;
+5. clamp the final cooldown to at most `900_000 ms` (15 minutes);
+6. call `limiter.imposeCooldown(cooldownMs)`;
+7. return `kind: 'rate-limited'`, `code: 'rate-limited'`, `status: 429`, and `retryAfterMs: cooldownMs`.
+
+Repeated `429` responses can extend the global cooldown because the limiter keeps the later `cooldownUntil`; they cannot shorten an already active cooldown. After expiry the normal base cadence resumes automatically.
+
+The returned `rate-limited` result is the explicit health signal required by `1.2.2`. Task `2.4.3` will map it into `Run.outcome` / `Run.error` while owning the actual run identity and persistence lifecycle.
+
+## TDD strategy
+
+Use Vitest fake timers and injected/stubbed dependencies. No real Kufar request is required for policy tests.
+
+RED coverage for the limiter:
+
+1. cooldown delays the next queued request;
+2. a shorter subsequent cooldown does not reduce an active one;
+3. after cooldown expires, the existing normal cadence is used again.
+
+RED coverage for the HTTP client:
+
+1. every network attempt, including retry attempts, passes through the limiter;
+2. network failure followed by success retries and returns success;
+3. timeout failure followed by success retries and returns success;
+4. `5xx` followed by success retries and returns success;
+5. three temporary attempts exhaust into a `temporary` result;
+6. non-429 `4xx` returns `permanent` after one attempt;
+7. `429` returns `rate-limited`, performs no retry, and imposes cooldown;
+8. `Retry-After` seconds and HTTP-date are parsed;
+9. missing/invalid `Retry-After` uses 60 seconds;
+10. excessive `Retry-After` is clamped to 15 minutes;
+11. `3xx` returns `unexpected-http` without retry;
+12. successful response preserves raw `Uint8Array`, headers, status, and actual attempt count.
+
+A separate Undici wrapper test is added only if the wrapper contains non-trivial behavior beyond straightforward option wiring. Otherwise policy tests plus TypeScript typecheck are sufficient; tests are not added merely for line coverage.
+
+## Expected repository changes
+
+Production/code scope:
+
+- modify `electron/worker/kufar-rate-limiter.ts`;
+- add `electron/worker/kufar-http-client.ts`;
+- update `package.json` and `package-lock.json` for explicit Undici dependency.
+
+Tests:
+
+- extend `tests/unit/kufar-rate-limiter.test.ts`;
+- add `tests/unit/kufar-http-client.test.ts`;
+- add a focused transport test only if implementation complexity justifies it.
+
+Documentation:
+
+- align `docs/tasks/1-2-2-http-client.md` with implemented ownership boundaries and final evidence;
+- keep the canonical platform rules in `docs/superpowers/specs/kufar-api-contract.md` unchanged unless implementation reveals a genuine contract issue.
 
 ## Out of scope
 
 - JSON/schema validation and adapter parsing;
-- raw-response snapshot retention (`1.2.3`);
-- HTML fallback (`1.3.4`);
-- monitor/run lifecycle persistence (`2.4`);
-- `HealthEvent` table (`0.3.6` / slice `0.6.0`);
-- adaptive monitor intervals;
+- raw-response journal/snapshot retention (`1.2.3`);
+- HTML fallback/degradation switching (`1.3.4`);
+- scheduler/job retries (`2.4.4`);
+- run lifecycle persistence (`2.4.3`);
+- `HealthEvent` table or early Prisma schema changes;
+- wiring monitor traversals into the current worker runtime;
+- adaptive persistent monitor intervals;
 - proxy/IP/header rotation or any anti-block bypass;
-- non-Kufar hosts;
 - non-GET methods.
