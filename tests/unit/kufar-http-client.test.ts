@@ -85,6 +85,17 @@ const createScriptedTransport = (steps: Array<KufarTransportResponse | Error>) =
 const transportError = (code: string): Error & { code: string } =>
   Object.assign(new Error(code), { code })
 
+const createJournalRecord = (body = response().body) =>
+  vi.fn(async () => ({
+    version: 1 as const,
+    id: 'snapshot-1',
+    endpoint: 'api.kufar.by/search-api/v2/search/count',
+    requestUrl: TEST_URL,
+    status: 200,
+    capturedAt: '2026-09-08T10:15:30.000Z',
+    bodyBase64: Buffer.from(body).toString('base64'),
+  }))
+
 describe('KufarHttpClient', () => {
   it('routes a successful GET through the limiter and preserves raw data', async () => {
     const { limiter, schedule } = createLimiter()
@@ -123,6 +134,90 @@ describe('KufarHttpClient', () => {
       headers: { accept: 'application/json' },
     })
     expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  it('journals a successful response exactly once', async () => {
+    const { limiter } = createLimiter()
+    const raw = response()
+    const { transport } = createTransport(raw)
+    const journalRecord = createJournalRecord(raw.body)
+    const client = new KufarHttpClient({
+      limiter,
+      transport,
+      journal: { record: journalRecord },
+    })
+
+    const result = await client.get(TEST_URL)
+
+    expect(result).toMatchObject({ ok: true, status: 200, attempts: 1 })
+    expect(journalRecord).toHaveBeenCalledTimes(1)
+    expect(journalRecord).toHaveBeenCalledWith({
+      requestUrl: new URL(TEST_URL),
+      status: 200,
+      body: raw.body,
+    })
+  })
+
+  it.each([
+    { label: 'redirect', status: 302 },
+    { label: 'permanent 4xx', status: 404 },
+    { label: 'rate limit', status: 429 },
+    { label: 'temporary 5xx', status: 503 },
+  ])('does not journal a $label response', async ({ status }) => {
+    const { limiter } = createLimiter()
+    const { transport } = createTransport(response({ status }))
+    const journalRecord = createJournalRecord()
+    const client = new KufarHttpClient({
+      limiter,
+      transport,
+      journal: { record: journalRecord },
+      maxAttempts: 1,
+    })
+
+    await client.get(TEST_URL)
+
+    expect(journalRecord).not.toHaveBeenCalled()
+  })
+
+  it('does not journal a transport failure', async () => {
+    const { limiter } = createLimiter()
+    const scripted = createScriptedTransport([new Error('socket reset')])
+    const journalRecord = createJournalRecord()
+    const client = new KufarHttpClient({
+      limiter,
+      transport: scripted.transport,
+      journal: { record: journalRecord },
+      maxAttempts: 1,
+    })
+
+    await client.get(TEST_URL)
+
+    expect(journalRecord).not.toHaveBeenCalled()
+  })
+
+  it('keeps a successful HTTP result when journaling fails', async () => {
+    const { limiter } = createLimiter()
+    const { transport } = createTransport(response())
+    const retrySleep = vi.fn().mockResolvedValue(undefined)
+    const warnings: string[] = []
+    const journal = {
+      record: vi.fn(async () => {
+        throw new Error('disk full: raw payload must not leak')
+      }),
+    }
+    const client = new KufarHttpClient({
+      limiter,
+      transport,
+      sleep: retrySleep,
+      journal,
+      onJournalWarning: (message) => warnings.push(message),
+    })
+
+    const result = await client.get(TEST_URL)
+
+    expect(result).toMatchObject({ ok: true, status: 200, attempts: 1 })
+    expect(warnings).toEqual(['Raw response snapshot could not be stored'])
+    expect(retrySleep).not.toHaveBeenCalled()
   })
 
   it('retries a network failure through the limiter and succeeds', async () => {
