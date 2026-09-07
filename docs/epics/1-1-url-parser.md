@@ -1,9 +1,9 @@
 ---
 id: "1.1"
 phase: 1
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-05
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-07
 status_note: "Единственная точка входа пользователя — ссылка."
 roles:
   - BACK
@@ -24,20 +24,27 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.1-tasks -->
-**Задач:** 3 · **done:** 2
+**Задач:** 3 · **done:** 3
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `1.1.1` | [Разбор URL листинга в CanonicalQuery](../tasks/1-1-1-url-parse.md) | ✅ done | 🟢 aligned |
 | `1.1.2` | [Обратная сборка CanonicalQuery в URL](../tasks/1-1-2-url-build.md) | ✅ done | 🟢 aligned |
-| `1.1.3` | [Определение категории и хоста по URL](../tasks/1-1-3-category-routing.md) | ⬜ todo | 🟡 drifted |
+| `1.1.3` | [Определение категории и хоста по URL](../tasks/1-1-3-category-routing.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-1.1-tasks -->
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
-- [ ] `sync_state: aligned` (код соответствует карточкам)
-- [ ] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+- [x] Все дочерние задачи в статусе `done`
+- [x] `sync_state: aligned` (код соответствует карточкам)
+- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+
+## Результат — 2026-09-07
+
+- Пользовательские listing URL разбираются в `CanonicalQuery` с сохранением неподтверждённых параметров и typed parse errors.
+- `CanonicalQuery` детерминированно собирается обратно в site URL и в live-подтверждённые API request shapes без speculative mappings.
+- Подтверждённые electronics / real-estate правила маршрутизируются в стабильные adapter kinds; Auto и неизвестные категории отклоняются явно.
+- TDD-история задач `1.1.1`–`1.1.3` сохранена отдельными RED→GREEN коммитами и exact-SHA CI-проверками.
 
 ## Связанные документы
 
