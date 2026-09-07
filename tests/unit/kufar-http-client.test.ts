@@ -6,9 +6,7 @@ import {
   type KufarTransportResponse,
 } from '../../electron/worker/kufar-http-client'
 
-const response = (
-  overrides: Partial<KufarTransportResponse> = {},
-): KufarTransportResponse => ({
+const response = (overrides: Partial<KufarTransportResponse> = {}): KufarTransportResponse => ({
   status: 200,
   headers: { 'content-type': 'application/json' },
   body: new Uint8Array([1, 2, 3]),

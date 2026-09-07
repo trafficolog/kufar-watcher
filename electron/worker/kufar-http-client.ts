@@ -47,13 +47,7 @@ export type KufarHttpResult =
   | {
       ok: false
       kind: 'temporary' | 'permanent' | 'rate-limited'
-      code:
-        | 'network'
-        | 'timeout'
-        | 'http-4xx'
-        | 'http-5xx'
-        | 'unexpected-http'
-        | 'rate-limited'
+      code: 'network' | 'timeout' | 'http-4xx' | 'http-5xx' | 'unexpected-http' | 'rate-limited'
       status: number | null
       attempts: number
       message: string
