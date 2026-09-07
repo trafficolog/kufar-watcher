@@ -183,9 +183,7 @@ export function parseKufarListingUrl(input: string): CanonicalQuery {
 
   const segments = listingSegments(url)
   const path =
-    url.hostname === 're.kufar.by'
-      ? parseRealEstatePath(segments)
-      : parseGoodsPath(segments)
+    url.hostname === 're.kufar.by' ? parseRealEstatePath(segments) : parseGoodsPath(segments)
   const queryParams = parseQueryParams(url)
 
   return {
