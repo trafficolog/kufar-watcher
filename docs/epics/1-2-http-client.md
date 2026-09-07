@@ -24,11 +24,11 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.2-tasks -->
-**Задач:** 3 · **done:** 0
+**Задач:** 3 · **done:** 1
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
-| `1.2.1` | [Глобальный лимитер с джиттером](../tasks/1-2-1-rate-limiter.md) | ⬜ todo | 🟡 drifted |
+| `1.2.1` | [Глобальный лимитер с джиттером](../tasks/1-2-1-rate-limiter.md) | ✅ done | 🟢 aligned |
 | `1.2.2` | [Клиент: таймауты, ретраи, обработка ошибок](../tasks/1-2-2-http-client.md) | ⬜ todo | 🟡 drifted |
 | `1.2.3` | [Журнал сырых ответов для отладки дрейфа](../tasks/1-2-3-raw-log.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-1.2-tasks -->
