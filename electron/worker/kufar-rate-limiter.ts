@@ -75,15 +75,14 @@ export class RateLimiter {
   }
 
   private async run<T>(operation: () => Promise<T>): Promise<T> {
-    let earliestStartAt = this.cooldownUntil
+    const cadenceStartAt =
+      this.lastStartedAt === null ? 0 : this.lastStartedAt + this.sampleDelayMs()
 
-    if (this.lastStartedAt !== null) {
-      earliestStartAt = Math.max(earliestStartAt, this.lastStartedAt + this.sampleDelayMs())
-    }
+    while (true) {
+      const earliestStartAt = Math.max(cadenceStartAt, this.cooldownUntil)
+      const remainingMs = earliestStartAt - Date.now()
 
-    const remainingMs = earliestStartAt - Date.now()
-
-    if (remainingMs > 0) {
+      if (remainingMs <= 0) break
       await sleep(remainingMs)
     }
 
