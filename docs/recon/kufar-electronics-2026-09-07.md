@@ -2,155 +2,218 @@
 
 ## Статус
 
-Промежуточный результат задачи `1.0.1`. Пользовательский слой Kufar частично
-проверен на живых публичных страницах, но сырой JSON поисковой выдачи из
-текущего рабочего окружения получить не удалось. Этот файл **не является raw
-fixture** и сам по себе не закрывает критерии приёмки `1.0.1`.
+Промежуточный результат задачи `1.0.1`. После подключения Opera Browser
+Connector получены и сохранены **первичные живые JSON-ответы** electronics
+search API: первая страница, вторая страница по cursor, `/count` и отдельное
+объявление с договорной ценой.
+
+Задача всё ещё не закрыта: Browser Connector не даёт читать `view-source:` и в
+конце сессии временно потерял авторизацию до выполнения найденного detail
+запроса. Поэтому точный embedded-state shape исходного HTML и контракт
+`price + platform status` detail response остаются непроверенными.
 
 Никаких попыток обхода ограничений площадки не предпринималось: не использовались
-прокси, ротация адресов, подмена fingerprint/User-Agent, авторизация или сторонние
-CORS-прокси.
+прокси, VPN, ротация адресов, подмена fingerprint/User-Agent, авторизация Kufar
+или сторонние CORS-прокси. Запросы выполнялись вручную, по одному. Ни `403`, ни
+`429` от Kufar в успешной browser-сессии не наблюдались.
 
-## Подтверждено на живом пользовательском слое
+## Primary live evidence — electronics search API
 
-### Выдача и структура пользовательского URL
+### Пользовательские URL
 
-- Товарная электроника доступна на пользовательском хосте `www.kufar.by`.
-- Регион Минск кодируется сегментом `r~minsk`.
-- Поисковая строка кодируется сегментом `q~...`.
-- Актуальная публичная выдача по PS5 в Минске доступна по адресу
-  `https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5`. На момент проверки
-  2026-09-07 отрендеренная страница показывает `1 221` объявление по запросу,
-  фильтр типа продавца «Частное лицо»/«Компания» и одновременно объявления с
-  числовой и договорной ценой.
-- Официальная статья Help Center «Как проверить, что вы на Куфаре», обновлённая
-  2026-07-09, перечисляет допустимые пользовательские домены Kufar:
-  `kufar.by`, `re.kufar.by`, `travel.kufar.by`, `auto.kufar.by`,
-  `dostavka.kufar.by`, `business.kufar.by`, `karta.kufar.by`,
-  `media.kufar.by`, `helpcenter.kufar.by`, `safety.kufar.by`.
-  Источник: `https://helpcenter.kufar.by/knowledge_base/item/274917`.
-  Нормализатор URL не должен предполагать только один пользовательский hostname.
+Подтверждены актуальные публичные маршруты:
 
-Эти факты относятся к пользовательскому URL-слою. Они **не доказывают**, что
-JSON search API использует тот же hostname или те же имена параметров.
+- `https://www.kufar.by/l/r~minsk/elektronika`;
+- `https://www.kufar.by/l/r~minsk-zavodskoj/elektronika`;
+- `https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5`;
+- карточка товара: `https://www.kufar.by/item/{id}`.
 
-### Договорная цена и карточка объявления
+Для проверенного примера пользовательские сегменты соответствуют API-фильтрам:
+`r~minsk -> rgn=7`, `q~ps5 -> query=ps5`.
 
-Проверена актуальная публичная карточка:
-`https://www.kufar.by/item/1082407300`.
+Официальная статья Help Center «Как проверить, что вы на Куфаре», обновлённая
+2026-07-09, перечисляет допустимые пользовательские домены Kufar:
+`kufar.by`, `re.kufar.by`, `travel.kufar.by`, `auto.kufar.by`,
+`dostavka.kufar.by`, `business.kufar.by`, `karta.kufar.by`,
+`media.kufar.by`, `helpcenter.kufar.by`, `safety.kufar.by`.
+Источник: `https://helpcenter.kufar.by/knowledge_base/item/274917`.
 
-На пользовательском слое одновременно наблюдаются:
+### Search endpoint
 
-- состояние цены `Договорная` вместо числового значения;
-- состояние товара `Б/у`;
-- локация в Минске;
-- частный продавец.
+Первично подтверждён:
 
-Дополнительно актуальные публичные карточки `https://www.kufar.by/item/1031159290`
-и `https://www.kufar.by/item/1016145201` подтверждают договорную цену у
-продавца типа «Компания». Публичные карточки товаров используют маршрут
-`www.kufar.by/item/{id}`.
+`https://api.kufar.by/search-api/v2/search/rendered-paginated`
 
-Эти наблюдения подтверждают доменное требование различать числовую и договорную
-цену, но **не подтверждают JSON-представление** договорной цены — для этого
-нужен сырой ответ API.
+Согласованный page-1 запрос:
 
-### HTML выдачи пригоден для DOM-разбора
+`?cat=5040&rgn=7&query=ps5&size=2&sort=lst.d&lang=ru`
 
-Дополнительный live probe серверно отрендеренной выдачи `www.kufar.by/l`
-подтвердил, что ответ содержит сами карточки объявлений, их ссылки вида
-`/item/{id}`, видимую цену (включая `Договорная` и `Бесплатно`), локацию и
-элементы фильтра продавца `Частное лицо` / `Компания`. То есть HTML-канал
-**фактически пригоден для DOM-разбора** даже без выполнения клиентского JS.
+Raw fixture:
+`tests/fixtures/kufar/2026-09-07-electronics-search-page-1.json`.
 
-Это не означает, что DOM должен становиться MVP-фолбэком: по архитектуре он
-остаётся последним рубежом. Но пункт разведки «есть ли в HTML пригодное для
-разбора состояние» получает положительный ответ на уровне отрендеренного DOM.
+Снятый ответ содержит:
 
-При этом в доступном представлении не обнаружены строки `api.kufar.by`,
-`rendered-paginated` или `cursor`. Следовательно, из этого probe нельзя вывести
-сетевой endpoint или механику пагинации. Наличие и shape структурированного
-`__NEXT_DATA__` в **исходных HTML-байтах** товарной страницы всё ещё требует
-отдельного подтверждения.
+- top-level `ads`, `page_type`, `pagination`, `total`;
+- `total=1229`;
+- `pagination.pages[]` с `self` и `next`;
+- `next.token=eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTI4MTQifQ==`.
 
-## Косвенное сетевое наблюдение
+### Cursor / page 2
 
-Публичный отчёт urlscan по `api.kufar.by` за последний месяц показывает свежие
-обращения с пользовательских страниц `www.kufar.by/l` и CNAME
-`pro-iq-api.kufar.by`. Это полезная подсказка, что текущий web-клиент обращается
-к `api.kufar.by`, но такого наблюдения недостаточно, чтобы считать проверенными
-точный поисковый endpoint, параметры запроса или JSON-схему.
+Token из элемента `pagination.pages[]` с `label == "next"` был передан без
+декодирования как `cursor=<token>` в тот же endpoint.
 
-## Secondary evidence 2026 — точный target для следующего live probe
+Raw fixture:
+`tests/fixtures/kufar/2026-09-07-electronics-search-page-2.json`.
 
-Ни один из источников ниже не заменяет raw fixture Kufar. Их задача — сузить
-ручную проверку до конкретных URL и полей.
+Page 2 подтверждает механику:
 
-### Январь 2026 — документированный v2-контракт стороннего клиента
+- `prev.num=1`;
+- `self.num=2`, `token=null`;
+- `next.num=3` с новым token;
+- `total=1229`.
 
-Репозиторий `vmakhakhei/parser_tg_bot_flats`, состояние от 2026-01-27, использует
-`https://api.kufar.by/search-api/v2/search/rendered-paginated` и документирует
-верхнеуровневые `ads`, `total`, `pagination`. В описании ответа перечислены
-`ad_id`, `ad_link`, `account_id`, `price_byn`, `price_usd`, `currency`,
-`list_time`, `subject`, `body_short`, `company_ad`, `ad_parameters` и
-`account_parameters`.
+Следовательно, нельзя брать cursor по фиксированному индексу массива: на первой
+странице `next` идёт после `self`, на второй перед ним появляется `prev`.
+Надёжное правило: найти `label == "next"` и взять его `token`.
+
+### `/count`
+
+Первично подтверждён:
+
+`https://api.kufar.by/search-api/v2/search/count?cat=5040&rgn=7&query=ps5&lang=ru`
+
+Raw fixture:
+`tests/fixtures/kufar/2026-09-07-electronics-count.json`.
+
+Ответ:
+
+`{"count":1229}`
+
+В той же live-сессии search response для согласованных effective filters имел
+`total=1229`. Для проверенного запроса `/count` возвращает общее количество
+результатов до page slicing и совпадает с top-level `search.total`.
+
+### Поля electronics response
+
+Raw fixtures первично подтверждают:
+
+- идентификатор: `ad_id`; также присутствует совпадающий `list_id`;
+- время размещения: `list_time`;
+- заголовок: `subject`;
+- цена: `price_byn`, `price_usd` — строки;
+- валюта: `currency` (`BYR` в снятых записях);
+- seller/account id: `account_id`;
+- признак компании: `company_ad` boolean; наблюдались и `false`, и `true`;
+- регион: `ad_parameters[]` с `p="region"`, `pu="rgn"`, `v=7`, `vl="Минск"`;
+- район: `ad_parameters[]` с `p="area"`, `pu="ar"`;
+- краткое описание: `body_short` присутствует, в снятых search samples равно
+  `null`; `body` также присутствует и равно `null`;
+- дополнительные поля: `ad_link`, `category`, `images`, `account_parameters`,
+  `phone_hidden`, `remuneration_type`, `show_parameters`, `calculator`, `type`.
+
+## Договорная цена — primary live evidence
+
+Проверена актуальная карточка:
+
+`https://www.kufar.by/item/1082715190`
+
+Заголовок живой страницы прямо содержит `цена Договорная`; товар —
+`NHL 27 для PS5 и Xbox Series X/S`.
+
+Отдельный минимальный raw search probe для той же записи сохранён как:
+`tests/fixtures/kufar/2026-09-07-electronics-negotiable.json`.
+
+В нём:
+
+- `ad_id=1082715190`;
+- `price_byn="0"`;
+- `price_usd="0"`;
+- `currency="BYR"`;
+- значения calculator для BYN/USD/EUR/RUB также равны нулю;
+- `company_ad=false`;
+- регион — Минск.
+
+Для **этого первично проверенного electronics sample** `price_byn="0"`
+означает `Договорная`, а не бесплатный товар. `price_byn=null` в live sample не
+наблюдался и не считается подтверждённым вариантом договорной цены.
+
+## HTML / DOM
+
+Живой server-rendered пользовательский слой содержит карточки объявлений,
+`/item/{id}` links, цену, локацию и seller-type UI. В выдаче наблюдаются
+числовые цены, `Договорная` и `Бесплатно`. Поэтому DOM технически пригоден для
+разбора без выполнения дополнительного клиентского JS.
+
+Однако acceptance требует также проверить структурированное embedded state в
+исходном HTML. Opera открывает
+`view-source:https://www.kufar.by/item/1082715190`, но Browser Connector
+запрещает чтение accessibility tree и screenshot для `view-source:` scheme.
+Поэтому наличие и точный electronics shape `__NEXT_DATA__` **не считаются
+первично подтверждёнными**.
+
+Secondary evidence 2026 года независимо указывает на `<script id="__NEXT_DATA__">`
+и `props.initialState.adView.data`, но это не заменяет dated raw capture.
+
+## Detail response / platform status
+
+Search fixtures содержат цену, но не содержат отдельного очевидного поля
+platform status (`active` / `sold` / `removed`). Из этого нельзя вывести, что
+такого поля нет в detail response.
+
+В открытых клиентах найден актуальный-looking публичный detail target:
+
+`https://api.kufar.by/search-api/v2/item/{id}/rendered?lang=ru`
+
+Его используют, в частности, открытые клиенты `ZemichPS/kufar-eco-system` и
+`dmitriyTarasovWeb/kufarNotify`. Это **secondary evidence и probe target**, а не
+подтверждённый контракт нашей задачи.
+
+Сразу после обнаружения target Opera Browser Connector потерял авторизацию и
+вернул ошибку соединения аккаунта **до HTTP-запроса к Kufar**. Независимый
+web-fetch не разрешил открыть неиндексированный exact API URL. Поэтому этот
+endpoint и вопрос `price + platform status in the same response` пока остаются
+открытыми. Ошибка не классифицируется как `403`/`429` или иной ответ Kufar.
+
+## Secondary evidence 2026
+
+Secondary evidence использовался только для выбора минимального live target;
+после первичных fixtures он не подменяет подтверждённые значения.
+
+### Январь 2026
+
+`vmakhakhei/parser_tg_bot_flats`, состояние 2026-01-27, документирует v2 search
+response `ads`, `total`, `pagination` и поля `ad_id`, `account_id`,
+`price_byn`, `price_usd`, `currency`, `list_time`, `subject`, `body_short`,
+`company_ad`, `ad_parameters`, `account_parameters`.
 
 Источник:
 `https://github.com/vmakhakhei/parser_tg_bot_flats/blob/7bd35843b05008b698b1d727ba8970e3f23dc161/KUFAR_API_FIELDS_DOCUMENTATION.md`.
 
-### Апрель 2026 — рабочая cursor-реализация стороннего клиента
+### Апрель 2026
 
-Репозиторий `5taZ/Rafuk`, commit от 2026-04-07, использует тот же endpoint
-`https://api.kufar.by/search-api/v2/search/rendered-paginated`.
-
-Клиент передаёт `query`, `size`, `cur`, `sort`, опционально `cursor`, `rgn`,
-`cnd`, `otype`; следующий курсор извлекается из
-`pagination.pages[0].token`, а общее количество — из top-level `total`.
+`5taZ/Rafuk`, commit 2026-04-07, использует
+`/search-api/v2/search/rendered-paginated`, cursor и top-level `total`.
 
 Источник:
 `https://github.com/5taZ/Rafuk/blob/8cca4faa6a996059cb03f85bd5a369f4f4d69c3b/api/services/kufar_client.py`.
 
-### Июль 2026 — независимый browser-check
+### Июль 2026
 
-В `TrofimGest/padel-monitor` задокументирован изолированный Chrome probe от
-2026-07-03. Для real-estate вертикали он наблюдал:
-
-- SSR `<script id="__NEXT_DATA__">`;
-- `props.initialState.listing.ads`, `vip`, `filters`, `searchId` и cursor tokens;
-- cursor в `pagination.pages[].token`, передаваемый затем как `cursor=<token>`;
-- detail state `props.initialState.adView.data.initial`;
-- поля `ad_id`, `subject`, `body`, `price_byn`, `price_usd`, `currency`,
-  `list_time`, `images`, `ad_parameters`, `account_parameters`;
-- публичный сетевой вызов `search-api/v2/search/count`.
+`TrofimGest/padel-monitor` browser-check наблюдал `__NEXT_DATA__`,
+`props.initialState.listing`, `props.initialState.adView.data.initial`, cursor
+и вызов `/search-api/v2/search/count` для real-estate.
 
 Источник:
 `https://github.com/TrofimGest/padel-monitor/blob/9c43f3ac8544b4a18abb4b0d2254ad766e48d2f4/browser-harness/domain-skills/kufar/commercial-rent-monitoring.md`.
 
-### Август–сентябрь 2026 — самый свежий production-style client
+### Август–сентябрь 2026
 
-Репозиторий `shmelidzee/flatio`, состояние от 2026-09-06, использует base URL
-`https://api.kufar.by` и path `/search-api/v2/search/rendered-paginated`.
-Клиент передаёт `cat`, `typ`, `lang`, `size` и опциональный `cursor`.
-
-Важные уточнения:
-
-- следующий курсор выбирается не по позиции массива, а как элемент
-  `pagination.pages[]` с `label == "next"`; затем используется его `token`;
-- top-level response моделируется как `ads`, `pagination`, `total`;
-- объявление моделирует `ad_id`, `subject`, `body`, `price_byn`, `currency`,
-  `ad_link`, `account`, `account_parameters`, `ad_parameters`, `company_ad`,
-  `images`, `list_time`;
-- `price_byn == null || price_byn == 0` интерпретируется как
-  `isNegotiable=true`;
-- комментарий клиента фиксирует live sample от 2026-08-18: 60 объявлений в
-  четырёх real-estate категориях, у 60/60 street-level `address` был найден в
-  `account_parameters`.
-
-`KufarAd` DTO этого проекта не моделирует платформенный status, а локальный
-`INACTIVE` определяется исчезновением external ID после полного sync. Это
-**не доказывает**, что status отсутствует в JSON: DTO игнорирует неизвестные
-properties. Но это сильный secondary signal, что рассчитывать на status без
-live-проверки нельзя.
+`shmelidzee/flatio`, состояние 2026-09-06, использует v2 search host/path,
+выбирает cursor через `pagination.pages[]` с `label == "next"`, моделирует
+основные ad fields и интерпретирует zero/null price как negotiable. Его DTO не
+моделирует platform status и выводит локальный `INACTIVE` по исчезновению ID;
+это не доказывает отсутствие status в сыром Kufar response.
 
 Источники:
 
@@ -158,84 +221,27 @@ live-проверки нельзя.
 - `https://github.com/shmelidzee/flatio/blob/680863b4a6d79faf3a4eea43d1903218224aeef9/src/main/java/com/flatio/integration/kufar/client/KufarApiClient.java`;
 - `https://github.com/shmelidzee/flatio/blob/680863b4a6d79faf3a4eea43d1903218224aeef9/src/main/java/com/flatio/integration/kufar/dto/KufarAd.java`.
 
-В репозитории есть JSON test fixture с ожидаемым API shape, но его данные
-выглядят санитизированными/синтетическими. Поэтому он полезен только как
-secondary contract fixture и не считается raw live evidence нашей задачи.
+## Старый контракт
 
-### Рабочая гипотеза probe
+Старые `cre-api.kufar.by` / `ads-search/v1/...` URL сохраняются только как
+исторические сведения. Текущий electronics search контракт первично подтверждён
+на `api.kufar.by/search-api/v2/...` и именно он является source of truth для
+последующих задач.
 
-Следующий live probe электроники должен начинаться с минимального запроса к:
+## Что остаётся для закрытия `1.0.1`
 
-`https://api.kufar.by/search-api/v2/search/rendered-paginated`
+Уже закрыто raw evidence:
 
-и отдельно проверить:
+- первая страница;
+- вторая страница и cursor mechanics;
+- `/count` и его совпадение с `total` для согласованного запроса;
+- electronics fields;
+- negotiable `price_byn="0"` sample.
 
-1. действительно ли endpoint отвечает электронике в текущем контракте;
-2. содержит ли `pagination.pages[]` элемент `label == "next"` с `token`;
-3. работает ли вторая страница при `cursor=<token>`;
-4. совпадает ли `total` с семантикой счётчика;
-5. что возвращает `https://api.kufar.by/search-api/v2/search/count` и является
-   ли его `count` тем же числом до локальной фильтрации;
-6. точные типы и nullable-семантику обязательных полей;
-7. действительно ли `Договорная` означает `price_byn == null || 0`, и нужен ли
-   дополнительный признак;
-8. есть ли в detail/search response отдельный платформенный статус объявления.
+Остаются два первичных гейта:
 
-До raw live response все восемь пунктов остаются гипотезами.
-
-## HTML embedded state: сильная подсказка, но не live fixture
-
-Поддерживаемый сторонний browser-sieve для Kufar, публично проиндексированный
-2026-09-07, извлекает галерею карточки из `<script id="__NEXT_DATA__">` по пути
-`props.initialState.adView.data.images.gallery`. Июльский browser-check выше
-независимо подтверждает наличие `__NEXT_DATA__` и `adView.data.initial` у
-real-estate detail pages.
-
-Текущий live probe уже подтвердил пригодность серверно отрендеренного HTML для
-DOM-разбора, но не получил **исходные HTML-байты** товарной страницы и поэтому
-не может подтвердить наличие/shape `__NEXT_DATA__`. Embedded state остаётся
-непроверенным, хотя DOM fallback как техническая возможность подтверждён.
-
-## Старые подсказки — не использовать как текущий контракт
-
-Более старый открытый код использовал:
-
-- `https://cre-api.kufar.by`;
-- `/ads-search/v1/engine/v1/search/rendered-paginated`;
-- `/category_tree/v1/category_tree`;
-- параметры вроде `size`, `sort=lst.d`, `cur`, `cat`, `rgn`, `lang`.
-
-Четыре независимых источника 2026 года выше указывают на `api.kufar.by` и
-`search-api/v2`. Поэтому старый `cre-api`/v1 теперь рассматривается только как
-исторический контракт и не является первым target для live probe.
-
-## Ограничение текущего probe
-
-Прямой DNS lookup из исполняющего контейнера для `api.kufar.by` и других
-внешних хостов не возвращает адрес; `curl` завершается ошибкой разрешения имени
-до HTTP-уровня. Поэтому в текущем контейнере невозможно честно классифицировать
-ответ как `200`, `403`, `429` или иной статус Kufar.
-
-Доступный web-канал позволяет просматривать индексированные/отрендеренные
-публичные страницы, но не предоставляет байты сырого JSON-ответа и поэтому не
-подходит для создания фикстур `tests/fixtures/kufar/`.
-
-Это фиксируется именно как ограничение среды выполнения, а не как отказ
-площадки. Обход ограничений не предпринимался.
-
-## Что остаётся проверить для закрытия `1.0.1`
-
-- получить сырой JSON первой страницы электроники и сохранить dated fixture;
-- извлечь cursor из первой страницы и получить вторую страницу тем же
-  контрактом;
-- проверить точный текущий hostname и path поискового API;
-- проверить `/count` и зафиксировать, что именно он считает;
-- зафиксировать фактические JSON-поля: id, время размещения, title, price,
-  currency, seller/account id, company marker, region, short description;
-- сохранить сырой JSON объявления с договорной ценой и описать его price shape;
-- получить исходные HTML-байты актуальной товарной страницы и подтвердить
-  структурированный embedded state; пригодность DOM-разбора уже подтверждена;
-- проверить запрос карточки/деталей и выяснить, приходят ли цена и статус
-  объявления одним ответом или нужны разные запросы.
-
-До получения этих артефактов задача остаётся `todo / drifted`.
+1. получить исходный HTML актуальной electronics page и подтвердить точный
+   structured embedded-state shape;
+2. выполнить public detail probe `/search-api/v2/item/{id}/rendered?lang=ru`
+   и зафиксировать, приходят ли price и platform status одним ответом или для
+   статуса нужна отдельная стратегия.
