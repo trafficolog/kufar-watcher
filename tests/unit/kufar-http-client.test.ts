@@ -7,6 +7,33 @@ import {
 } from '../../electron/worker/kufar-http-client'
 
 const TEST_URL = 'https://api.kufar.by/search-api/v2/search/count'
+const RATE_LIMIT_NOW = Date.parse('2026-09-07T20:00:00.000Z')
+
+const RATE_LIMIT_CASES: Array<{
+  label: string
+  headers: Record<string, string>
+  expectedCooldownMs: number
+}> = [
+  { label: 'missing Retry-After', headers: {}, expectedCooldownMs: 60_000 },
+  { label: 'delta seconds', headers: { 'retry-after': '120' }, expectedCooldownMs: 120_000 },
+  {
+    label: 'HTTP date',
+    headers: { 'retry-after': new Date(RATE_LIMIT_NOW + 90_000).toUTCString() },
+    expectedCooldownMs: 90_000,
+  },
+  { label: 'garbage value', headers: { 'retry-after': 'garbage' }, expectedCooldownMs: 60_000 },
+  { label: 'zero seconds', headers: { 'retry-after': '0' }, expectedCooldownMs: 60_000 },
+  {
+    label: 'maximum clamp',
+    headers: { 'retry-after': '3600' },
+    expectedCooldownMs: 900_000,
+  },
+  {
+    label: 'mixed-case header',
+    headers: { 'Retry-After': '120' },
+    expectedCooldownMs: 120_000,
+  },
+]
 
 const response = (overrides: Partial<KufarTransportResponse> = {}): KufarTransportResponse => ({
   status: 200,
@@ -209,5 +236,36 @@ describe('KufarHttpClient', () => {
       status: 302,
       attempts: 1,
     })
+  })
+
+  it.each(RATE_LIMIT_CASES)('handles 429 with $label without retrying', async ({
+    headers,
+    expectedCooldownMs,
+  }) => {
+    const sleep = vi.fn().mockResolvedValue(undefined)
+    const scripted = createScriptedTransport([response({ status: 429, headers })])
+    const { limiter, schedule, imposeCooldown } = createLimiter()
+    const client = new KufarHttpClient({
+      limiter,
+      transport: scripted.transport,
+      sleep,
+      now: () => RATE_LIMIT_NOW,
+    })
+
+    const result = await client.get(TEST_URL)
+
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'rate-limited',
+      code: 'rate-limited',
+      status: 429,
+      attempts: 1,
+      retryAfterMs: expectedCooldownMs,
+    })
+    expect(scripted.request).toHaveBeenCalledTimes(1)
+    expect(schedule).toHaveBeenCalledTimes(1)
+    expect(sleep).not.toHaveBeenCalled()
+    expect(imposeCooldown).toHaveBeenCalledTimes(1)
+    expect(imposeCooldown).toHaveBeenCalledWith(expectedCooldownMs)
   })
 })
