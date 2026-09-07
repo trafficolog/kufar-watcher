@@ -28,6 +28,7 @@ export class RateLimiter {
   private readonly random: () => number
   private tail: Promise<void> = Promise.resolve()
   private lastStartedAt: number | null = null
+  private cooldownUntil = 0
 
   constructor(options: RateLimiterOptions) {
     assertNonNegativeInteger('minIntervalMs', options.minIntervalMs)
@@ -55,6 +56,11 @@ export class RateLimiter {
     return run
   }
 
+  imposeCooldown(delayMs: number): void {
+    assertNonNegativeInteger('cooldown delay', delayMs)
+    this.cooldownUntil = Math.max(this.cooldownUntil, Date.now() + delayMs)
+  }
+
   private sampleDelayMs(): number {
     const randomValue = this.random()
 
@@ -69,12 +75,15 @@ export class RateLimiter {
   }
 
   private async run<T>(operation: () => Promise<T>): Promise<T> {
-    if (this.lastStartedAt !== null) {
-      const remainingMs = this.lastStartedAt + this.sampleDelayMs() - Date.now()
+    const cadenceStartAt =
+      this.lastStartedAt === null ? 0 : this.lastStartedAt + this.sampleDelayMs()
 
-      if (remainingMs > 0) {
-        await sleep(remainingMs)
-      }
+    while (true) {
+      const earliestStartAt = Math.max(cadenceStartAt, this.cooldownUntil)
+      const remainingMs = earliestStartAt - Date.now()
+
+      if (remainingMs <= 0) break
+      await sleep(remainingMs)
     }
 
     this.lastStartedAt = Date.now()

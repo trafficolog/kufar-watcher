@@ -167,6 +167,83 @@ describe('RateLimiter', () => {
     expect(() => new RateLimiter({ ...options, random: () => 0 })).toThrow()
   })
 
+  it('holds the next start until the active global cooldown expires', async () => {
+    const limiter = fixedLimiter()
+    const starts: number[] = []
+
+    await limiter.schedule(async () => starts.push(Date.now()))
+    limiter.imposeCooldown(500)
+    const second = limiter.schedule(async () => starts.push(Date.now()))
+
+    await vi.runAllTimersAsync()
+    await second
+    expect(starts).toEqual([0, 500])
+  })
+
+  it('extends an already-waiting queued start when a cooldown is imposed', async () => {
+    const limiter = fixedLimiter()
+    const starts: number[] = []
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+
+    const first = limiter.schedule(async () => {
+      starts.push(Date.now())
+      await firstGate
+    })
+    const second = limiter.schedule(async () => starts.push(Date.now()))
+
+    await flushMicrotasks()
+    releaseFirst()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(vi.getTimerCount()).toBe(1)
+    limiter.imposeCooldown(500)
+
+    await vi.advanceTimersByTimeAsync(100)
+    expect(starts).toEqual([0])
+
+    await vi.advanceTimersByTimeAsync(400)
+    await Promise.all([first, second])
+    expect(starts).toEqual([0, 500])
+  })
+
+  it('does not shorten an already active cooldown', async () => {
+    const limiter = fixedLimiter()
+    const starts: number[] = []
+
+    await limiter.schedule(async () => starts.push(Date.now()))
+    limiter.imposeCooldown(500)
+    await vi.advanceTimersByTimeAsync(100)
+    limiter.imposeCooldown(100)
+    const second = limiter.schedule(async () => starts.push(Date.now()))
+
+    await vi.runAllTimersAsync()
+    await second
+    expect(starts).toEqual([0, 500])
+  })
+
+  it('returns to the normal cadence after cooldown expiry', async () => {
+    const limiter = fixedLimiter()
+    const starts: number[] = []
+
+    await limiter.schedule(async () => starts.push(Date.now()))
+    limiter.imposeCooldown(500)
+    const second = limiter.schedule(async () => starts.push(Date.now()))
+    const third = limiter.schedule(async () => starts.push(Date.now()))
+
+    await vi.runAllTimersAsync()
+    await Promise.all([second, third])
+    expect(starts).toEqual([0, 500, 600])
+  })
+
+  it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects invalid cooldown %s',
+    (delayMs) => {
+      expect(() => fixedLimiter().imposeCooldown(delayMs)).toThrow(/cooldown/i)
+    },
+  )
+
   it('exports the production defaults and worker singleton', () => {
     expect(KUFAR_RATE_LIMITER_DEFAULTS).toEqual({
       minIntervalMs: 2000,
