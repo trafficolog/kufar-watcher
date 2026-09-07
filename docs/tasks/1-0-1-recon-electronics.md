@@ -2,8 +2,8 @@
 id: "1.0.1"
 phase: 1
 epic: "1.0"
-status: todo
-sync_state: drifted
+status: blocked
+sync_state: aligned
 last_reviewed: 2026-09-07
 roles: [BACK, QA]
 depends_on: []
@@ -14,7 +14,7 @@ tags: [recon, contract, spike]
 
 # Задача 1.0.1 — Разведка выдачи по электронике
 
-> Эпик 1.0 · Фаза 1 · ⬜ todo · зависит от: — · оценка: 2-3 ч
+> Эпик 1.0 · Фаза 1 · ⛔ blocked · зависит от: — · оценка: 2-3 ч
 
 ## Цель
 
@@ -79,7 +79,12 @@ pagination и v2 `/count`; отдельный consumer от того же дня
 
 Поэтому page1/page2 raw JSON, `/count`, фактические electronics JSON-поля,
 representation договорной цены и price+status contract detail response пока
-остаются непроверенными. Задача сохраняет `todo / drifted`.
+остаются непроверенными.
+
+**Blocker:** обязательные raw fixtures требуют прямого HTTPS probe из обычной
+пользовательской сети. Текущее execution-окружение не достигает HTTP-уровня, а
+смена канала через proxy/VPN противоречит правилам проекта. До снятия blocker
+задача имеет `blocked / aligned`, а не `done`.
 
 ## Критерии приёмки
 
