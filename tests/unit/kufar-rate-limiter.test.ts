@@ -180,6 +180,34 @@ describe('RateLimiter', () => {
     expect(starts).toEqual([0, 500])
   })
 
+  it('extends an already-waiting queued start when a cooldown is imposed', async () => {
+    const limiter = fixedLimiter()
+    const starts: number[] = []
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+
+    const first = limiter.schedule(async () => {
+      starts.push(Date.now())
+      await firstGate
+    })
+    const second = limiter.schedule(async () => starts.push(Date.now()))
+
+    await flushMicrotasks()
+    releaseFirst()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(vi.getTimerCount()).toBe(1)
+    limiter.imposeCooldown(500)
+
+    await vi.advanceTimersByTimeAsync(100)
+    expect(starts).toEqual([0])
+
+    await vi.advanceTimersByTimeAsync(400)
+    await Promise.all([first, second])
+    expect(starts).toEqual([0, 500])
+  })
+
   it('does not shorten an already active cooldown', async () => {
     const limiter = fixedLimiter()
     const starts: number[] = []
