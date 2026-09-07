@@ -1,10 +1,10 @@
 # Spec — контракт площадки kufar.by
 
-> Статус: **электроника подтверждена живой разведкой `1.0.1`.** Search API,
-> pagination, `/count`, обязательные поля, договорная цена, detail availability
-> semantics и HTML embedded state подтверждены dated fixtures/evidence от
-> 2026-09-07. Недвижимость проверяется отдельно в `1.0.2`; выводы между
-> вертикалями автоматически не переносить.
+> Статус: **электроника (`1.0.1`) и недвижимость (`1.0.2`) подтверждены живой
+> разведкой.** Search API, cursor pagination и обязательный core response-shape
+> подтверждены dated fixtures/evidence от 2026-09-07. Electronics дополнительно
+> подтверждает `/count`, договорную цену, detail availability semantics и HTML
+> embedded state.
 
 ## Основной канал
 
@@ -13,7 +13,7 @@
 
 | Категория | Хост поисковой выдачи |
 |-----------|----------------------|
-| Недвижимость | `api.kufar.by` — **требует проверки в 1.0.2**; пользовательские страницы живут на `re.kufar.by` |
+| Недвижимость | `api.kufar.by` — **подтверждено live в 1.0.2**; пользовательские страницы живут на `re.kufar.by` |
 | Электроника и прочие товары | `api.kufar.by` — **подтверждено live в 1.0.1** |
 | Авто | `auto.kufar.by` — вне периметра проекта |
 
@@ -36,11 +36,24 @@
 - `tests/fixtures/kufar/2026-09-07-electronics-search-page-1.json`;
 - `tests/fixtures/kufar/2026-09-07-electronics-search-page-2.json`.
 
+Для недвижимости `1.0.2` **тот же endpoint** первично подтверждён request shape:
+
+`cat=1010&cur=USD&gtsy=country-belarus~province-minsk~locality-minsk&lang=ru&size=1&sort=lst.d&typ=sell`
+
+Page 1 вернул `ads`, `pagination`, `total=11637`; `next` token из него был
+передан без декодирования во второй запрос как `cursor=<token>`, после чего page
+2 вернул `self=2`, `prev=1`, новый `next=3` и тот же `total=11637`.
+
+Fixtures:
+
+- `tests/fixtures/kufar/2026-09-07-realestate-search-page-1.json`;
+- `tests/fixtures/kufar/2026-09-07-realestate-search-page-2.json`.
+
 Также первично подтверждён endpoint:
 
 `https://api.kufar.by/search-api/v2/search/count`
 
-Для тех же effective filters ответ был ровно `{"count":1229}` и совпал с
+Для electronics effective filters ответ был ровно `{"count":1229}` и совпал с
 `search.total`. Raw fixture:
 `tests/fixtures/kufar/2026-09-07-electronics-count.json`.
 
@@ -62,20 +75,37 @@
 | `cursor` | opaque token из `pagination.pages[]` с `label == "next"`; передаётся как `cursor=<token>` |
 | `lang` | `lang=ru` принят API и входит в проверенный request shape |
 
-Параметры `ar`, `cur`, `cnd`, `otype`/исторический `ot` не входят в минимальный
-request contract `1.0.1`. Их нельзя автоматически добавлять или интерпретировать
-как обязательные до появления отдельного требования. Response-side район,
-condition и seller type уже доступны через `ad_parameters` / `company_ad` и не
-требуют этих request-фильтров для MVP.
+Подтверждённый минимальный real-estate contract для продажи квартир в Минске:
 
-`typ` относится к real-estate operation (`let` / `sell`) и рассматривается в
-`1.0.2`, а не в electronics adapter.
+| Параметр | Подтверждённое значение |
+|----------|-------------------------|
+| `cat` | `1010` = квартиры в снятой live выдаче |
+| `typ` | `sell` = продажа; response также содержит `type="sell"` |
+| `gtsy` | `country-belarus~province-minsk~locality-minsk` — location selector живого запроса |
+| `cur` | `USD` принят API; это request/display parameter, но response `currency` не обязан совпадать с ним для каждой записи |
+| `sort` | `lst.d` принят API |
+| `size` | `size=1` использован в matched raw page-1/page-2 fixtures; user-layer page href использует `size=30` |
+| `cursor` | та же opaque pagination-механика: `label == "next"` → `token` → следующий `cursor` |
+| `lang` | `lang=ru` принят API |
+
+Параметры `ar`, `cur`, `cnd`, `otype`/исторический `ot` не входят в минимальный
+**electronics** request contract `1.0.1`. Их нельзя автоматически добавлять или
+интерпретировать как обязательные там до отдельного требования. Response-side
+район, condition и seller type уже доступны через `ad_parameters` /
+`company_ad`.
+
+Для real-estate `cur` подтверждён как часть рабочего request shape. Дополнительные
+secondary параметры (`rms`, `prc` и т. п.) в `1.0.2` raw fixtures не проверялись
+и не являются обязательным контрактом. Отдельный пробный `rnt=2` не дал
+результатов и **не подтверждён** как rental contract; перебор значений не
+выполнялся.
 
 Пользовательский URL
 `https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5` и raw API probe
 подтверждают практическое отображение `r~minsk → rgn=7` и `q~ps5 → query=ps5`
-для проверенного примера. Задача `1.1.1` строит нормализатор по этому контракту,
-не пытаясь угадывать дополнительные фильтры.
+для проверенного electronics примера. Real-estate user-layer использует path
+семантику (`/minsk/kupit/kvartiru`, `/snyat`) и отдельный host `re.kufar.by`,
+тогда как raw API фильтрует продажу через `typ=sell` и location через `gtsy`.
 
 ## Пагинация обязательна
 
@@ -90,9 +120,9 @@ condition и seller type уже доступны через `ad_parameters` / `c
 пользоваться. Догоняющий обход после сна (эпик 2.5) без этого не реализуем в
 принципе.
 
-### Подтверждённый cursor shape для электроники
+### Подтверждённый cursor shape
 
-Raw page 1 от 2026-09-07 содержит:
+Electronics raw page 1 от 2026-09-07 содержит:
 
 - `pagination.pages[]`;
 - `self` с `num=1` и `token=null`;
@@ -100,17 +130,19 @@ Raw page 1 от 2026-09-07 содержит:
 - top-level `total=1229`.
 
 Токен page 1 был передан без декодирования как `cursor=<token>` во второй
-запрос. Raw page 2 вернул:
+запрос. Raw page 2 вернул `prev=1`, `self=2`, новый `next=3` и тот же
+`total=1229`.
 
-- `prev`, `num=1`;
-- `self`, `num=2`;
-- новый `next`, `num=3`;
-- тот же `total=1229`.
+Real-estate raw page 1 показывает тот же shape: `self=1`, `next=2`,
+`total=11637`. Его exact `next.token`
+`eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTMwMDYifQ==` был передан
+как `cursor` во второй запрос. Raw page 2 вернул `prev=1`, `self=2`, `next=3` и
+тот же `total=11637`.
 
-Следовательно, для electronics adapter контракт такой: найти элемент
-`pagination.pages[]` с `label == "next"`; если он есть, передать его `token`
-как следующий `cursor`. Нельзя полагаться на индекс элемента в массиве:
-на page 1 `next` идёт после `self`, а на page 2 перед ними появляется `prev`.
+Следовательно, общий pagination contract обеих вертикалей одинаков: найти
+`pagination.pages[]` с `label == "next"`; если он есть, передать `token` без
+декодирования как следующий `cursor`. Нельзя полагаться на индекс элемента в
+массиве: на page 2 перед `self` появляется `prev`.
 
 Вторичный порядок при одинаковом `list_time` не является частью контракта.
 Алгоритм водяного знака `1.4.1` обязан проходить всю временную границу и
@@ -148,7 +180,7 @@ sample не наблюдался и не входит в подтверждён�
   контракт `1.0.1`.
 - Live electronics fixtures подтверждают `images[].media_storage` и
   относительный `images[].path`; в снятых ответах `media_storage="rms"`.
-  В MVP фотографии в уведомлениях не используются.
+  Real-estate fixtures используют тот же image shape.
 - Список категорий нужен только Post-MVP для конструктора фильтров и не входит
   в сетевой контракт MVP-1.
 
@@ -166,16 +198,56 @@ sample не наблюдался и не входит в подтверждён�
 | признак юрлица | `company_ad` boolean: live fixtures содержат и `false`, и `true` | нужно для фильтра продавца |
 | регион | элемент `ad_parameters[]` с `p="region"`, `pu="rgn"`; live `v=7`, `vl="Минск"` | желательно, идёт в уведомление |
 | район | элемент `ad_parameters[]` с `p="area"`, `pu="ar"` | опционально |
-| краткое описание | `body_short`; в снятых search fixtures поле присутствует и равно `null`; detail/embedded state содержат `body` | опционально |
+| краткое описание | `body_short`; в снятых electronics search fixtures поле присутствует и равно `null`; detail/embedded state содержат `body` | опционально |
 
-Дополнительно live electronics fixtures подтверждают `ad_link`, `category`,
-`images`, `account_parameters`, `phone_hidden`, `remuneration_type`,
-`show_parameters`, `calculator` и `type`. Не делать их обязательными без
-доменного требования.
+Real-estate raw fixtures подтверждают **тот же core domain shape**:
+`ad_id/list_id`, `list_time`, `subject`, `price_byn`, `price_usd`, `account_id`,
+`company_ad`, region/area в `ad_parameters`, `body_short`, `ad_link`, `category`,
+`images`, `calculator` и `type`.
 
-Для company records `account_parameters` может содержать публичные реквизиты и
-адреса продавца. Приложение не должно зависеть от этих полей для определения
-seller type, поскольку для этого уже есть прямой `company_ad`.
+Отличия real-estate response:
+
+- `ad_parameters` существенно богаче и содержит domain-specific поля (`rooms`,
+  `size`, `floor`, `house_type`, `condition`, `metro`, coordinates и др.);
+- `calculator` содержит также `price_per_meter`;
+- `body_short` в обеих снятых real-estate search fixtures непустой;
+- `currency` отражает валюту конкретного объявления и в matched pages наблюдался
+  как `USD` и `BYR`, несмотря на request `cur=USD`; нормализатор не должен
+  трактовать request `cur` как гарантию response `currency`;
+- company listing может содержать публичные реквизиты в `account_parameters`
+  (`vat_number`, `company_address`, `contact_person`), но seller type всё равно
+  определяется прямым `company_ad`.
+
+В real-estate search и detail для одного объявления `1079260955` совпадают
+`ad_id=list_id`, `list_time`, `subject`, `price_byn/price_usd` и location data.
+`account_id` между search и detail в этом sample различается, поэтому detail
+`account_id` нельзя использовать как доказательство неизменной seller identity;
+для blacklist/normalization использовать значение из search response.
+
+## Глобальный идентификатор и пригодность SourceAdapter
+
+Обе вертикали используют один платформенный search host/path и один общий detail
+endpoint, ключ которого состоит **только из `{id}`**:
+
+`https://api.kufar.by/search-api/v2/item/{id}/rendered?lang=ru`
+
+Electronics и real-estate search responses одновременно публикуют `ad_id` и
+совпадающий `list_id`; real-estate id `1079260955` повторно прочитан через общий
+detail endpoint и остался тем же. Конкретной cross-vertical collision в снятых
+fixtures не наблюдалось, а единый detail lookup без vertical/source discriminator
+является структурным evidence общего платформенного ID namespace.
+
+Поэтому текущий контракт считает `ad_id` глобальным platform identifier и не
+требует перехода Prisma `Listing.listId` на composite key. Это не математическое
+доказательство отсутствия будущей коллизии: если площадка когда-либо вернёт один
+ID для двух разных записей или detail lookup станет неоднозначным, это schema/
+contract drift и отдельный migration trigger.
+
+Интерфейс `SourceAdapter.page(CanonicalQuery, cursor) -> normalized listings +
+nextCursor` достаточен для electronics и real estate. Различия (`query/rgn` vs
+`typ/gtsy/cur`, richer real-estate parameters, user hosts/routes) являются
+responsibility конкретного adapter request mapper и normalizer. Карточку `1.3.1`
+по результатам `1.0.2` менять не требуется.
 
 ## `/count`
 
@@ -188,6 +260,9 @@ seller type, поскольку для этого уже есть прямой `
 `rendered-paginated` вернул top-level `total=1229`. Для проверенного запроса
 `count` означает общее количество результатов до page slicing и совпадает с
 `search.total`. Адаптер не должен считать длину `ads` эквивалентом total.
+
+`/count` отдельно для real estate в `1.0.2` не требовался и не проверялся;
+real-estate pagination использует top-level `total` того же search response.
 
 ## HTML-состояние
 
@@ -224,19 +299,24 @@ HTML embedded state является проверенным fallback shape. Prim
 
 `https://api.kufar.by/search-api/v2/item/{id}/rendered?lang=ru`
 
-Для активного `1082715190` raw response содержит `price_byn="0"`, описание и
-seller data, но **не содержит отдельного platform-status field** (`status`,
-`active`, `sold`, `removed`). Fixture:
+Для активного electronics `1082715190` raw response содержит `price_byn="0"`,
+описание и seller data, но **не содержит отдельного platform-status field**
+(`status`, `active`, `sold`, `removed`). Fixture:
 
 `tests/fixtures/kufar/2026-09-07-electronics-negotiable-detail.json`.
+
+Для активного real-estate `1079260955` тот же endpoint возвращает `result` с
+тем же `ad_id=list_id`, `list_time`, ценой и заголовком. Fixture:
+
+`tests/fixtures/kufar/2026-09-07-realestate-item-1079260955-detail.json`.
 
 Для заведомо старого недоступного `210670642` тот же endpoint вернул
 `404 ASR0006 ad not found`. Fixture:
 
 `tests/fixtures/kufar/2026-09-07-electronics-detail-not-found.json`.
 
-Embedded `__NEXT_DATA__` активной карточки согласуется с detail API: в
-`adView.data` и `adView.data.initial` есть цена, но нет status-like поля.
+Embedded `__NEXT_DATA__` активной electronics карточки согласуется с detail API:
+в `adView.data` и `adView.data.initial` есть цена, но нет status-like поля.
 
 Контракт для эпика `3.4`:
 
@@ -248,8 +328,9 @@ Embedded `__NEXT_DATA__` активной карточки согласуетс�
 
 ## Уровни деградации
 
-1. **JSON-API** — основной путь; для electronics search/detail подтверждён raw fixtures.
-2. **Встроенные данные HTML-страницы** — проверенный fallback через
+1. **JSON-API** — основной путь; search подтверждён raw fixtures для electronics
+   и real estate, detail — для обеих вертикалей.
+2. **Встроенные данные HTML-страницы** — проверенный electronics fallback через
    `__NEXT_DATA__` / `props.initialState.adView.data.initial`.
 3. **Разбор DOM** — последний рубеж, Post-MVP.
 
@@ -259,9 +340,9 @@ Embedded `__NEXT_DATA__` активной карточки согласуетс�
 ## Порядок работ
 
 Этот документ проверяется **до** того, как по нему проектируется сетевой слой.
-Electronics slice `1.0.1` закрыт live evidence; следующий отдельный recon slice —
-недвижимость `1.0.2`. Только после соответствующей разведки пишутся
-нормализатор адресов и адаптер конкретной вертикали.
+Recon slices `1.0.1` и `1.0.2` закрыты live evidence. Нормализатор адресов и
+конкретные adapters строятся по подтверждённому контракту; непроверенные
+secondary параметры не угадываются заранее.
 
 Отдельно учесть: внешние обращения к страницам площадки могут получать отказ в
 доступе в зависимости от того, как выполнен запрос. Если разведка получает
