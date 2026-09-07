@@ -131,7 +131,7 @@ Fixtures/evidence:
 
 - `tests/fixtures/kufar/2026-09-07-electronics-negotiable.json`;
 - `tests/fixtures/kufar/2026-09-07-electronics-negotiable-detail.json`;
-- `tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.html`.
+- `tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.txt`.
 
 Для **подтверждённого electronics sample** нулевая `price_byn` означает
 `Договорная`, а не бесплатный товар. `price_byn == null` в live electronics
@@ -203,7 +203,7 @@ Browser Connector не читает `view-source:` scheme, поэтому exact 
 Полный block проверен как валидный JSON; в repo сохранён минимальный точный
 непрерывный fragment:
 
-`tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.html`.
+`tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.txt`.
 
 Подтверждённые пути/значения:
 
