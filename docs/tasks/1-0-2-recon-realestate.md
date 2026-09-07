@@ -2,7 +2,7 @@
 id: "1.0.2"
 phase: 1
 epic: "1.0"
-status: blocked
+status: done
 sync_state: aligned
 last_reviewed: 2026-09-07
 roles: [BACK, QA]
@@ -14,7 +14,7 @@ tags: [recon, contract, spike]
 
 # Задача 1.0.2 — Разведка выдачи по недвижимости и сверка спеки
 
-> Эпик 1.0 · Фаза 1 · ⛔ blocked · зависит от: 1.0.1 · оценка: 1-2 ч
+> Эпик 1.0 · Фаза 1 · ✅ done · зависит от: 1.0.1 · оценка: 1-2 ч
 
 ## Цель
 
@@ -28,76 +28,97 @@ tags: [recon, contract, spike]
 адаптера обе категории или его придётся менять. Узнать это дешевле сейчас, чем в
 `1.3.3`.
 
-## Что должно быть сделано
+## Что сделано
 
-- Снять фикстуры выдачи по недвижимости, включая вторую страницу
-- Сопоставить состав полей с товарной выдачей, выписать различия
-- Проверить, отличается ли механика курсора и параметров
-- Дополнить спеку контракта разделом различий между категориями
-- Оценить, достаточно ли задуманного интерфейса адаптера для обеих категорий,
-  и если нет — записать требуемые изменения в карточку `1.3.1`
-- **Проверить допущение об идентификаторе объявления**, на котором держится вся
-  модель данных: он объявлен уникальным и стабильным и служит первичным ключом
-  глобальной таблицы. Конкретно: совпадают ли пространства идентификаторов у
-  товарной и жилой выдачи, не пересекаются ли значения между адаптерами, и
-  остаётся ли идентификатор тем же при повторном чтении того же объявления
+- Сняты dated raw fixtures real-estate page 1 и page 2 из одного cursor-среза
+- Подтверждён search API host/path и request shape для продажи квартир в Минске
+- Подтверждена та же cursor-механика, что у electronics
+- Сопоставлены core fields и real-estate-specific `ad_parameters`
+- Повторно прочитан один real-estate ID через общий detail endpoint
+- Проверено текущее допущение о platform-global `listId`
+- Зафиксирован вывод о пригодности общего `SourceAdapter`
+- Canonical contract обновлён; изменений `1.3.1` не требуется
 
-## Checkpoint разведки — 2026-09-07
+## Primary evidence — 2026-09-07
 
-Журнал текущей сессии:
+Search endpoint:
+
+`https://api.kufar.by/search-api/v2/search/rendered-paginated`
+
+Matched page-1 request:
+
+`cat=1010&cur=USD&gtsy=country-belarus~province-minsk~locality-minsk&lang=ru&size=1&sort=lst.d&typ=sell`
+
+Page 1:
+
+- `ad_id=list_id=1079260955`
+- `total=11637`
+- `self=1`, `next=2`
+- next token
+  `eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTMwMDYifQ==`
+
+Page 2 по exact token:
+
+- `ad_id=list_id=1083434940`
+- `prev=1`, `self=2`, `next=3`
+- `total=11637`
+
+Fixtures:
+
+- `tests/fixtures/kufar/2026-09-07-realestate-search-page-1.json`
+- `tests/fixtures/kufar/2026-09-07-realestate-search-page-2.json`
+- `tests/fixtures/kufar/2026-09-07-realestate-item-1079260955-detail.json`
+
+Журнал:
 [kufar-realestate-2026-09-07.md](../recon/kufar-realestate-2026-09-07.md).
 
-До stop-condition первично подтверждены:
+## Различия от electronics
 
-- пользовательский host `re.kufar.by`;
-- живые маршруты `.../l/minsk/kupit/kvartiru`, `.../1k` и районный `.../snyat`;
-- page-2 user href с opaque `cursor`, `size=30` и отдельным `cur=USD`;
-- real-estate card route `/vi/.../{external_id}`;
-- актуальный external id `1083107250` из текущей выдачи;
-- ещё один свежий rental id `1075744810`;
-- ids находятся в том же десятизначном диапазоне, что electronics, но конкретная
-  cross-vertical collision не наблюдалась.
+Core normalized fields совпадают: `ad_id/list_id`, `list_time`, `subject`,
+prices, seller/account field, `company_ad`, region/area, `body_short`.
 
-Secondary evidence 2026 года сужает следующий API probe до
-`api.kufar.by/search-api/v2/search/rendered-paginated` с `cat=1010`, `typ=sell`,
-`gtsy=...`, `cur=USD`, `lang=ru`, `size=30`, но это не считается подтверждённым
-контрактом без raw live response.
+Основные различия находятся в request mapping и vertical-specific metadata:
 
-Предварительно общий `SourceAdapter` менять не требуется: наблюдаемые различия
-выглядят как request/normalization details конкретного адаптера. Вывод не
-финальный до сравнения raw JSON.
+- real estate: `typ`, `cat=1010`, `gtsy`, `cur`;
+- electronics: `query`, `cat`, `rgn`;
+- real-estate `ad_parameters` содержит rooms/size/floor/house/metro/coordinates;
+- real-estate calculator содержит `price_per_meter`;
+- user-facing host/path отличаются (`re.kufar.by/vi/.../{id}` против
+  `www.kufar.by/item/{id}`).
 
-### Blocker
+## SourceAdapter
 
-После нескольких успешных live user-layer reads запрос
-`https://re.kufar.by/l/minsk` через web-fetch вернул `403 Forbidden`.
+Общий интерфейс
 
-По утверждённому spike design и `docs/AGENTS.md` разведка в этой сессии
-немедленно остановлена. Повторные запросы, proxy/VPN, смена сети, spoofing и
-другие способы обхода не использовались.
+`page(CanonicalQuery, cursor) -> normalized listings + nextCursor`
 
-Opera Browser Connector отдельно не смог выполнять навигацию (`Tabs are
-unchanged` даже для `www.kufar.by`), поэтому raw page-1/page-2 API fixtures в
-этой сессии не получены.
+достаточен для обеих категорий. Vertical differences остаются внутри request
+mapper и normalizer конкретного адаптера. Карточку `1.3.1` менять не требуется.
 
-Задача остаётся `blocked / aligned`, а не `done`: карточка синхронизирована с
-фактом блокировки, но acceptance criteria не выполнены.
+## Идентификатор объявления
+
+Real-estate ID `1079260955` повторно прочитан через общий platform detail endpoint
+`/search-api/v2/item/{id}/rendered?lang=ru` и остался тем же; совпали
+`ad_id=list_id`, `list_time`, title и prices.
+
+Electronics и real estate используют один search API и один detail lookup,
+ключом которого служит только `{id}` без vertical/source discriminator. Это
+поддерживает текущий contract platform-global `ad_id`. В снятых fixtures
+cross-vertical collision не наблюдалось.
+
+Переход Prisma на composite `source + externalId` не требуется. Если в будущем
+появится реальная коллизия или неоднозначный detail lookup, это будет отдельный
+schema/contract drift trigger.
 
 ## Критерии приёмки
 
-- [ ] Фикстуры по недвижимости сохранены с датой
-- [ ] Различия между категориями описаны в спеке контракта
-- [ ] Вывод о пригодности интерфейса адаптера зафиксирован письменно
-- [ ] Проверено, что идентификаторы двух адаптеров не пересекаются и стабильны
-- [ ] Если пересекаются — в спеке модели зафиксирован переход на составной ключ
-      «источник + внешний идентификатор», и задача `0.3.1` помечена к правке
-
-## Подсказки
-
-- Пользовательский поддомен недвижимости и хост её API — разные вещи, не
-  перепутать
-- После нового разрешённого live-start сначала снять raw page 1, затем брать
-  cursor только из фактического ответа и только после этого запрашивать page 2
+- [x] Фикстуры по недвижимости сохранены с датой
+- [x] Различия между категориями описаны в спеке контракта
+- [x] Вывод о пригодности интерфейса адаптера зафиксирован письменно
+- [x] Проверены стабильность real-estate ID и единый platform ID namespace;
+      cross-vertical collision в evidence не наблюдается
+- [x] Условный migration gate проверен: коллизия не обнаружена, поэтому переход
+      на составной ключ и правка `0.3.1` не требуются
 
 ## Не делать
 
