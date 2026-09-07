@@ -160,8 +160,10 @@ describe('FileKufarRawResponseJournal', () => {
     await journal.record({ requestUrl: SEARCH_URL, status: 200, body: Uint8Array.of(1) })
 
     const [endpointDirName] = await readdir(rootDir)
+    if (!endpointDirName) throw new Error('Expected raw response endpoint directory')
     const endpointDir = join(rootDir, endpointDirName)
     const [snapshotFilename] = await readdir(endpointDir)
+    if (!snapshotFilename) throw new Error('Expected raw response snapshot file')
     await writeFile(join(endpointDir, snapshotFilename), '{broken', 'utf8')
 
     await expect(journal.list(SEARCH_URL)).rejects.toThrow(/invalid raw response snapshot/i)
