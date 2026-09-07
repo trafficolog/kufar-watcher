@@ -6,7 +6,7 @@
 
 **Architecture:** Add a focused filesystem journal in the worker layer, inject it into `KufarHttpClient` only as an optional success-side diagnostic dependency, and have the Electron main process resolve the journal root from `app.getPath('userData')` before passing it to the utility worker. Keep persistence independent from network retry policy and do not create a scheduler/traversal solely to own the journal.
 
-**Tech Stack:** TypeScript 6, Node `>=22 <23` built-in `node:fs/promises`, `node:path`, `node:crypto`, Electron 44 utility process, Vitest 5, npm 11.4.2.
+**Tech Stack:** TypeScript 6, Node `>=22 <23` built-ins (`node:fs/promises`, `node:path`, `node:crypto`), Electron 44 utility process, Vitest 5, npm 11.4.2.
 
 **Spec:** `docs/superpowers/specs/2026-09-08-1-2-3-raw-response-journal-design.md`
 
@@ -33,11 +33,13 @@
 - `tests/unit/kufar-raw-response-journal.test.ts` — persistence, retention, restart/list, corruption, export tests.
 - `electron/worker/kufar-http-client.ts` — optional journal dependency and safe warning hook on successful `2xx`.
 - `tests/unit/kufar-http-client.test.ts` — success journaling, no journaling on failure, journal-error isolation.
-- `electron/main/worker-storage.ts` — pure helper deriving the application journal directory and utility-process argument.
-- `electron/worker/config.ts` — pure parser for the worker journal argument.
-- `tests/worker-storage-config.test.ts` — cross-process path/argument contract without importing Electron runtime.
-- `electron/main/index.ts` — use `app.getPath('userData')` and pass the generated worker argument.
-- `electron/worker/index.ts` — validate/parse worker startup configuration without constructing an idle HTTP client.
+- `shared/worker-config.ts` — shared utility-process argument prefix.
+- `electron/main/worker-storage.ts` — derive the journal directory and serialize the worker argument.
+- `electron/worker/config.ts` — parse the worker journal argument.
+- `tests/worker-storage-config.test.ts` — pure path/argument contract.
+- `tests/worker-storage-wiring-contract.test.ts` — source-level proof that main uses Electron `userData` for the worker argument.
+- `electron/main/index.ts` — pass the journal argument when forking the utility worker.
+- `electron/worker/index.ts` — parse/validate the startup argument without constructing an idle HTTP client.
 - `docs/tasks/1-2-3-raw-log.md` and generated rollups — mark task/epic aligned after verification.
 
 ---
@@ -85,17 +87,37 @@ export class FileKufarRawResponseJournal implements KufarRawResponseJournal
 
 - [ ] **Step 1: Write RED tests for record/list and endpoint identity**
 
-Create `tests/unit/kufar-raw-response-journal.test.ts` using `mkdtemp`, `readFile`, `readdir`, `rm`, and `tmpdir` from Node. Use a helper that constructs the journal with deterministic `now` and `createId`.
+Create a temp-directory fixture with deterministic time/IDs:
 
-Core expectations:
+```ts
+let rootDir: string
+let currentTime = new Date('2026-09-08T10:15:30.000Z')
+let nextId = 'snapshot-1'
+
+beforeEach(async () => {
+  rootDir = await mkdtemp(join(tmpdir(), 'kufar-raw-journal-'))
+})
+
+afterEach(async () => {
+  await rm(rootDir, { recursive: true, force: true })
+})
+
+function createJournal(retention = 5): FileKufarRawResponseJournal {
+  return new FileKufarRawResponseJournal({
+    rootDir,
+    retention,
+    now: () => currentTime,
+    createId: () => nextId,
+  })
+}
+```
+
+Required RED cases:
 
 ```ts
 it('records exact body bytes in a versioned envelope', async () => {
-  const journal = createJournal(rootDir, {
-    now: () => new Date('2026-09-08T10:15:30.000Z'),
-    createId: () => 'snapshot-1',
-  })
   const body = new TextEncoder().encode('{"items":[1]}\n')
+  const journal = createJournal()
 
   const snapshot = await journal.record({
     requestUrl: 'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040',
@@ -103,10 +125,11 @@ it('records exact body bytes in a versioned envelope', async () => {
     body,
   })
 
-  expect(snapshot).toMatchObject({
+  expect(snapshot).toEqual({
     version: 1,
     id: 'snapshot-1',
     endpoint: 'api.kufar.by/search-api/v2/search/rendered-paginated',
+    requestUrl: 'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040',
     status: 200,
     capturedAt: '2026-09-08T10:15:30.000Z',
     bodyBase64: Buffer.from(body).toString('base64'),
@@ -115,15 +138,24 @@ it('records exact body bytes in a versioned envelope', async () => {
 })
 
 it('maps different query strings to the same endpoint bucket', async () => {
-  await journal.record({ requestUrl: urlA, status: 200, body: bodyA })
-  await journal.record({ requestUrl: urlB, status: 200, body: bodyB })
+  const journal = createJournal()
+  await journal.record({
+    requestUrl: 'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040',
+    status: 200,
+    body: Uint8Array.of(1),
+  })
+  nextId = 'snapshot-2'
+  currentTime = new Date('2026-09-08T10:15:31.000Z')
+  await journal.record({
+    requestUrl: 'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=1010',
+    status: 200,
+    body: Uint8Array.of(2),
+  })
 
-  const snapshots = await journal.list(urlA)
-  expect(snapshots).toHaveLength(2)
-  expect(snapshots.map((item) => item.endpoint)).toEqual([
-    'api.kufar.by/search-api/v2/search/rendered-paginated',
-    'api.kufar.by/search-api/v2/search/rendered-paginated',
-  ])
+  const snapshots = await journal.list(
+    'https://api.kufar.by/search-api/v2/search/rendered-paginated?anything=else',
+  )
+  expect(snapshots.map((item) => item.id)).toEqual(['snapshot-1', 'snapshot-2'])
 })
 ```
 
@@ -133,7 +165,7 @@ it('maps different query strings to the same endpoint bucket', async () => {
 npm test -- tests/unit/kufar-raw-response-journal.test.ts
 ```
 
-Expected: FAIL because `electron/worker/kufar-raw-response-journal.ts` does not exist.
+Expected: FAIL with module-not-found for `electron/worker/kufar-raw-response-journal.ts`.
 
 - [ ] **Step 3: Commit RED only**
 
@@ -142,13 +174,13 @@ git add tests/unit/kufar-raw-response-journal.test.ts
 git commit -m "test(1.2.3): specify raw response journal"
 ```
 
-- [ ] **Step 4: Implement endpoint identity and record/list minimally**
+- [ ] **Step 4: Implement endpoint identity plus record/list**
 
-Use only built-ins:
+Start with:
 
 ```ts
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 const SNAPSHOT_VERSION = 1 as const
@@ -165,7 +197,9 @@ function endpointDirectoryName(endpoint: string): string {
 }
 ```
 
-Create filenames with a zero-padded millisecond timestamp and ID:
+`record()` creates the hashed endpoint directory, writes `JSON.stringify(snapshot)`, then applies retention. `list()` reads only journal-owned filenames, parses JSON, validates the exact envelope fields, sorts by `capturedAt`, and returns snapshots.
+
+Filename format:
 
 ```ts
 private snapshotFilename(capturedAt: Date, id: string): string {
@@ -174,22 +208,20 @@ private snapshotFilename(capturedAt: Date, id: string): string {
 }
 ```
 
-`record()` must call `mkdir(endpointDir, { recursive: true })`, write `JSON.stringify(snapshot)`, then call the retention helper. `list()` reads only files matching `SNAPSHOT_FILE_PATTERN`, validates each envelope shape, sorts ascending by `capturedAt`, and returns them.
+Validate `retention` as a positive integer in the constructor.
 
-- [ ] **Step 5: Add RED retention/restart/export tests**
-
-Add tests that:
+- [ ] **Step 5: Add RED tests for retention, restart, export, and corruption**
 
 ```ts
 it('retains only the newest five snapshots per endpoint', async () => {
+  const journal = createJournal(5)
   for (let index = 0; index < 6; index += 1) {
-    clock.set(index)
-    ids.set(`snapshot-${index}`)
-    await journal.record({ requestUrl, status: 200, body: body(index) })
+    nextId = `snapshot-${index}`
+    currentTime = new Date(Date.UTC(2026, 8, 8, 10, 15, 30 + index))
+    await journal.record({ requestUrl, status: 200, body: Uint8Array.of(index) })
   }
 
-  const snapshots = await journal.list(requestUrl)
-  expect(snapshots.map((item) => item.id)).toEqual([
+  expect((await journal.list(requestUrl)).map((item) => item.id)).toEqual([
     'snapshot-1',
     'snapshot-2',
     'snapshot-3',
@@ -198,52 +230,54 @@ it('retains only the newest five snapshots per endpoint', async () => {
   ])
 })
 
-it('keeps endpoint retention independent', async () => {
-  // six writes to endpoint A and two to endpoint B
-  expect(await journal.list(endpointA)).toHaveLength(5)
-  expect(await journal.list(endpointB)).toHaveLength(2)
+it('keeps retention independent for different endpoint paths', async () => {
+  const journal = createJournal(2)
+  // write three snapshots to /rendered-paginated and one to /details
+  // then assert IDs [a2, a3] for the first and [b1] for the second
 })
 
 it('lists snapshots written by a previous journal instance', async () => {
-  await first.record(input)
-  const second = new FileKufarRawResponseJournal({ rootDir })
-  await expect(second.list(input.requestUrl)).resolves.toHaveLength(1)
+  await createJournal().record({ requestUrl, status: 200, body: Uint8Array.of(1) })
+  const restarted = new FileKufarRawResponseJournal({ rootDir })
+  await expect(restarted.list(requestUrl)).resolves.toHaveLength(1)
 })
 
 it('exports exact original response bytes', async () => {
   const original = Uint8Array.from([0x7b, 0x0a, 0x20, 0x7d, 0x0a])
-  const snapshot = await journal.record({ requestUrl, status: 200, body: original })
-  await journal.exportSnapshot(requestUrl, snapshot.id, destination)
+  const snapshot = await createJournal().record({ requestUrl, status: 200, body: original })
+  const destination = join(rootDir, 'fixture.json')
+  await createJournal().exportSnapshot(requestUrl, snapshot.id, destination)
   expect(new Uint8Array(await readFile(destination))).toEqual(original)
 })
 
 it('rejects export of an unknown snapshot id', async () => {
-  await expect(journal.exportSnapshot(requestUrl, 'missing', destination)).rejects.toThrow(
-    /snapshot.*missing/i,
-  )
+  await expect(
+    createJournal().exportSnapshot(requestUrl, 'missing', join(rootDir, 'fixture.json')),
+  ).rejects.toThrow(/snapshot.*missing/i)
 })
 ```
 
-- [ ] **Step 6: Prove these new tests RED**
+For the independent-retention test, use concrete IDs `a1`, `a2`, `a3`, `b1` and timestamps one second apart; assert first endpoint returns `['a2', 'a3']` and second returns `['b1']`.
 
-Run the focused file again. Expected: initial record/list tests pass; retention/export tests fail because those behaviors are not yet implemented.
+For corruption, create the hashed endpoint directory through one valid `record()`, overwrite that envelope file with `{broken`, and assert `list()` rejects with `/invalid raw response snapshot/i`.
+
+- [ ] **Step 6: Prove the new tests RED**
+
+Run the same focused test. Expected: record/list cases are GREEN; retention/export/corruption cases fail until the full implementation is present.
 
 - [ ] **Step 7: Implement retention, validation, and export**
 
-Retention:
+Retention must only delete files matching `SNAPSHOT_FILE_PATTERN`:
 
 ```ts
 private async enforceRetention(endpointDir: string): Promise<void> {
   const filenames = (await readdir(endpointDir))
     .filter((name) => SNAPSHOT_FILE_PATTERN.test(name))
     .sort()
-
   const excess = filenames.slice(0, Math.max(0, filenames.length - this.retention))
   await Promise.all(excess.map((name) => unlink(join(endpointDir, name))))
 }
 ```
-
-Validate stored JSON with explicit field checks before returning it from `list`. Do not silently coerce malformed envelopes.
 
 Export:
 
@@ -255,7 +289,7 @@ async exportSnapshot(endpoint: string | URL, id: string, destination: string): P
 }
 ```
 
-Do not create destination parent directories automatically; the caller owns the export destination.
+Do not create destination parent directories automatically.
 
 - [ ] **Step 8: Prove Task 1 GREEN and commit**
 
@@ -268,7 +302,7 @@ git add electron/worker/kufar-raw-response-journal.ts tests/unit/kufar-raw-respo
 git commit -m "feat(1.2.3): add bounded raw response journal"
 ```
 
-Require branch CI GREEN on the exact commit before Task 2.
+Require branch CI GREEN on the exact GREEN SHA before Task 2.
 
 ---
 
@@ -278,48 +312,45 @@ Require branch CI GREEN on the exact commit before Task 2.
 - Modify: `tests/unit/kufar-http-client.test.ts`
 - Modify: `electron/worker/kufar-http-client.ts`
 
-**Interfaces consumed:**
+**Consumed interface:** `Pick<KufarRawResponseJournal, 'record'>`.
+
+**New options added to the existing `KufarHttpClientOptions`:**
 
 ```ts
-export interface KufarRawResponseJournal {
-  record(input: KufarRawResponseSnapshotInput): Promise<KufarRawResponseSnapshot>
-  list(endpoint: string | URL): Promise<KufarRawResponseSnapshot[]>
-  exportSnapshot(endpoint: string | URL, id: string, destination: string): Promise<void>
-}
+journal?: Pick<KufarRawResponseJournal, 'record'>
+onJournalWarning?: (message: string) => void
 ```
 
-**Interfaces produced:**
+- [ ] **Step 1: Add RED success and non-success journal tests**
+
+Use a deterministic record mock that returns a complete snapshot:
 
 ```ts
-export interface KufarHttpClientOptions {
-  // existing fields...
-  journal?: Pick<KufarRawResponseJournal, 'record'>
-  onJournalWarning?: (message: string) => void
-}
+const journalRecord = vi.fn(async () => ({
+  version: 1 as const,
+  id: 'snapshot-1',
+  endpoint: 'api.kufar.by/search-api/v2/search/rendered-paginated',
+  requestUrl,
+  status: 200,
+  capturedAt: '2026-09-08T10:15:30.000Z',
+  bodyBase64: Buffer.from(responseBody).toString('base64'),
+}))
 ```
 
-- [ ] **Step 1: Add RED success-journaling tests**
-
-Extend the existing test helper to accept a mock journal.
+Successful response assertion:
 
 ```ts
-it('journals a successful response exactly once', async () => {
-  const journal = { record: vi.fn(async () => snapshot) }
-  const client = createClient({ transport, journal })
-
-  const result = await client.get('https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040')
-
-  expect(result.ok).toBe(true)
-  expect(journal.record).toHaveBeenCalledTimes(1)
-  expect(journal.record).toHaveBeenCalledWith({
-    requestUrl: new URL('https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040'),
-    status: 200,
-    body: responseBody,
-  })
+const result = await client.get(requestUrl)
+expect(result).toMatchObject({ ok: true, status: 200, attempts: 1 })
+expect(journalRecord).toHaveBeenCalledTimes(1)
+expect(journalRecord).toHaveBeenCalledWith({
+  requestUrl: new URL(requestUrl),
+  status: 200,
+  body: responseBody,
 })
 ```
 
-Also add one table-driven test proving `302`, `404`, `429`, and exhausted `503` do not call `journal.record`, plus a network-error case.
+Add one table-driven test with cases `302`, `404`, `429`, and `503` (with `maxAttempts: 1`) that asserts `journalRecord` is never called. Add a network-error case with `maxAttempts: 1` and the same assertion.
 
 - [ ] **Step 2: Prove RED and commit tests**
 
@@ -329,31 +360,27 @@ git add tests/unit/kufar-http-client.test.ts
 git commit -m "test(1.2.3): specify HTTP response journaling"
 ```
 
-Expected: FAIL because `journal` is not a supported client option and no record call exists.
+Expected: FAIL because the client has no journal option or success-side record call.
 
-- [ ] **Step 3: Implement success-only journal hook**
+- [ ] **Step 3: Implement success-only journaling**
 
-Import only the type:
+Import only the journal type:
 
 ```ts
 import type { KufarRawResponseJournal } from './kufar-raw-response-journal'
 ```
 
-Add fields:
+Add fields and constructor assignment:
 
 ```ts
 private readonly journal?: Pick<KufarRawResponseJournal, 'record'>
 private readonly onJournalWarning: (message: string) => void
-```
 
-Constructor defaults:
-
-```ts
 this.journal = options.journal
 this.onJournalWarning = options.onJournalWarning ?? (() => undefined)
 ```
 
-Inside the existing `2xx` branch, before returning success:
+Inside the existing `2xx` branch before returning:
 
 ```ts
 if (this.journal) {
@@ -369,19 +396,22 @@ if (this.journal) {
 }
 ```
 
-Do not put the journal call around the attempt loop and do not call retry sleep when it fails.
+Do not modify retry counters, rate-limit handling, status classification, or transport lifecycle.
 
-- [ ] **Step 4: Add RED journal-failure isolation test**
+- [ ] **Step 4: Add RED journal-error isolation test**
 
 ```ts
 it('keeps a successful HTTP result when journaling fails', async () => {
   const warnings: string[] = []
   const journal = {
     record: vi.fn(async () => {
-      throw new Error('disk full: secret raw payload must not appear')
+      throw new Error('disk full: raw payload must not leak')
     }),
   }
-  const client = createClient({ journal, onJournalWarning: (message) => warnings.push(message) })
+  const client = createClient({
+    journal,
+    onJournalWarning: (message) => warnings.push(message),
+  })
 
   const result = await client.get(requestUrl)
 
@@ -394,8 +424,7 @@ it('keeps a successful HTTP result when journaling fails', async () => {
 - [ ] **Step 5: Prove Task 2 GREEN and commit**
 
 ```bash
-npm test -- tests/unit/kufar-http-client.test.ts
-npm test -- tests/unit/kufar-raw-response-journal.test.ts
+npm test -- tests/unit/kufar-http-client.test.ts tests/unit/kufar-raw-response-journal.test.ts
 npm run typecheck:electron
 npm run lint
 npm run format:check
@@ -410,13 +439,16 @@ Require full exact-SHA branch CI GREEN before Task 3.
 ### Task 3: Pass platform-correct journal storage configuration to the worker
 
 **Files:**
+- Create: `shared/worker-config.ts`
 - Create: `electron/main/worker-storage.ts`
 - Create: `electron/worker/config.ts`
 - Create: `tests/worker-storage-config.test.ts`
+- Create: `tests/worker-storage-wiring-contract.test.ts`
 - Modify: `electron/main/index.ts`
 - Modify: `electron/worker/index.ts`
+- Existing verification: `tests/worker-runtime.test.ts`
 
-**Interfaces produced:**
+**Interfaces:**
 
 ```ts
 export const RAW_RESPONSE_JOURNAL_ARG = '--raw-response-journal-dir='
@@ -440,36 +472,55 @@ it('derives the journal directory from the supplied Electron userData path', () 
   )
 })
 
-it('serializes and parses the worker journal argument without rebuilding OS paths', () => {
+it('serializes and parses the worker journal argument', () => {
   const argument = rawResponseJournalArg('/profile/Kufar Monitor')
   expect(readWorkerConfig(['electron', 'worker.js', argument])).toEqual({
     rawResponseJournalDir: join('/profile/Kufar Monitor', 'raw-responses'),
   })
 })
 
-it('rejects startup when the journal directory argument is missing', () => {
+it('rejects startup when the journal argument is missing', () => {
   expect(() => readWorkerConfig(['electron', 'worker.js'])).toThrow(/raw response journal/i)
 })
 ```
 
-Use `join()` in expectations so the tests remain portable on Windows/Linux runners.
+Use `join()` in expectations to remain portable across Windows/Linux.
 
-- [ ] **Step 2: Prove RED and commit tests**
+- [ ] **Step 2: Add RED source-wiring contract test**
+
+`tests/worker-storage-wiring-contract.test.ts` reads `electron/main/index.ts` as text and asserts all three contractual pieces exist:
+
+```ts
+expect(source).toContain("app.getPath('userData')")
+expect(source).toContain('rawResponseJournalArg')
+expect(source).toMatch(/utilityProcess\.fork\(workerPath,\s*\[workerJournalArg\]/s)
+```
+
+This is intentionally narrow; do not mock Electron just to test one wiring expression.
+
+- [ ] **Step 3: Prove RED and commit tests**
 
 ```bash
-npm test -- tests/worker-storage-config.test.ts
-git add tests/worker-storage-config.test.ts
+npm test -- tests/worker-storage-config.test.ts tests/worker-storage-wiring-contract.test.ts
+git add tests/worker-storage-config.test.ts tests/worker-storage-wiring-contract.test.ts
 git commit -m "test(1.2.3): specify worker journal storage config"
 ```
 
-- [ ] **Step 3: Implement pure main/worker helpers**
+Expected: FAIL because the helpers/constants and main wiring do not exist.
+
+- [ ] **Step 4: Implement the shared prefix and pure helpers**
+
+`shared/worker-config.ts`:
+
+```ts
+export const RAW_RESPONSE_JOURNAL_ARG = '--raw-response-journal-dir='
+```
 
 `electron/main/worker-storage.ts`:
 
 ```ts
 import { join } from 'node:path'
-
-export const RAW_RESPONSE_JOURNAL_ARG = '--raw-response-journal-dir='
+import { RAW_RESPONSE_JOURNAL_ARG } from '../../shared/worker-config'
 
 export function rawResponseJournalDir(userDataDir: string): string {
   return join(userDataDir, 'raw-responses')
@@ -480,16 +531,14 @@ export function rawResponseJournalArg(userDataDir: string): string {
 }
 ```
 
-`electron/worker/config.ts` should use the same prefix value without importing main-process code. Move the shared literal into `shared/worker-config.ts` if duplication would otherwise be required; prefer one shared constant.
-
-Recommended final structure:
+`electron/worker/config.ts`:
 
 ```ts
-// shared/worker-config.ts
-export const RAW_RESPONSE_JOURNAL_ARG = '--raw-response-journal-dir='
-
-// electron/worker/config.ts
 import { RAW_RESPONSE_JOURNAL_ARG } from '../../shared/worker-config'
+
+export interface WorkerConfig {
+  rawResponseJournalDir: string
+}
 
 export function readWorkerConfig(argv: readonly string[]): WorkerConfig {
   const argument = argv.find((value) => value.startsWith(RAW_RESPONSE_JOURNAL_ARG))
@@ -501,15 +550,15 @@ export function readWorkerConfig(argv: readonly string[]): WorkerConfig {
 }
 ```
 
-- [ ] **Step 4: Wire main spawn and worker startup**
+- [ ] **Step 5: Wire main spawn and worker startup**
 
-In `electron/main/index.ts`, immediately before supervisor creation:
+In `electron/main/index.ts`, import `rawResponseJournalArg`, then immediately before supervisor creation:
 
 ```ts
 const workerJournalArg = rawResponseJournalArg(app.getPath('userData'))
 ```
 
-Then spawn with:
+Change spawn to:
 
 ```ts
 utilityProcess.fork(workerPath, [workerJournalArg], {
@@ -517,32 +566,25 @@ utilityProcess.fork(workerPath, [workerJournalArg], {
 })
 ```
 
-In `electron/worker/index.ts`:
+In `electron/worker/index.ts`, import and execute:
 
 ```ts
 const workerConfig = readWorkerConfig(process.argv)
 void workerConfig.rawResponseJournalDir
 ```
 
-The explicit read validates the startup contract but does not construct an idle `KufarHttpClient` or `Agent`. Add a comment that traversal ownership will consume this config when introduced.
-
-- [ ] **Step 5: Add source-wiring contract assertion only if needed**
-
-If pure tests cannot prove `app.getPath('userData')` is actually used by `main/index.ts`, add one focused contract test that reads the source file and asserts both `app.getPath('userData')` and `rawResponseJournalArg` appear in the worker spawn path. Keep it narrow; do not mock the whole Electron module.
+Add one comment explaining that traversal ownership will consume the parsed directory when traversal is introduced; do not construct an idle `KufarHttpClient`/Agent.
 
 - [ ] **Step 6: Prove Task 3 GREEN and commit**
 
 ```bash
-npm test -- tests/worker-storage-config.test.ts
-npm test -- tests/worker-runtime.test.ts
+npm test -- tests/worker-storage-config.test.ts tests/worker-storage-wiring-contract.test.ts tests/worker-runtime.test.ts
 npm run typecheck:electron
 npm run lint
 npm run format:check
-git add shared/worker-config.ts electron/main/worker-storage.ts electron/worker/config.ts electron/main/index.ts electron/worker/index.ts tests/worker-storage-config.test.ts
+git add shared/worker-config.ts electron/main/worker-storage.ts electron/worker/config.ts electron/main/index.ts electron/worker/index.ts tests/worker-storage-config.test.ts tests/worker-storage-wiring-contract.test.ts
 git commit -m "feat(1.2.3): configure worker raw journal storage"
 ```
-
-If `tests/worker-runtime.test.ts` has a different current name, use the existing worker runtime test discovered in the repository rather than creating a duplicate test suite.
 
 Require full branch CI GREEN on the exact SHA.
 
@@ -553,7 +595,7 @@ Require full branch CI GREEN on the exact SHA.
 **Files:**
 - Modify: `docs/tasks/1-2-3-raw-log.md`
 - Generated modify: `docs/epics/1-2-http-client.md`
-- Generated modify as applicable: `docs/phases/1-kufar-core.md`
+- Generated modify: `docs/phases/1-kufar-core.md` when generator output changes.
 - Generated modify: `docs/operations/status/tasks.md`
 - Generated modify: `docs/operations/status/drift-report.md`
 
@@ -567,15 +609,14 @@ sync_state: aligned
 last_reviewed: 2026-09-08
 ```
 
-Mark all three acceptance checkboxes complete. Add a short implementation note that:
+Mark all three acceptance checkboxes complete. Add an implementation note stating:
 
 - successful `2xx` bodies are stored in a five-snapshot filesystem journal per endpoint;
 - endpoint identity excludes query strings;
 - fixture export reproduces exact response bytes;
 - filesystem journal failure does not alter HTTP success/retry semantics;
-- schema comparison remains epic `4.1`.
-
-Do not claim there is already a scheduler traversal; describe the completed contract as HTTP-success journaling ready for traversal ownership.
+- schema comparison remains epic `4.1`;
+- traversal ownership is not invented in this task.
 
 - [ ] **Step 2: Refresh generated docs**
 
@@ -584,12 +625,12 @@ npm run docs:ops:refresh
 npm run docs:ops:check
 ```
 
-Expected: epic `1.2` becomes `done 3/3` and aligned if generator rules derive epic completion from all children.
+Expected: epic `1.2` shows all `3/3` child tasks done and becomes aligned according to generator rules.
 
 - [ ] **Step 3: Run focused tests**
 
 ```bash
-npm test -- tests/unit/kufar-raw-response-journal.test.ts tests/unit/kufar-http-client.test.ts tests/worker-storage-config.test.ts
+npm test -- tests/unit/kufar-raw-response-journal.test.ts tests/unit/kufar-http-client.test.ts tests/worker-storage-config.test.ts tests/worker-storage-wiring-contract.test.ts tests/worker-runtime.test.ts
 ```
 
 Expected: PASS.
@@ -608,14 +649,14 @@ Then require the repository's full GitHub Actions `verify` workflow to pass on t
 
 - [ ] **Step 5: Scope review**
 
-Compare the final branch with `main` and confirm there are no changes to:
+Compare final branch with `main` and confirm there are no changes to:
 
 - `prisma/schema.prisma` or migrations;
 - fallback/degradation code;
 - scheduler/traversal implementation;
 - schema-drift comparison logic;
 - renderer IPC/save-dialog code;
-- new runtime dependencies.
+- package dependencies.
 
 - [ ] **Step 6: Commit docs**
 
@@ -624,4 +665,4 @@ git add docs/tasks/1-2-3-raw-log.md docs/epics docs/phases docs/operations/statu
 git commit -m "docs(1.2.3): mark raw response journal done"
 ```
 
-After the exact-SHA final workflow is GREEN, run the branch-finishing process while preserving RED -> GREEN commits with a normal merge commit rather than squash/rebase.
+After final exact-SHA workflow success, use a normal merge commit rather than squash/rebase so RED -> GREEN history remains visible.
