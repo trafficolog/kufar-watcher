@@ -15,7 +15,7 @@ The follow-up HTTP client in `1.2.2` must use this primitive as its only schedul
 The live contract specifies one global limiter across all Kufar hosts, with an aggregate request cadence of one request every 2–5 seconds. The limiter therefore has production defaults:
 
 - `minIntervalMs = 2000`
-- jitter uniformly sampled from inclusive configuration range `[0, 3000]` milliseconds
+- jitter uniformly sampled as an integer number of milliseconds from inclusive range `[0, 3000]`
 - effective delay between consecutive request starts: `2000..5000` milliseconds
 - concurrency: exactly `1`
 - queue ordering: FIFO
@@ -34,7 +34,9 @@ Public production surface:
 
 Configuration is constructor-based and includes `minIntervalMs`, jitter bounds, and an injectable random source. The random source defaults to `Math.random`; tests inject deterministic values instead of mocking global randomness.
 
-Configuration values must be finite, non-negative, and internally valid (`jitterMaxMs >= jitterMinMs`). Invalid configuration fails at construction time.
+All millisecond configuration values must be finite, non-negative integers. `jitterMaxMs` must be greater than or equal to `jitterMinMs`. Invalid configuration fails at construction time.
+
+The random source must return a finite number in `[0, 1)`. A value outside that range is invalid and fails the affected scheduling call rather than silently distorting the configured cadence.
 
 ## Scheduling semantics
 
@@ -55,9 +57,13 @@ If an operation itself runs longer than the sampled gap, the next operation star
 
 ## Jitter semantics
 
-For configuration `[jitterMinMs, jitterMaxMs]`, sample a uniform value using the injected random source and map it to the configured interval. Production `[0, 3000]` plus the `2000 ms` base interval yields the specified 2–5 second total cadence.
+Jitter is discrete at millisecond precision. For inclusive integer bounds `[jitterMinMs, jitterMaxMs]` and a random source value `r` in `[0, 1)`, calculate:
 
-Tests assert both boundaries with deterministic random values. The implementation must not use real sleeps in tests.
+`jitterMs = jitterMinMs + floor(r * (jitterMaxMs - jitterMinMs + 1))`
+
+This makes every integer millisecond in the configured inclusive range reachable. Production `[0, 3000]` plus the `2000 ms` base interval yields the specified 2–5 second total cadence.
+
+Tests assert the lower boundary with `r = 0` and the upper boundary with a deterministic value immediately below `1`, without using real sleeps.
 
 ## Worker singleton boundary
 
@@ -69,7 +75,9 @@ This task does not attempt to prohibit direct use of Node/Undici networking APIs
 
 ## Error behavior
 
-An operation rejection is returned unchanged to that operation's caller. It does not poison the internal FIFO chain and does not remove spacing requirements for later queued operations.
+An operation rejection, including a synchronous throw during callback invocation, is returned unchanged to that operation's caller. It does not poison the internal FIFO chain and does not remove spacing requirements for later queued operations.
+
+An invalid injected random value rejects the affected scheduling call and the internal queue remains usable for later calls.
 
 The limiter does not classify network failures, retry requests, change cadence after `429`, or emit health events. Those behaviors belong to `1.2.2` and later health tasks.
 
@@ -84,6 +92,7 @@ RED tests cover:
 - deterministic random values hit the lower and upper jitter boundaries;
 - a long-running operation does not add an unnecessary second delay after the start-spacing requirement has already elapsed;
 - one rejected operation rejects only its own promise and the following queued operation still runs;
+- an invalid random-source value rejects only the affected call and does not poison the queue;
 - production defaults produce effective gaps in the 2–5 second contract range;
 - repeated imports within the worker module graph expose the same `kufarRateLimiter` singleton.
 
