@@ -88,7 +88,7 @@ tags: [recon, contract, spike]
 - `tests/fixtures/kufar/2026-09-07-electronics-negotiable.json`;
 - `tests/fixtures/kufar/2026-09-07-electronics-negotiable-detail.json`;
 - `tests/fixtures/kufar/2026-09-07-electronics-detail-not-found.json`;
-- `tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.html`.
+- `tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.txt`.
 
 Пользовательский слой подтвердил маршруты `www.kufar.by/l/...`, сегменты
 `r~minsk` и `q~ps5`, `/item/{id}` и пригодность server-rendered DOM для разбора.
