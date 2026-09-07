@@ -24,12 +24,12 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.1-tasks -->
-**Задач:** 3 · **done:** 1
+**Задач:** 3 · **done:** 2
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `1.1.1` | [Разбор URL листинга в CanonicalQuery](../tasks/1-1-1-url-parse.md) | ✅ done | 🟢 aligned |
-| `1.1.2` | [Обратная сборка CanonicalQuery в URL](../tasks/1-1-2-url-build.md) | ⬜ todo | 🟡 drifted |
+| `1.1.2` | [Обратная сборка CanonicalQuery в URL](../tasks/1-1-2-url-build.md) | ✅ done | 🟢 aligned |
 | `1.1.3` | [Определение категории и хоста по URL](../tasks/1-1-3-category-routing.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-1.1-tasks -->
 

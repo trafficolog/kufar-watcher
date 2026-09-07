@@ -13,9 +13,22 @@ export class KufarUrlParseError extends Error {
   }
 }
 
+export type KufarUrlBuildErrorCode = 'unsupported-api-mapping'
+
+export class KufarUrlBuildError extends Error {
+  readonly code: KufarUrlBuildErrorCode
+
+  constructor(code: KufarUrlBuildErrorCode, message: string) {
+    super(message)
+    this.name = 'KufarUrlBuildError'
+    this.code = code
+  }
+}
+
 const PAGINATION_PARAMS = new Set(['cursor', 'size'])
 const REAL_ESTATE_OPERATIONS = new Set(['kupit', 'snyat'])
 const SELLER_MARKER = 'bez-posrednikov'
+const API_SEARCH_URL = 'https://api.kufar.by/search-api/v2/search/rendered-paginated'
 
 interface PathSemantics {
   category: string | null
@@ -44,6 +57,10 @@ function decodePathSegment(segment: string): string {
   } catch {
     throw new KufarUrlParseError('invalid-url', 'The URL contains an invalid encoded path segment')
   }
+}
+
+function encodePathSegment(segment: string): string {
+  return encodeURIComponent(segment)
 }
 
 function listingSegments(url: URL): string[] {
@@ -161,6 +178,91 @@ function parseQueryParams(url: URL): {
   return { sort, extraParams }
 }
 
+function buildListingPath(query: CanonicalQuery): string {
+  const segments = ['l']
+
+  if (query.host === 're.kufar.by') {
+    if (query.region !== null) segments.push(query.region)
+    if (query.operation !== null) segments.push(query.operation)
+    if (query.category !== null) segments.push(query.category)
+    segments.push(...query.pathFilters)
+    if (query.sellerType !== null) segments.push(query.sellerType)
+  } else {
+    if (query.region !== null) segments.push(`r~${query.region}`)
+    if (query.category !== null) segments.push(query.category)
+    segments.push(...query.pathFilters)
+    if (query.sellerType !== null) segments.push(query.sellerType)
+    if (query.query !== null) segments.push(`q~${query.query}`)
+  }
+
+  return `/${segments.map(encodePathSegment).join('/')}`
+}
+
+function appendSortedParams(searchParams: URLSearchParams, params: Record<string, string[]>): void {
+  for (const key of Object.keys(params).sort()) {
+    for (const value of params[key] ?? []) {
+      searchParams.append(key, value)
+    }
+  }
+}
+
+function apiParamsFromExtras(query: CanonicalQuery): Record<string, string[]> {
+  const result: Record<string, string[]> = {}
+
+  for (const [key, values] of Object.entries(query.extraParams)) {
+    if (!PAGINATION_PARAMS.has(key) && key !== 'sort') {
+      result[key] = [...values]
+    }
+  }
+
+  return result
+}
+
+function confirmedApiParams(query: CanonicalQuery): Record<string, string[]> {
+  if (
+    query.host !== 're.kufar.by' &&
+    query.host !== 'auto.kufar.by' &&
+    query.category === 'igry-i-pristavki' &&
+    query.region === 'minsk' &&
+    query.operation === null &&
+    query.pathFilters.length === 0 &&
+    query.sellerType === null
+  ) {
+    return {
+      ...apiParamsFromExtras(query),
+      cat: ['5040'],
+      lang: ['ru'],
+      ...(query.query === null ? {} : { query: [query.query] }),
+      rgn: ['7'],
+      sort: ['lst.d'],
+    }
+  }
+
+  if (
+    query.host === 're.kufar.by' &&
+    query.category === 'kvartiru' &&
+    query.region === 'minsk' &&
+    query.operation === 'kupit' &&
+    query.query === null &&
+    query.pathFilters.length === 0 &&
+    query.sellerType === null
+  ) {
+    return {
+      ...apiParamsFromExtras(query),
+      cat: ['1010'],
+      gtsy: ['country-belarus~province-minsk~locality-minsk'],
+      lang: ['ru'],
+      sort: ['lst.d'],
+      typ: ['sell'],
+    }
+  }
+
+  throw new KufarUrlBuildError(
+    'unsupported-api-mapping',
+    'CanonicalQuery contains Kufar API semantics that are not confirmed by the current contract',
+  )
+}
+
 export function parseKufarListingUrl(input: string): CanonicalQuery {
   const url = parseUrl(input)
 
@@ -194,4 +296,22 @@ export function parseKufarListingUrl(input: string): CanonicalQuery {
     pathFilters: path.pathFilters,
     extraParams: queryParams.extraParams,
   }
+}
+
+export function buildKufarListingUrl(query: CanonicalQuery): string {
+  const url = new URL(`https://${query.host}`)
+  url.pathname = buildListingPath(query)
+
+  if (query.sort !== null) {
+    url.searchParams.append('sort', query.sort)
+  }
+  appendSortedParams(url.searchParams, query.extraParams)
+
+  return url.toString()
+}
+
+export function buildKufarApiUrl(query: CanonicalQuery): string {
+  const url = new URL(API_SEARCH_URL)
+  appendSortedParams(url.searchParams, confirmedApiParams(query))
+  return url.toString()
 }
