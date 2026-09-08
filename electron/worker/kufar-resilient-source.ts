@@ -21,9 +21,7 @@ export interface SourceDegradationEvent {
   primaryStatus: number | null
 }
 
-export type SourceDegradationSink = (
-  event: SourceDegradationEvent,
-) => void | Promise<void>
+export type SourceDegradationSink = (event: SourceDegradationEvent) => void | Promise<void>
 
 export type SourceFailureAction = 'fail-run' | 'pause-required'
 export type SourceFailureStage = 'primary' | 'html-fallback' | 'degradation-event'
@@ -103,12 +101,7 @@ export class KufarResilientSource implements ResilientSource {
     try {
       await this.onDegradation(event)
     } catch (error) {
-      throw new KufarResilientSourceError(
-        'fail-run',
-        'degradation-event',
-        primaryError,
-        error,
-      )
+      throw new KufarResilientSourceError('fail-run', 'degradation-event', primaryError, error)
     }
 
     return { page, channel: 'html-fallback' }
