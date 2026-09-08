@@ -1,6 +1,6 @@
 # Design — 1.4.2 Watermark persistence and transaction boundary
 
-Status: approved in chat on 2026-09-08; pending written-spec review.
+Status: implemented and verified on 2026-09-08.
 
 ## Context
 
@@ -61,6 +61,8 @@ The persisted Prisma cursor shape is equivalent at the domain boundary:
 
 `MonitorCursor.lastRunAt` is runtime metadata and is written at successful commit time. It is not part of the watermark comparison algorithm.
 
+`MonitorCursor.updatedAt` is also used as a cursor revision token across one incremental run. The orchestration snapshots it before network traversal; the persistence transaction must reject the result if that revision is no longer current.
+
 `CanonicalQuery` has explicit fields (`host`, `category`, `query`, `region`, `sellerType`, `sort`, `operation`, `pathFilters`, `extraParams`) and is already the parsed source identity stored in `Monitor.query`.
 
 ## Architecture
@@ -71,12 +73,12 @@ The implementation has three narrow responsibilities.
 
 A worker-level orchestration function coordinates one non-cold-start monitor run:
 
-1. Load the monitor configuration and existing `MonitorCursor`.
+1. Load the monitor configuration and existing `MonitorCursor`, including its `updatedAt` revision.
 2. If the cursor row is absent or `boundaryTime` is null, stop with a typed `ColdStartRequired` result/error; do not interpret absence as “everything is new”. `1.4.3` will own that branch.
 3. Validate persisted `boundaryIds` as an array of strings and convert the cursor into a `Watermark`.
 4. Call `traverseWatermark(...)` outside any Prisma transaction.
 5. Pass each returned candidate through the injected selection seam, also outside the transaction.
-6. Commit the successful traversal result plus selected matches through the persistence transaction.
+6. Commit the successful traversal result plus selected matches and the pre-traversal cursor revision through the persistence transaction.
 
 Source/network errors, malformed persisted cursor state, selector failures, and watermark ordering/configuration errors occur before any database commit. They do not produce a partial persistence result in `1.4.2`.
 
@@ -86,11 +88,14 @@ A dedicated persistence component accepts already collected data and performs on
 
 ```ts
 prisma.$transaction(async (tx) => {
+  await assertCurrentCursorRevision(tx, input)
   await persistListingsAndMatches(tx, input)
   await persistMonitorCursor(tx, input)
   await persistSuccessfulRun(tx, input)
 })
 ```
+
+`assertCurrentCursorRevision` first takes a row lock on the owning `Monitor`, then requires `MonitorCursor.updatedAt` to match the revision loaded before traversal. A missing cursor or a different revision means the run result is stale and the transaction throws before writing Listing, Match, Cursor, or Run rows.
 
 These are focused database-step functions, not independent transactions. Production composes them inside one transaction. Their separation makes the dangerous boundaries directly testable with a real transaction by throwing a sentinel between steps, without adding production fault-injection hooks.
 
@@ -170,7 +175,7 @@ This makes retry behavior monotonic and avoids turning persistence idempotency i
 
 ## Watermark persistence
 
-The transaction upserts `MonitorCursor` for the monitor using `result.nextWatermark`.
+The transaction upserts `MonitorCursor` for the monitor using `result.nextWatermark` only after the pre-traversal cursor revision has been verified under the monitor row lock.
 
 `boundaryIds` are stored as JSON using the same ordered string array returned by `1.4.1`.
 
@@ -202,13 +207,14 @@ In `2.4.3`, the orchestration can be evolved to create a `Run` before network wo
 
 The transaction body uses an explicit, reviewable order:
 
-1. Upsert each candidate `Listing`.
-2. Create/idempotently preserve each selected `Match`.
-3. Upsert `MonitorCursor` with the returned watermark and `lastRunAt`.
-4. Create the minimal successful `Run` row.
-5. Return from the interactive transaction callback, allowing Prisma/Postgres to commit.
+1. Lock the owning `Monitor` row and verify that `MonitorCursor.updatedAt` still equals the pre-traversal revision.
+2. Upsert each candidate `Listing`.
+3. Create/idempotently preserve each selected `Match`.
+4. Upsert `MonitorCursor` with the returned watermark and `lastRunAt`.
+5. Create the minimal successful `Run` row.
+6. Return from the interactive transaction callback, allowing Prisma/Postgres to commit.
 
-The correctness guarantee does not rely on this exact order because all four steps are in one transaction, but placing the watermark after Listing/Match writes makes the dangerous state transition visually explicit in code and easier to test/review.
+The lock/revision check is part of the correctness guarantee: it prevents a stale network traversal from recreating or overwriting a cursor after a concurrent source-reset edit. The remaining write order is all-or-nothing because all steps share one transaction.
 
 If any operation throws, the callback throws and all writes in that transaction roll back.
 
@@ -227,9 +233,9 @@ Result: no Listing/Match/Cursor/Run commit from this task. The previous persiste
 
 ### Failure during transaction
 
-Any Prisma/database failure rolls back Listing, Match, MonitorCursor, and the minimal successful Run together.
+Any Prisma/database failure or stale cursor revision check rolls back Listing, Match, MonitorCursor, and the minimal successful Run together.
 
-There is no supported state where the new cursor is committed while its selected Match rows are absent.
+There is no supported state where the new cursor is committed while its selected Match rows are absent, nor a supported state where a stale run result recreates a cursor that a source edit intentionally reset.
 
 ### Process interruption after commit
 
@@ -243,7 +249,7 @@ Reset `MonitorCursor` when:
 
 - `sourceUrl` changes;
 - the parsed canonical `query` changes;
-- monitor state changes from `archived` to `active`.
+- monitor state changes from `archived` to any non-archived state (`active` or `paused`).
 
 Preserve `MonitorCursor` when only these fields change:
 
@@ -252,7 +258,7 @@ Preserve `MonitorCursor` when only these fields change:
 - `keywords`;
 - `searchInDescription`;
 - seller filter fields, including `sellerType`, when the persisted canonical source query itself is unchanged;
-- state changes that are not `archived → active`, unless another later task defines a stronger rule.
+- state changes that do not leave `archived`.
 
 The source-identity comparison must be structural over the `CanonicalQuery` domain, not dependent on JSON object property insertion order. Scalar fields compare directly. `pathFilters` order and each `extraParams` value-array order remain meaningful because they are part of the canonical parsed representation; `extraParams` object key order itself is not meaningful and is compared by key/value content.
 
@@ -272,9 +278,11 @@ The cursor-reset writer in this task intentionally deletes the cursor. That dele
 
 ## Concurrency boundary
 
-Task `2.4.2` later owns “no overlapping runs”. `1.4.2` does not add advisory locks, serializable retry loops, or scheduler locks preemptively.
+Task `2.4.2` later owns preventing overlapping monitor runs in the scheduler. `1.4.2` does not add scheduler locks, advisory-lock infrastructure, or serializable retry loops.
 
-At the current stage, correctness is defined for one persistence attempt per monitor at a time. Database uniqueness still protects duplicate `Match` rows if a retry occurs, but concurrency control is not broadened here.
+`1.4.2` does own one narrower concurrency invariant required by its cursor-reset semantics: a traversal that started from cursor revision `R` must not commit after a configuration transaction has reset that cursor or after another flow has replaced it with revision `R2`. The persistence transaction therefore locks the owning `Monitor` row and compares the current `MonitorCursor.updatedAt` with the revision captured before traversal. Missing or mismatched cursor state throws `StaleMonitorRunError` before persistence writes.
+
+This guard serializes only the short commit/config-write boundary. Network traversal and selection remain outside database transactions. General run-vs-run overlap prevention remains `2.4.2` ownership.
 
 ## Integration test strategy
 
@@ -297,19 +305,22 @@ Required integration cases:
 9. **Source identity edit** — changing `sourceUrl` deletes `MonitorCursor` atomically.
 10. **Canonical query edit** — structural query change deletes `MonitorCursor` atomically.
 11. **Non-source edits** — interval/name/keywords/search-description/seller-only edits preserve the cursor.
-12. **Unarchive** — `archived → active` deletes the cursor.
+12. **Archive exit** — `archived → active` and `archived → paused` reset the cursor.
 13. **Monitor edit rollback** — forced failure after the Monitor update but before callback completion preserves both old Monitor fields and its cursor.
+14. **Stale result after reset** — a run whose captured cursor revision was deleted by a source edit is rejected without recreating Cursor or writing Listing/Match/Run.
+15. **Stale result after cursor replacement** — a run whose captured revision differs from a newly established cursor is rejected without overwriting the replacement cursor or writing Listing/Match/Run.
 
-Focused unit tests should cover persisted cursor decoding/validation, structural query comparison, and cursor-reset decision logic without Postgres where useful. Database atomicity remains an integration-test responsibility.
+Focused unit tests should cover persisted cursor decoding/validation, structural query comparison, and cursor-reset decision logic without Postgres where useful. Database atomicity and stale-revision behavior remain integration-test responsibilities.
 
 ## Suggested implementation surface
 
 Keep the files narrow and worker-oriented. Exact names may be adjusted to existing repository conventions during the implementation plan, but the responsibilities should remain:
 
-- `electron/worker/monitor-run-persistence.ts` — persistence input types, focused DB-step functions, interactive transaction wrapper.
+- `electron/worker/monitor-run-persistence.ts` — persistence input types, cursor-revision guard, focused DB-step functions, interactive transaction wrapper.
 - `electron/worker/incremental-monitor-run.ts` — orchestration around existing cursor → traversal → selector → persistence.
 - `electron/worker/monitor-config-persistence.ts` — monitor update plus cursor-reset policy.
 - `tests/integration/monitor-run-persistence.test.ts` — real Postgres atomicity/idempotency coverage.
+- `tests/integration/monitor-run-stale-config.test.ts` — real Postgres stale-revision regression coverage.
 - focused unit tests for cursor decoding and reset-policy/query identity helpers.
 
 Reuse `shared/watermark.ts`, `shared/listing.ts`, `shared/canonical-query.ts`, and the generated Prisma types rather than duplicating domain shapes.
@@ -317,7 +328,7 @@ Reuse `shared/watermark.ts`, `shared/listing.ts`, `shared/canonical-query.ts`, a
 ## Ownership boundaries after 1.4.2
 
 - `1.4.1`: traversal, novelty classification, deduplication, ordering guard, page-cap semantics, next watermark computation.
-- `1.4.2`: non-cold-start persistence orchestration, selector seam, Listing/Match/Cursor/minimal-success-Run atomic commit, source-identity cursor reset.
+- `1.4.2`: non-cold-start persistence orchestration, selector seam, Listing/Match/Cursor/minimal-success-Run atomic commit, source-identity cursor reset, stale-run cursor revision guard.
 - `1.4.3`: first run / cold-start baseline and suppression of initial Match rows.
 - `2.2`: replace accept-all selector with real matching logic and richer Match payload.
 - `2.4.2`: prevent overlapping monitor runs.
@@ -332,5 +343,7 @@ Reuse `shared/watermark.ts`, `shared/listing.ts`, `shared/canonical-query.ts`, a
 - Advanced watermark without its Match is impossible → Listing/Match/Cursor/Run share one transaction.
 - `sourceUrl` change resets cursor → monitor-config transaction deletes `MonitorCursor`.
 - canonical query change resets cursor → structural source-identity comparison.
+- any exit from `archived` resets cursor → explicit reset-policy tests for both `active` and `paused`.
 - interval/name/keywords changes preserve cursor → explicit reset-policy tests.
-- integration tests pass on a clean database → dedicated real-Postgres suite in existing CI integration stage.
+- stale result cannot recreate or overwrite a reset/replaced cursor → monitor-row lock plus `MonitorCursor.updatedAt` revision check.
+- integration tests pass on a clean database → dedicated real-Postgres suites in the existing CI integration stage.
