@@ -19,14 +19,14 @@ status_note: "Фаза 1: разведка контракта, URL-парсер,
 ## Эпики фазы
 
 <!-- docs:ops:begin phase-1-epics -->
-**Эпиков:** 6 · **done:** 2 · **в работе/план:** 4
+**Эпиков:** 6 · **done:** 3 · **в работе/план:** 3
 
 | ID | Эпик | Статус | Sync | Ист. |
 |----|------|--------|------|------|
 | `1.0` | [Разведка контракта площадки](../epics/1-0-recon.md) | ⬜ todo | 🟡 drifted | Разведка живого контракта площадки до проектирования сетевого слоя. |
 | `1.1` | [URL-парсер и canonical query](../epics/1-1-url-parser.md) | ✅ done | 🟢 aligned | Единственная точка входа пользователя — ссылка. |
 | `1.2` | [HTTP-клиент и лимитер](../epics/1-2-http-client.md) | ✅ done | 🟢 aligned | Вежливый и предсказуемый сетевой слой. |
-| `1.3` | [Адаптеры выдачи Kufar](../epics/1-3-source-adapters.md) | 🔄 in_progress | 🟢 aligned | 3/4: общий SourceAdapter, electronics и real-estate adapters готовы; HTML fallback впереди. |
+| `1.3` | [Адаптеры выдачи Kufar](../epics/1-3-source-adapters.md) | ✅ done | 🟢 aligned | 4/4: общий SourceAdapter, electronics, real-estate и проверенный HTML fallback готовы. |
 | `1.4` | [Водяной знак новизны и дедупликация](../epics/1-4-watermark.md) | ⬜ todo | 🟡 drifted | Ядро логики «что считать новым». |
 | `1.5` | [Догрузка описания карточки](../epics/1-5-description-fetch.md) | ⬜ todo | 🟡 drifted | Опциональный поиск по описанию без лишних запросов. |
 <!-- docs:ops:end phase-1-epics -->

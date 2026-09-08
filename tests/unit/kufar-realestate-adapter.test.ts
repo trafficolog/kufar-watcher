@@ -27,6 +27,12 @@ class FakeHttpGetter {
 }
 
 describe('KufarRealEstateAdapter', () => {
+  it('uses the common classified Kufar request-error base', () => {
+    expect(
+      Object.getPrototypeOf(KufarRealEstateAdapterRequestError.prototype)?.constructor.name,
+    ).toBe('KufarSourceRequestError')
+  })
+
   it('builds the confirmed request from a real-estate listing URL and normalizes its body', async () => {
     const http = new FakeHttpGetter({
       ok: true,

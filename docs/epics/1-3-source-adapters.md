@@ -1,10 +1,10 @@
 ---
 id: "1.3"
 phase: 1
-status: in_progress
+status: done
 sync_state: aligned
 last_reviewed: 2026-09-08
-status_note: "3/4: общий SourceAdapter, electronics и real-estate adapters готовы; HTML fallback впереди."
+status_note: "4/4: общий SourceAdapter, electronics, real-estate и проверенный HTML fallback готовы."
 roles:
   - BACK
 ---
@@ -13,7 +13,7 @@ roles:
 
 ## Цель
 
-Электроника и недвижимость живут на разных хостах API и отдают разные наборы полей. Адаптер прячет это различие за одним интерфейсом и нормализует ответ в доменную модель `Listing`.
+Электроника и недвижимость живут на разных пользовательских маршрутах и отдают разные наборы полей. Адаптер прячет это различие за одним интерфейсом, нормализует ответ в доменную модель `Listing` и сохраняет проверенный structured HTML fallback для временной недоступности primary JSON API.
 
 ## Планируемые задачи
 
@@ -25,21 +25,21 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.3-tasks -->
-**Задач:** 4 · **done:** 3
+**Задач:** 4 · **done:** 4
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `1.3.1` | [Интерфейс SourceAdapter и реестр](../tasks/1-3-1-adapter-interface.md) | ✅ done | 🟢 aligned |
 | `1.3.2` | [Адаптер «Электроника»](../tasks/1-3-2-adapter-electronics.md) | ✅ done | 🟢 aligned |
 | `1.3.3` | [Адаптер «Недвижимость»](../tasks/1-3-3-adapter-realestate.md) | ✅ done | 🟢 aligned |
-| `1.3.4` | [Фолбэк на встроенные данные HTML-страницы](../tasks/1-3-4-html-fallback.md) | ⬜ todo | 🟡 drifted |
+| `1.3.4` | [Фолбэк на встроенные данные HTML-страницы](../tasks/1-3-4-html-fallback.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-1.3-tasks -->
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
-- [ ] `sync_state: aligned` (код соответствует карточкам)
-- [ ] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+- [x] Все дочерние задачи в статусе `done`
+- [x] `sync_state: aligned` (код соответствует карточкам)
+- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
 
 ## Связанные документы
 

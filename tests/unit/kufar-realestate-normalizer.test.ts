@@ -16,12 +16,43 @@ interface MutablePage {
   }
 }
 
+interface EmbeddedFixture {
+  props: {
+    initialState: {
+      listing: {
+        ads: MutableRecord[]
+        pagination: MutableRecord[]
+      }
+    }
+  }
+}
+
 async function fixtureBytes(name: string): Promise<Uint8Array> {
   return new Uint8Array(await readFile(new URL(`../fixtures/kufar/${name}`, import.meta.url)))
 }
 
 async function fixturePage(name = '2026-09-07-realestate-search-page-1.json') {
   return JSON.parse(new TextDecoder().decode(await fixtureBytes(name))) as MutablePage
+}
+
+async function embeddedFixturePage(
+  name = '2026-09-08-realestate-search-page-2-embedded.html',
+): Promise<MutablePage> {
+  const html = new TextDecoder().decode(await fixtureBytes(name))
+  const prefix = '<script id="__NEXT_DATA__" type="application/json">'
+  const suffix = '</script>'
+  const start = html.indexOf(prefix)
+  const end = html.lastIndexOf(suffix)
+
+  if (start < 0 || end < start) throw new Error('Expected __NEXT_DATA__ fixture script')
+
+  const embedded = JSON.parse(html.slice(start + prefix.length, end)) as EmbeddedFixture
+  const listing = embedded.props.initialState.listing
+
+  return {
+    ads: listing.ads,
+    pagination: { pages: listing.pagination },
+  }
 }
 
 function encodeJson(value: unknown): Uint8Array {
@@ -40,6 +71,21 @@ function expectNormalizationError(
     expect(error).toBeInstanceOf(KufarNormalizationError)
     expect(error).toMatchObject({ code, path })
   }
+}
+
+function eurCalculator(payload: MutablePage): MutableRecord {
+  const calculator = payload.ads[0]?.calculator
+  if (!Array.isArray(calculator)) throw new Error('Expected calculator array')
+
+  const entry = calculator.find(
+    (value) =>
+      typeof value === 'object' && value !== null && (value as MutableRecord).currency === 'EUR',
+  )
+  if (typeof entry !== 'object' || entry === null) {
+    throw new Error('Expected EUR calculator entry')
+  }
+
+  return entry as MutableRecord
 }
 
 describe('normalizeRealEstateSearchPage', () => {
@@ -87,6 +133,19 @@ describe('normalizeRealEstateSearchPage', () => {
     expect(page.nextCursor).toBe('eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MywicGl0IjoiMjk4MTMwMDYifQ==')
   })
 
+  it('normalizes live EUR real-estate price from the matching calculator entry', async () => {
+    const page = normalizeRealEstateSearchPage(encodeJson(await embeddedFixturePage()))
+
+    expect(page.listings[0]).toMatchObject({
+      listId: '1083591450',
+      priceKind: 'fixed',
+      priceAmount: '117080.00',
+      currency: 'EUR',
+      isCompany: true,
+      region: 'Минск',
+    })
+  })
+
   it('keeps the confirmed page-1 and page-2 listing IDs non-overlapping', async () => {
     const page1 = normalizeRealEstateSearchPage(
       await fixtureBytes('2026-09-07-realestate-search-page-1.json'),
@@ -113,11 +172,42 @@ describe('normalizeRealEstateSearchPage', () => {
     })
   })
 
-  it('rejects an unconfirmed response currency instead of guessing a price field', async () => {
+  it('rejects an unconfirmed response currency instead of guessing a price source', async () => {
     const payload = await fixturePage()
-    if (payload.ads[0]) payload.ads[0].currency = 'EUR'
+    if (payload.ads[0]) payload.ads[0].currency = 'GBP'
 
     expectNormalizationError(encodeJson(payload), 'invalid-field', 'ads[0].currency')
+  })
+
+  it('requires calculator when EUR is the response currency', async () => {
+    const payload = await embeddedFixturePage()
+    delete payload.ads[0]?.calculator
+
+    expectNormalizationError(encodeJson(payload), 'missing-field', 'ads[0].calculator')
+  })
+
+  it('requires a matching EUR calculator entry', async () => {
+    const payload = await embeddedFixturePage()
+    const calculator = payload.ads[0]?.calculator
+    if (Array.isArray(calculator)) {
+      payload.ads[0]!.calculator = calculator.filter(
+        (value) =>
+          !(
+            typeof value === 'object' &&
+            value !== null &&
+            (value as MutableRecord).currency === 'EUR'
+          ),
+      )
+    }
+
+    expectNormalizationError(encodeJson(payload), 'missing-field', 'ads[0].calculator[EUR]')
+  })
+
+  it('requires a digit-only EUR calculator price', async () => {
+    const payload = await embeddedFixturePage()
+    eurCalculator(payload).price = 'not-a-price'
+
+    expectNormalizationError(encodeJson(payload), 'invalid-field', 'ads[0].calculator[EUR].price')
   })
 
   it('requires the currency-selected price field with its exact path', async () => {
