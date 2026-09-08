@@ -25,12 +25,12 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.4-tasks -->
-**Задач:** 3 · **done:** 1
+**Задач:** 3 · **done:** 2
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `1.4.1` | [Алгоритм водяного знака](../tasks/1-4-1-watermark-algo.md) | ✅ done | 🟢 aligned |
-| `1.4.2` | [Персистентность водяного знака и граница транзакции](../tasks/1-4-2-cursor-persistence.md) | ⬜ todo | 🟡 drifted |
+| `1.4.2` | [Персистентность водяного знака и граница транзакции](../tasks/1-4-2-cursor-persistence.md) | ✅ done | 🟢 aligned |
 | `1.4.3` | [Холодный старт монитора](../tasks/1-4-3-cold-start.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-1.4-tasks -->
 
