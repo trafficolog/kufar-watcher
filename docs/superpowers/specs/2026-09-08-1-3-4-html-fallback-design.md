@@ -78,12 +78,35 @@ Existing:
 - `electron/worker/kufar-electronics-adapter.ts`
 - `electron/worker/kufar-realestate-adapter.ts`
 
-No behavior change. They still:
+Their request construction and normalization behavior remains unchanged. They still:
 
 - build the primary API URL;
 - add `size=30` and opaque cursor;
 - preserve `KufarHttpResult` failure classification in typed request errors;
 - use the existing vertical normalizers.
+
+### Common adapter request error
+
+The resilience layer must be able to recognize classified transport failures without importing every vertical-specific error class or matching arbitrary objects structurally.
+
+Introduce a common base error in a focused worker module:
+
+```ts
+class KufarSourceRequestError extends Error {
+  readonly result: Extract<KufarHttpResult, { ok: false }>
+}
+```
+
+Preserve the current public vertical error classes for compatibility:
+
+```ts
+class KufarAdapterRequestError extends KufarSourceRequestError {}
+class KufarRealEstateAdapterRequestError extends KufarSourceRequestError {}
+```
+
+The HTML fallback request error uses the same base class. Existing callers/tests that depend on the vertical class names continue to work, while the generic resilience policy can classify `KufarSourceRequestError.result` exactly.
+
+This is a refactor of error hierarchy only; it must not change retry, status, or result identity semantics.
 
 ### HTML request adapter
 
@@ -147,10 +170,12 @@ class KufarResilientSource implements ResilientSource {
   constructor(
     primary: SourceAdapter,
     fallback: SourceAdapter,
-    options?: { onDegradation?: SourceDegradationSink },
+    onDegradation: SourceDegradationSink,
   )
 }
 ```
+
+The degradation sink is mandatory. A caller must explicitly provide the publication boundary; there is no default no-op because silent degradation is forbidden by the task contract.
 
 The wrapper owns only channel-selection policy and degradation publication. It does not own retry logic, rate limiting, persistence, schema fingerprinting, or monitor lifecycle.
 
@@ -175,14 +200,19 @@ Fallback itself is a normal HTTP request through the same global limiter. It doe
 
 When fallback normalizes successfully:
 
-1. return `{ page, channel: 'html-fallback' }`;
-2. publish one `SourceDegradationEvent` describing the primary failure that caused the transition.
+1. create a `SourceDegradationEvent` describing the primary temporary failure;
+2. `await` the mandatory degradation sink;
+3. only after successful publication return `{ page, channel: 'html-fallback' }`.
+
+If event publication fails, do not return a degraded success silently. Surface a resilience-level `fail-run` error with the publication failure as cause. The already-normalized page may be discarded and recovered on a later run; observability must not be silently lost.
 
 ### Fallback network/HTTP failure
 
 If the fallback request itself cannot be obtained because of network/timeout/HTTP failure, the fetch is unsuccessful. Preserve the fallback failure and the primary failure as structured context. Do not fabricate a page and do not classify this automatically as schema drift.
 
 A `429` received from the fallback request is still rate limiting and must impose the same global cooldown through `KufarHttpClient`.
+
+A fallback `403`/other 4xx after a temporary primary failure is an unavailable-channel/run failure, not evidence of schema drift. Access-control bypass is out of scope.
 
 ### Fallback embedded-state or normalization failure
 
@@ -195,11 +225,11 @@ Do not drop malformed records. One invalid required listing fails the whole page
 Introduce a resilience-level typed error rather than mutating `Monitor` directly:
 
 ```ts
-type SourceFailureAction = 'retry-later' | 'pause-required'
+type SourceFailureAction = 'fail-run' | 'pause-required'
 
 class KufarResilientSourceError extends Error {
   readonly action: SourceFailureAction
-  readonly stage: 'primary' | 'html-fallback'
+  readonly stage: 'primary' | 'html-fallback' | 'degradation-event'
   readonly primaryCause: unknown
   readonly fallbackCause?: unknown
 }
@@ -207,8 +237,10 @@ class KufarResilientSourceError extends Error {
 
 Exact fields can be narrowed in the implementation plan, but callers must be able to distinguish:
 
-- ordinary unavailable-channel failures that can be recorded as a failed run/retried later;
-- schema/embedded-state failures that require monitor pause once phase 4.3 owns that transition.
+- an unsuccessful traversal (`fail-run`), including both channels being unavailable or degradation-event publication failure;
+- schema/embedded-state failures (`pause-required`) that require monitor pause once phase 4.3 owns that transition.
+
+Primary rate-limit/permanent request errors can remain their existing typed request errors when no fallback was attempted; the resilience wrapper must not erase useful HTTP classification just to force every failure into one class.
 
 The orchestrator itself never updates `Monitor.state`.
 
@@ -229,18 +261,18 @@ type SourceDegradationSink = (
 ) => void | Promise<void>
 ```
 
-Publish only after the fallback page has passed extraction and vertical normalization. A failed fallback is not a successful degradation event.
+Publish exactly once and only after the fallback page has passed extraction and vertical normalization. A failed fallback is not a successful degradation event.
 
-Do not include `monitorId` in the source-layer event: this layer operates on source requests, while the later run/scheduler layer owns monitor identity.
+Do not include `monitorId`, cursor, request URL, or secrets in the source-layer event. This layer operates on source requests, while the later run/scheduler layer owns monitor identity and persistence context.
 
 ## Journal and persistence boundary
 
 The domain model already defines `Run.degradedLevel`, but task `2.4.3` owns the lifecycle and persistence of a monitor run. `HealthEvent`/`AdapterState` are introduced later in slice `0.6.0`; creating an ad-hoc third event store now would contradict `data-model.md`.
 
-Therefore 1.3.4 implements **publication**, not DB persistence:
+Therefore 1.3.4 implements **reliable publication**, not DB persistence:
 
-- source layer emits `SourceDegradationEvent`;
-- task `2.4.3` will persist the corresponding run outcome and `degradedLevel` when it introduces run journaling;
+- source layer emits `SourceDegradationEvent` through a mandatory sink;
+- task `2.4.3` will bind that sink to the run journal and persist the corresponding outcome/`degradedLevel` when it introduces run journaling;
 - slice `0.6.0` can later project health/adapter-state events without changing source fallback policy.
 
 The 1.3.4 task card must be updated to make this dependency explicit instead of claiming that source code writes directly into a journal that does not yet have an owner.
@@ -249,7 +281,7 @@ The 1.3.4 task card must be updated to make this dependency explicit instead of 
 
 Likewise, 1.3.4 classifies `pause-required`, but does not mutate a monitor:
 
-- primary schema drift: no fallback, return/throw `pause-required`;
+- primary schema drift: no fallback, `pause-required`;
 - fetched HTML with missing/malformed embedded state: `pause-required`;
 - extracted fallback payload that fails the existing normalizer: `pause-required`.
 
@@ -271,7 +303,16 @@ The fallback must never decode or synthesize the primary cursor.
 
 All production behavior is fixture-driven and offline in CI. Live access is recon only.
 
-### 1. Embedded-state extractor
+### 1. Common request-error hierarchy
+
+RED first, then refactor without behavior change:
+
+- electronics request error remains the same public class and preserves result identity;
+- real-estate request error remains the same public class and preserves result identity;
+- both are recognized as `KufarSourceRequestError`;
+- existing adapter tests remain green.
+
+### 2. Embedded-state extractor
 
 RED first, then implement against dated full/minimal HTML fixtures:
 
@@ -281,7 +322,7 @@ RED first, then implement against dated full/minimal HTML fixtures:
 - rejects malformed JSON;
 - rejects ambiguous/unconfirmed carrier shapes instead of guessing.
 
-### 2. Vertical embedded-state decoder
+### 3. Vertical embedded-state decoder
 
 For electronics and real estate separately:
 
@@ -291,16 +332,16 @@ For electronics and real estate separately:
 - prove exact representative normalized fields from the dated fixture;
 - prove page-1/page-2 cursor behavior when live recon confirms it.
 
-### 3. Fallback request adapters
+### 4. Fallback request adapters
 
 With a fake HTTP getter:
 
 - build the exact confirmed user-facing URL;
 - preserve any proven HTML pagination transport state;
 - reuse the existing global-client `get` contract;
-- preserve fallback HTTP failures in a typed adapter error.
+- preserve fallback HTTP failures through the common request-error base.
 
-### 4. Resilience policy matrix
+### 5. Resilience policy matrix
 
 With fake primary/fallback adapters:
 
@@ -309,18 +350,20 @@ With fake primary/fallback adapters:
 - 429 never invokes fallback;
 - 4xx/unexpected permanent failure never invokes fallback;
 - primary `KufarNormalizationError` never invokes fallback and becomes `pause-required`;
-- successful fallback returns `channel='html-fallback'`;
+- successful fallback returns `channel='html-fallback'` only after event publication;
 - fallback schema/extractor normalization failure becomes `pause-required`;
-- fallback transport failure preserves both primary and fallback failure context.
+- fallback transport failure preserves both primary and fallback failure context;
+- fallback 403 is `fail-run`, not schema drift;
+- event-sink failure is `fail-run` and does not return silent degraded success.
 
-### 5. Event publication
+### 6. Event publication
 
 Prove:
 
 - exactly one degradation event is emitted after successful fallback normalization;
 - no event is emitted on primary success;
 - no successful-degradation event is emitted when fallback fails;
-- event contains only the primary temporary failure classification/status and no secrets/cursor.
+- event contains only the primary temporary failure classification/status and no cursor/request URL/secrets.
 
 ### Regression gates
 
