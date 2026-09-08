@@ -78,7 +78,7 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string')
 }
 
-function parseCanonicalQuery(value: unknown): CanonicalQuery {
+export function parsePersistedCanonicalQuery(value: unknown): CanonicalQuery {
   if (!isRecord(value)) throw new PersistedCanonicalQueryError()
 
   if (
@@ -143,7 +143,7 @@ export async function updateMonitorConfigTransaction(
       state: true,
     },
   })
-  const currentQuery = parseCanonicalQuery(current.query)
+  const currentQuery = parsePersistedCanonicalQuery(current.query)
 
   const before: MonitorSourceIdentity = {
     sourceUrl: current.sourceUrl,

@@ -88,17 +88,24 @@ async function assertCurrentCursorRevision(
   }
 }
 
-export async function persistListingsAndMatches(
+export async function persistListings(
   tx: Prisma.TransactionClient,
-  input: MonitorRunPersistenceInput,
+  listings: readonly Listing[],
 ): Promise<void> {
-  for (const listing of input.candidates) {
+  for (const listing of listings) {
     await tx.listing.upsert({
       where: { listId: listing.listId },
       create: listingCreateData(listing),
       update: listingUpdateData(listing),
     })
   }
+}
+
+export async function persistListingsAndMatches(
+  tx: Prisma.TransactionClient,
+  input: MonitorRunPersistenceInput,
+): Promise<void> {
+  await persistListings(tx, input.candidates)
 
   for (const item of input.selected) {
     await tx.match.upsert({
