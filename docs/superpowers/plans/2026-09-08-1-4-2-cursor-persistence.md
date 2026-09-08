@@ -4,7 +4,7 @@
 
 **Goal:** Persist incremental Kufar candidates, accepted matches, watermark state, and a minimal successful run atomically, while resetting the watermark only when monitor source identity changes.
 
-**Architecture:** Network traversal and candidate selection stay outside the database transaction. A short Prisma 7 interactive transaction persists `Listing → Match → MonitorCursor → Run`; a separate monitor-config transaction owns cursor-reset rules. Missing cursor remains a typed cold-start boundary for task `1.4.3`.
+**Architecture:** Traversal and selection remain outside the database transaction. A short Prisma 7 interactive transaction persists `Listing → Match → MonitorCursor → Run`; a separate monitor-config transaction owns cursor reset. Missing cursor remains the cold-start boundary owned by `1.4.3`.
 
 **Tech Stack:** TypeScript 6, Vitest 5, Prisma ORM 7.10, `@prisma/adapter-pg`, `pg`, PostgreSQL 16, GitHub Actions.
 
@@ -12,54 +12,53 @@
 
 ## Global Constraints
 
-- Do not perform HTTP/pagination/matching inside a Prisma transaction.
-- Do not implement cold-start baseline behavior; `1.4.3` owns absent cursor handling.
-- Do not implement scheduler overlap, notifications, or the full `Run` journal lifecycle.
-- Marketplace pagination cursors are never persisted.
-- Existing `Match(monitorId, listingId)` uniqueness is the idempotency boundary.
-- `Listing.firstSeenAt` must never be overwritten by retries/upserts.
-- `possibleMiss=true` persists exactly the watermark returned by `1.4.1`; do not synthesize a new boundary.
-- Real transaction guarantees are tested against the existing PostgreSQL 16 compose service.
-- TDD history remains visible as separate RED and GREEN commits.
+- No HTTP, pagination, description fetching, or matching inside a Prisma transaction.
+- No cold-start baseline implementation; `1.4.3` owns missing/null cursor behavior.
+- No scheduler overlap, notifications, schema changes, or full `Run` lifecycle.
+- Kufar pagination cursors are never persisted.
+- Existing `Match(monitorId, listingId)` uniqueness is the retry/idempotency boundary.
+- `Listing.firstSeenAt` is never overwritten by an upsert retry.
+- `possibleMiss=true` persists exactly the unchanged watermark returned by `1.4.1`.
+- Atomicity is proven on the existing real PostgreSQL compose service.
+- RED and GREEN remain separate commits.
 
 ---
 
 ## File Structure
 
-- `electron/worker/prisma-client.ts` — create/disconnect Prisma 7 PostgreSQL client using `PrismaPg`.
-- `electron/worker/monitor-run-persistence.ts` — persistence input types, DB-step functions, transaction body, and interactive-transaction wrapper.
-- `electron/worker/monitor-config-persistence.ts` — structural canonical-query comparison, reset decision, monitor update + cursor deletion transaction.
-- `electron/worker/incremental-monitor-run.ts` — existing-cursor orchestration, accept-all selector seam, traversal call, persistence call.
-- `tests/integration/monitor-run-persistence.test.ts` — real Postgres atomicity/idempotency/possible-miss tests.
-- `tests/integration/monitor-config-persistence.test.ts` — real Postgres cursor-reset transaction tests.
-- `tests/unit/monitor-config-persistence.test.ts` — pure source-identity/reset-policy tests.
-- `tests/unit/incremental-monitor-run.test.ts` — orchestration, cold-start boundary, selector failure, traversal/persistence handoff.
-- `scripts/verify-postgres-compose.sh` — invoke the integration suites inside the existing clean-DB stage.
-- `package.json`, `package-lock.json` — Prisma PostgreSQL driver adapter dependencies.
-- task/epic/status docs — final generator-aligned documentation only after code is fully GREEN.
+- `electron/worker/prisma-client.ts` — Prisma 7 PostgreSQL client factory.
+- `electron/worker/monitor-run-persistence.ts` — DB steps, transaction body, and commit wrapper.
+- `electron/worker/monitor-config-persistence.ts` — canonical-query equality, reset policy, config transaction body/wrapper.
+- `electron/worker/incremental-monitor-run.ts` — existing-cursor orchestration and selector seam.
+- `tests/integration/monitor-run-persistence.test.ts` — real-Postgres atomicity/idempotency tests.
+- `tests/integration/monitor-config-persistence.test.ts` — real-Postgres reset/rollback tests.
+- `tests/unit/monitor-config-persistence.test.ts` — pure source-identity tests.
+- `tests/unit/incremental-monitor-run.test.ts` — orchestration/cold-start tests.
+- `tests/unit/prisma-client-contract.test.ts` — client factory contract.
+- `scripts/verify-postgres-compose.sh` — invokes integration suites in the existing clean-DB stage.
+- `package.json`, `package-lock.json` — PostgreSQL driver adapter dependencies.
+- task/epic/status docs — synchronized only after code is fully GREEN.
 
 ---
 
 ### Task 0: Prisma PostgreSQL runtime wiring
 
-**Files:**
-- Modify: `package.json`
-- Modify: `package-lock.json`
-- Create: `electron/worker/prisma-client.ts`
-- Test: `tests/unit/prisma-client-contract.test.ts`
+**Files:** `package.json`, `package-lock.json`, `electron/worker/prisma-client.ts`, `tests/unit/prisma-client-contract.test.ts`
 
-**Interfaces:**
-- Produces: `createPrismaClient(connectionString?: string): PrismaClient`
-- Produces: `disconnectPrismaClient(client: PrismaClient): Promise<void>` only if a wrapper improves cleanup readability; otherwise tests call `$disconnect()` directly.
+**Produces:**
 
-- [ ] **Step 1: Add a RED contract test for the missing factory**
+```ts
+export function createPrismaClient(connectionString?: string): PrismaClient
+```
+
+- [ ] **Step 1: RED test**
 
 ```ts
 import { describe, expect, it } from 'vitest'
 import { createPrismaClient } from '../../electron/worker/prisma-client'
 
 describe('createPrismaClient', () => {
-  it('fails clearly when DATABASE_URL is absent and no explicit connection string is supplied', () => {
+  it('requires an explicit connection string or DATABASE_URL', () => {
     const previous = process.env.DATABASE_URL
     delete process.env.DATABASE_URL
     try {
@@ -72,22 +71,18 @@ describe('createPrismaClient', () => {
 })
 ```
 
-- [ ] **Step 2: Commit and verify RED**
+- [ ] **Step 2: Commit/verify RED** — expected failure is the missing `prisma-client` module; existing tests stay green.
 
-Commit only the test. Expected failure: module `electron/worker/prisma-client` does not exist. Existing tests remain green.
-
-- [ ] **Step 3: Install the Prisma 7 PostgreSQL driver packages**
-
-Run locally when available or generate the lockfile deterministically with npm 11.4.2:
+- [ ] **Step 3: Generate dependencies with npm 11.4.2**
 
 ```bash
 npm install @prisma/adapter-pg@7.10.0 pg
 npm install --save-dev @types/pg
 ```
 
-`package-lock.json` must be generated by npm, never hand-authored.
+`package-lock.json` must be generated by npm, never hand-edited.
 
-- [ ] **Step 4: Implement the minimal client factory**
+- [ ] **Step 4: Minimal factory**
 
 ```ts
 import { PrismaPg } from '@prisma/adapter-pg'
@@ -99,20 +94,15 @@ export function createPrismaClient(connectionString = process.env.DATABASE_URL):
 }
 ```
 
-- [ ] **Step 5: Verify GREEN and commit**
-
-Run the focused test, typecheck, lint, and formatting. Commit package files + factory as the Task 0 GREEN commit.
+- [ ] **Step 5: GREEN** — focused test, typecheck, lint, formatting; commit production + npm lock changes.
 
 ---
 
 ### Task 1: Atomic monitor-run persistence
 
-**Files:**
-- Create: `electron/worker/monitor-run-persistence.ts`
-- Create: `tests/integration/monitor-run-persistence.test.ts`
-- Modify: `scripts/verify-postgres-compose.sh`
+**Files:** `electron/worker/monitor-run-persistence.ts`, `tests/integration/monitor-run-persistence.test.ts`, `scripts/verify-postgres-compose.sh`
 
-**Interfaces:**
+**Produces:**
 
 ```ts
 export interface MatchSelection {
@@ -161,84 +151,56 @@ export async function commitMonitorRun(
 ): Promise<void>
 ```
 
-- [ ] **Step 1: Write RED real-Postgres tests**
+- [ ] **Step 1: RED real-Postgres suite**
 
-Use a dedicated monitor id outside seed ids. Set `KUFAR_POSTGRES_INTEGRATION=1` only in the compose verification step and guard the suite with `describe.runIf(...)` so normal `npm test` does not require PostgreSQL.
-
-Required assertions:
+Guard with `describe.runIf(process.env.KUFAR_POSTGRES_INTEGRATION === '1')`. Create dedicated monitor fixtures, not seed monitors. Required tests:
 
 ```ts
-it('commits Listing, Match, MonitorCursor and Run together')
-it('repeating the same result does not create a second Match')
-it('preserves Listing.firstSeenAt on upsert')
-it('rolls back Listing and Match when the callback throws before cursor persistence')
-it('rolls back an advanced cursor and preceding Match when the callback throws before commit')
-it('can retry successfully after rollback')
-it('stores the unchanged watermark supplied for possibleMiss results')
+it('commits Listing Match Cursor and Run together')
+it('repeating the same result creates no second Match')
+it('preserves Listing.firstSeenAt across upserts')
+it('rolls back when the callback throws before any persistence step')
+it('rolls back Listing and Match when the callback throws before cursor write')
+it('rolls back an advanced cursor and preceding Match when the callback throws before callback return')
+it('retries successfully after rollback')
+it('stores an unchanged watermark supplied by a possibleMiss traversal')
 ```
 
-For controlled rollback, tests open their own `prisma.$transaction(async tx => { ... })` and invoke exported DB-step functions with a sentinel throw between steps. No production fault hook is allowed.
+Controlled failures call the exported DB-step functions inside a test-owned `prisma.$transaction(async tx => { ...; throw sentinel })`. No production fault hook.
 
-- [ ] **Step 2: Wire the integration suite into the existing compose stage and verify RED**
+- [ ] **Step 2: Wire RED into compose stage**
 
-Immediately after `test_db_start_clean` in `scripts/verify-postgres-compose.sh`:
+After `test_db_start_clean`:
 
 ```bash
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-run-persistence.test.ts
 ```
 
-Expected RED: missing `monitor-run-persistence` module/functions; existing schema/seed assertions still pass.
+Expected failure: missing persistence module/API.
 
-- [ ] **Step 3: Implement Listing upsert conversion**
+- [ ] **Step 3: Listing upsert** — create/update normalized mutable fields; `priceAmount` stays its normalized decimal string or `null`; top-level JSON `null` becomes `Prisma.JsonNull`; never write `firstSeenAt` in `update`.
 
-Map normalized `Listing` to Prisma create/update data. `priceAmount` is passed as its normalized decimal string or `null`. For JSON `raw`, convert top-level `null` to `Prisma.JsonNull`; otherwise pass a Prisma-compatible input JSON value. Update every mutable normalized field but never set `firstSeenAt` in `update`.
-
-- [ ] **Step 4: Implement idempotent Match writes**
-
-Use the compound unique key:
+- [ ] **Step 4: Match idempotency**
 
 ```ts
 await tx.match.upsert({
-  where: {
-    monitorId_listingId: {
-      monitorId: input.monitorId,
-      listingId: selected.listing.listId,
-    },
-  },
+  where: { monitorId_listingId: { monitorId: input.monitorId, listingId: item.listing.listId } },
   create: {
     monitorId: input.monitorId,
-    listingId: selected.listing.listId,
-    matchedTerms: [...selected.selection.matchedTerms],
-    matchedIn: [...selected.selection.matchedIn],
-    snippet: selected.selection.snippet,
+    listingId: item.listing.listId,
+    matchedTerms: [...item.selection.matchedTerms],
+    matchedIn: [...item.selection.matchedIn],
+    snippet: item.selection.snippet,
   },
   update: {},
 })
 ```
 
-Do not clear `notifiedAt` or overwrite richer future metadata on retries.
+Existing `notifiedAt` and future richer metadata remain untouched.
 
-- [ ] **Step 5: Implement cursor and minimal success Run steps**
+- [ ] **Step 5: Cursor + Run** — cursor upsert stores `new Date(nextWatermark.boundaryTime)`, copied `boundaryIds`, and `lastRunAt=finishedAt`; success Run stores `startedAt`, `finishedAt`, `outcome='success'`, `seen=candidates.length`, `matched=selected.length`, null error/http/degraded fields.
 
-Cursor upsert stores `new Date(nextWatermark.boundaryTime)`, copied boundary IDs, and `lastRunAt = finishedAt`.
-
-Run creation stores:
-
-```ts
-{
-  monitorId,
-  startedAt,
-  finishedAt,
-  outcome: 'success',
-  seen: candidates.length,
-  matched: selected.length,
-  error: null,
-  httpStatus: null,
-  degradedLevel: null,
-}
-```
-
-- [ ] **Step 6: Compose the transaction body and wrapper**
+- [ ] **Step 6: Transaction composition**
 
 ```ts
 export async function persistMonitorRunTransaction(tx, input) {
@@ -252,21 +214,15 @@ export async function commitMonitorRun(prisma, input) {
 }
 ```
 
-- [ ] **Step 7: Verify GREEN and commit**
-
-Run targeted integration tests through the compose harness plus unit/type/lint/format checks. Commit production + integration harness as Task 1 GREEN.
+- [ ] **Step 7: GREEN** — targeted compose integration + unit/static gates; commit.
 
 ---
 
 ### Task 2: Monitor source-identity cursor reset
 
-**Files:**
-- Create: `electron/worker/monitor-config-persistence.ts`
-- Create: `tests/unit/monitor-config-persistence.test.ts`
-- Create: `tests/integration/monitor-config-persistence.test.ts`
-- Modify: `scripts/verify-postgres-compose.sh`
+**Files:** `electron/worker/monitor-config-persistence.ts`, `tests/unit/monitor-config-persistence.test.ts`, `tests/integration/monitor-config-persistence.test.ts`, `scripts/verify-postgres-compose.sh`
 
-**Interfaces:**
+**Produces:**
 
 ```ts
 export interface MonitorSourceIdentity {
@@ -289,6 +245,12 @@ export interface MonitorConfigPatch {
   state?: 'active' | 'paused' | 'archived'
 }
 
+export async function updateMonitorConfigTransaction(
+  tx: Prisma.TransactionClient,
+  monitorId: number,
+  patch: MonitorConfigPatch,
+): Promise<void>
+
 export async function updateMonitorConfig(
   prisma: PrismaClient,
   monitorId: number,
@@ -296,67 +258,49 @@ export async function updateMonitorConfig(
 ): Promise<void>
 ```
 
-- [ ] **Step 1: Write pure RED tests for source identity**
+- [ ] **Step 1: RED pure reset-policy tests** — same `extraParams` with different object key insertion order is equal; `pathFilters` order is significant; each `extraParams[key]` value-array order is significant; sourceUrl/query/unarchive reset; name/interval/keywords/search-description/top-level sellerType do not reset when canonical query is unchanged.
 
-Cover:
-- same query with different `extraParams` object key insertion order → equal;
-- different `pathFilters` order → not equal;
-- different value order inside an `extraParams` key → not equal;
-- changed `sourceUrl` → reset;
-- changed canonical query → reset;
-- `archived → active` → reset;
-- name/interval/keywords/searchInDescription/top-level sellerType edits with unchanged canonical query → preserve.
+- [ ] **Step 2: Commit/verify RED** — missing reset-policy module/API.
 
-- [ ] **Step 2: Verify RED and commit tests**
+- [ ] **Step 3: Structural equality** — compare all canonical scalar fields, ordered `pathFilters`, then sorted `extraParams` keys while preserving each value-array order. Never compare whole JSON strings.
 
-Expected failure: reset-policy module/functions do not exist.
-
-- [ ] **Step 3: Implement structural query equality and reset policy**
-
-Compare every explicit `CanonicalQuery` scalar field, ordered `pathFilters`, and `extraParams` by sorted object keys while keeping each value-array order significant. Do not stringify whole objects and depend on insertion order.
-
-- [ ] **Step 4: Add RED integration tests for the config transaction**
-
-Required cases:
+- [ ] **Step 4: RED real-Postgres config suite**
 
 ```ts
-it('deletes cursor atomically when sourceUrl changes')
-it('deletes cursor atomically when canonical query changes')
+it('deletes cursor when sourceUrl changes')
+it('deletes cursor when canonical query changes')
 it('preserves cursor for non-source edits')
 it('deletes cursor on archived to active')
-it('rolls back both monitor edit and cursor deletion when transaction callback throws')
+it('rolls back monitor edit and cursor deletion together')
 ```
 
-- [ ] **Step 5: Implement `updateMonitorConfig`**
+The rollback test opens its own `$transaction`, calls `updateMonitorConfigTransaction(tx, ...)`, then throws a sentinel before callback return. This proves atomic rollback without a test-only production hook.
 
-Inside one interactive transaction:
-1. `findUniqueOrThrow` current monitor fields;
-2. parse/validate stored `query` into `CanonicalQuery` using a narrow runtime assertion helper local to this persistence module (do not silently coerce malformed JSON);
-3. construct the after identity from current + patch;
-4. update monitor fields;
-5. if reset is required, `deleteMany({ where: { monitorId } })` the cursor.
+- [ ] **Step 5: Config transaction body** — `findUniqueOrThrow` current monitor; validate stored query as a complete `CanonicalQuery`; construct before/after identity; update monitor; when reset is required call `monitorCursor.deleteMany({ where: { monitorId } })`. Missing cursor is harmless.
 
-Use `deleteMany` so an already-missing cursor is harmless and remains the cold-start boundary.
+- [ ] **Step 6: Wrapper + integration wiring**
 
-- [ ] **Step 6: Wire integration suite, verify GREEN, commit**
+```ts
+export async function updateMonitorConfig(prisma, monitorId, patch) {
+  await prisma.$transaction((tx) => updateMonitorConfigTransaction(tx, monitorId, patch))
+}
+```
 
-Append to compose verification:
+Add:
 
 ```bash
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-config-persistence.test.ts
 ```
 
-Run focused unit + integration + static gates before Task 2 GREEN commit.
+- [ ] **Step 7: GREEN** — focused unit/integration/static gates; commit.
 
 ---
 
 ### Task 3: Incremental monitor-run orchestration and selector seam
 
-**Files:**
-- Create: `electron/worker/incremental-monitor-run.ts`
-- Create: `tests/unit/incremental-monitor-run.test.ts`
+**Files:** `electron/worker/incremental-monitor-run.ts`, `tests/unit/incremental-monitor-run.test.ts`
 
-**Interfaces:**
+**Produces:**
 
 ```ts
 export class ColdStartRequiredError extends Error {
@@ -378,32 +322,31 @@ export interface RunIncrementalMonitorInput {
   now?: () => Date
 }
 
-export async function runIncrementalMonitor(input: RunIncrementalMonitorInput): Promise<WatermarkTraversalResult>
+export async function runIncrementalMonitor(
+  input: RunIncrementalMonitorInput,
+): Promise<WatermarkTraversalResult>
 ```
 
-- [ ] **Step 1: Write RED unit tests**
+- [ ] **Step 1: RED unit tests**
 
-Mock only the source adapter/selector/persistence-facing Prisma shape needed by orchestration. Cover:
-
-1. missing cursor → `ColdStartRequiredError`, no adapter call, no transaction;
-2. nullable `boundaryTime` → same cold-start boundary;
-3. existing cursor → `traverseWatermark` receives persisted watermark and monitor canonical query;
-4. default selector accepts every new candidate with empty match metadata;
+1. missing cursor → `ColdStartRequiredError`, no adapter call, no `$transaction`;
+2. `boundaryTime=null` → same cold-start boundary;
+3. existing cursor → traversal receives persisted watermark and canonical query;
+4. default selector accepts every candidate with empty metadata;
 5. custom selector can reject a candidate;
-6. selector failure prevents persistence transaction;
-7. traversal/source failure prevents persistence transaction;
-8. one `startedAt` and one `finishedAt` are passed to persistence;
-9. `possibleMiss=true` is passed through unchanged rather than rewritten.
+6. selector failure prevents persistence;
+7. traversal/source failure prevents persistence;
+8. one start and one finish timestamp feed persistence;
+9. `possibleMiss=true` and its unchanged watermark pass through untouched;
+10. malformed persisted `query` or non-string `boundaryIds` fails before traversal.
 
-- [ ] **Step 2: Verify RED and commit tests**
+Use Vitest module mocks for `traverseWatermark`/`commitMonitorRun`; do not add dependency-injection parameters solely for tests.
 
-Expected failure: missing orchestration module/public API.
+- [ ] **Step 2: Commit/verify RED** — missing orchestration module/API.
 
-- [ ] **Step 3: Implement monitor/cursor loading and cold-start boundary**
+- [ ] **Step 3: Monitor/cursor load** — select only `query` and `cursor`; reject absent/null boundary before traversal; validate complete `CanonicalQuery`; validate `boundaryIds` as string array.
 
-Load only required fields (`query`, `cursor`). Reject missing/null boundary before calling `traverseWatermark`. Convert `boundaryIds` from JSON to a validated string array; malformed persisted cursor data throws a typed/domain input error rather than being silently ignored.
-
-- [ ] **Step 4: Implement selector seam outside the transaction**
+- [ ] **Step 4: Selector outside transaction**
 
 ```ts
 export const acceptAllCandidateSelector: CandidateSelector = {
@@ -413,56 +356,21 @@ export const acceptAllCandidateSelector: CandidateSelector = {
 }
 ```
 
-Call selector sequentially for each `newListings` item, collecting `SelectedListing[]` before entering persistence.
+Select candidates sequentially and build `SelectedListing[]` before persistence starts.
 
-- [ ] **Step 5: Commit using the Task 1 persistence wrapper**
+- [ ] **Step 5: Persist once** — capture `startedAt` before traversal, `finishedAt` after traversal/selection, call `commitMonitorRun` once, return the original traversal result.
 
-Capture `startedAt` before traversal and `finishedAt` after traversal/selection, then call `commitMonitorRun` once. Return the original traversal result.
-
-- [ ] **Step 6: Verify GREEN and commit**
-
-Run the focused suite plus all unit/static gates. Then require a full exact-SHA GitHub Actions run including compose integration, build, and Electron smoke before documentation changes.
+- [ ] **Step 6: GREEN** — focused suite + all unit/static gates, then full exact-SHA Actions including compose integration/build/smoke; commit.
 
 ---
 
-### Task 4: Documentation, review, and integration gates
+### Task 4: Documentation, review, PR, merge
 
-**Files:**
-- Modify: `docs/tasks/1-4-2-cursor-persistence.md`
-- Modify generator-derived epic/status files exactly as `docs:ops:refresh` requires.
-- Modify: `docs/superpowers/specs/2026-09-08-1-4-2-cursor-persistence-design.md` status line only if needed.
+**Files:** task card, epic/status rollups generated by `docs:ops:refresh`, design status line if needed.
 
-- [ ] **Step 1: Mark only task 1.4.2 complete**
-
-Set task frontmatter to `status: done`, `sync_state: aligned`, `last_reviewed: 2026-09-08`. Do not close epic 1.4 because `1.4.3` remains todo.
-
-- [ ] **Step 2: Refresh generated docs**
-
-Run:
-
-```bash
-npm run docs:ops:refresh
-npm run docs:ops:check
-```
-
-Review every generated diff for unrelated drift before committing.
-
-- [ ] **Step 3: Final exact-SHA verification**
-
-Require full GitHub Actions success on the final feature head: docs consistency, all unit tests, dedicated Postgres integration suites, typecheck, lint, formatting, build, and both Electron smoke tests.
-
-- [ ] **Step 4: Code review**
-
-Review `main...HEAD` for:
-- transaction contains no network/selector work;
-- cursor cannot advance without Match writes;
-- retry does not duplicate Match or reset `notifiedAt`;
-- `firstSeenAt` is stable;
-- source identity reset rules match data-model spec;
-- cold-start remains owned by 1.4.3;
-- full Run lifecycle remains owned by 2.4.3;
-- no unrelated schema/migration changes.
-
-- [ ] **Step 5: PR and merge gates**
-
-Open a PR against `main`, require PR-triggered exact-head CI success, verify mergeability/comments/reviews, then merge with normal `merge` and `expected_head_sha` so RED→GREEN history is preserved. Verify merge parents/tree/signature and that `main` points at the merge commit.
+- [ ] **Step 1: Mark only 1.4.2 done/aligned** — `last_reviewed: 2026-09-08`; keep epic 1.4 open because 1.4.3 remains todo.
+- [ ] **Step 2: Run `npm run docs:ops:refresh && npm run docs:ops:check`** and remove any unrelated generated drift before commit.
+- [ ] **Step 3: Final exact-SHA feature verification** — docs, all unit tests, dedicated Postgres integration, typecheck, lint, format, build, dev/prod Electron smoke.
+- [ ] **Step 4: Review `main...HEAD`** for transaction boundaries, retry behavior, stable `firstSeenAt`, reset semantics, cold-start ownership, Run-journal ownership, and absence of schema/scope creep.
+- [ ] **Step 5: Open PR** against `main`, require PR exact-head CI and mergeability/review gates.
+- [ ] **Step 6: Normal merge with `expected_head_sha`** to preserve RED→GREEN history; verify merge parents/tree/signature and final `main` ref.
