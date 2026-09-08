@@ -48,9 +48,8 @@ integrationDescribe('monitor config persistence', () => {
     prisma = createPrismaClient()
     await prisma.$connect()
 
-    const persistence = (await import(
-      '../../electron/worker/monitor-config-persistence'
-    )) as unknown as ConfigPersistenceModule
+    const persistence =
+      (await import('../../electron/worker/monitor-config-persistence')) as unknown as ConfigPersistenceModule
     updateMonitorConfig = persistence.updateMonitorConfig
     updateMonitorConfigTransaction = persistence.updateMonitorConfigTransaction
   })
@@ -149,7 +148,9 @@ integrationDescribe('monitor config persistence', () => {
 
     const monitor = await prisma.monitor.findUniqueOrThrow({ where: { id: MONITOR_ID } })
     expect(monitor.sourceUrl).toBe(ORIGINAL_URL)
-    expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).not.toBeNull()
+    expect(
+      await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } }),
+    ).not.toBeNull()
   })
 
   it('rejects malformed persisted canonical query without mutating cursor state', async () => {
@@ -164,6 +165,8 @@ integrationDescribe('monitor config persistence', () => {
 
     const monitor = await prisma.monitor.findUniqueOrThrow({ where: { id: MONITOR_ID } })
     expect(monitor.name).toBe('config-persistence-fixture')
-    expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).not.toBeNull()
+    expect(
+      await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } }),
+    ).not.toBeNull()
   })
 })
