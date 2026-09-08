@@ -113,7 +113,10 @@ function descriptionFrom(ad: UnknownRecord): string | null {
   return typeof ad.body_short === 'string' ? ad.body_short : null
 }
 
-function normalizedPrice(ad: UnknownRecord, path: string): Pick<Listing, 'priceKind' | 'priceAmount' | 'currency'> {
+function normalizedPrice(
+  ad: UnknownRecord,
+  path: string,
+): Pick<Listing, 'priceKind' | 'priceAmount' | 'currency'> {
   const rawCurrency = requiredNonEmptyString(ad, 'currency', `${path}.currency`)
 
   if (rawCurrency === 'USD') {
