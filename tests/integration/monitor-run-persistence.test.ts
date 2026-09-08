@@ -5,6 +5,7 @@ import {
   commitMonitorRun,
   persistListingsAndMatches,
   persistMonitorCursor,
+  persistSuccessfulRun,
   type MonitorRunPersistenceInput,
 } from '../../electron/worker/monitor-run-persistence'
 import type { Listing } from '../../shared/listing'
@@ -222,6 +223,32 @@ integrationDescribe('monitor run persistence', () => {
     expect(cursor.boundaryTime?.toISOString()).toBe(OLD_WATERMARK.boundaryTime)
     expect(cursor.boundaryIds).toEqual(OLD_WATERMARK.boundaryIds)
     expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
+  })
+
+  it('rolls back Listing Match Cursor and Run when callback throws after run write', async () => {
+    const sentinel = new Error('rollback-after-run')
+    const persistenceInput = input()
+
+    await expect(
+      prisma.$transaction(async (tx) => {
+        await persistListingsAndMatches(tx, persistenceInput)
+        await persistMonitorCursor(tx, persistenceInput)
+        await persistSuccessfulRun(tx, persistenceInput)
+        throw sentinel
+      }),
+    ).rejects.toBe(sentinel)
+
+    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(
+      0,
+    )
+    expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
+    expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
+
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
+    expect(cursor.boundaryTime?.toISOString()).toBe(OLD_WATERMARK.boundaryTime)
+    expect(cursor.boundaryIds).toEqual(OLD_WATERMARK.boundaryIds)
   })
 
   it('retries successfully after rollback', async () => {
