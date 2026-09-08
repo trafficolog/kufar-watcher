@@ -1,17 +1,14 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client'
-import type { CanonicalQuery } from '../../shared/canonical-query'
 import type { Listing } from '../../shared/listing'
 import type { Watermark } from '../../shared/watermark'
 import {
-  canonicalQueryEquals,
   parsePersistedCanonicalQuery,
+  shouldResetMonitorCursor,
+  type MonitorSourceIdentity,
 } from './monitor-config-persistence'
 import { persistListings } from './monitor-run-persistence'
 
-export interface ColdStartSourceSnapshot {
-  sourceUrl: string
-  query: CanonicalQuery
-}
+export type ColdStartSourceSnapshot = MonitorSourceIdentity
 
 export type ColdStartCursorSnapshot =
   | { kind: 'missing' }
@@ -51,18 +48,19 @@ async function assertCurrentColdStartState(
 
   const monitor = await tx.monitor.findUnique({
     where: { id: input.monitorId },
-    select: { sourceUrl: true, query: true },
+    select: { sourceUrl: true, query: true, state: true },
   })
 
   if (monitor === null) {
     throw new StaleColdStartError(input.monitorId)
   }
 
-  const currentQuery = parsePersistedCanonicalQuery(monitor.query)
-  if (
-    monitor.sourceUrl !== input.source.sourceUrl ||
-    !canonicalQueryEquals(currentQuery, input.source.query)
-  ) {
+  const currentSource: MonitorSourceIdentity = {
+    sourceUrl: monitor.sourceUrl,
+    query: parsePersistedCanonicalQuery(monitor.query),
+    state: monitor.state,
+  }
+  if (shouldResetMonitorCursor(input.source, currentSource)) {
     throw new StaleColdStartError(input.monitorId)
   }
 
