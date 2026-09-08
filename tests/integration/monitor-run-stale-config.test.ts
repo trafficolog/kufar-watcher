@@ -135,7 +135,9 @@ integrationDescribe('stale monitor-run commit after config reset', () => {
 
     await expect(commitMonitorRun(prisma, staleRunInput())).rejects.toThrow(/stale|cursor/i)
 
-    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
     expect(cursor.updatedAt.toISOString()).toBe(replacementUpdatedAt.toISOString())
     await expectNoStaleWrites()
   })

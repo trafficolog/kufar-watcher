@@ -83,10 +83,7 @@ async function assertCurrentCursorRevision(
     select: { updatedAt: true },
   })
 
-  if (
-    cursor === null ||
-    cursor.updatedAt.getTime() !== input.expectedCursorUpdatedAt.getTime()
-  ) {
+  if (cursor === null || cursor.updatedAt.getTime() !== input.expectedCursorUpdatedAt.getTime()) {
     throw new StaleMonitorRunError(input.monitorId)
   }
 }
