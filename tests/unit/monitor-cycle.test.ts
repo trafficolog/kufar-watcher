@@ -66,7 +66,6 @@ describe('runMonitorCycle', () => {
       monitorId: MONITOR_ID,
       adapter,
       maxPages: 3,
-      selector: undefined,
       now: undefined,
     })
     expect(dependencyMocks.runIncrementalMonitor).not.toHaveBeenCalled()
