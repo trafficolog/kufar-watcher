@@ -44,7 +44,6 @@ export async function traverseWatermark({
 }: TraverseWatermarkInput): Promise<WatermarkTraversalResult> {
   assertMaxPages(maxPages)
   const previousEpoch = parsePreviousBoundary(previousWatermark.boundaryTime)
-  const page = await adapter.fetchPage({ query, cursor: null })
 
   const previousIds = new Set(previousWatermark.boundaryIds)
   const newListings: Listing[] = []
@@ -52,59 +51,85 @@ export async function traverseWatermark({
   const idsAtMaximum: string[] = []
   let maximumEpoch: number | null = null
   let maximumOriginalTime: string | null = null
+  let cursor: string | null = null
+  let pagesRead = 0
+  let boundaryCrossed = false
 
-  for (const current of page.listings) {
-    const epoch = Date.parse(current.listTime)
-
-    if (maximumEpoch === null || epoch > maximumEpoch) {
-      maximumEpoch = epoch
-      maximumOriginalTime = current.listTime
-      idsAtMaximum.length = 0
-      idsAtMaximum.push(current.listId)
-    } else if (epoch === maximumEpoch && !idsAtMaximum.includes(current.listId)) {
-      idsAtMaximum.push(current.listId)
+  const completedWatermark = (): Watermark => {
+    if (maximumEpoch === null || maximumEpoch < previousEpoch) {
+      return previousWatermark
     }
 
-    if (epoch > previousEpoch) {
-      newListings.push(current)
-      continue
-    }
-
-    if (epoch === previousEpoch) {
-      if (!previousIds.has(current.listId)) {
-        newListings.push(current)
-        if (!newlyObservedPreviousBoundaryIds.includes(current.listId)) {
-          newlyObservedPreviousBoundaryIds.push(current.listId)
-        }
+    if (maximumEpoch === previousEpoch) {
+      return {
+        boundaryTime: previousWatermark.boundaryTime,
+        boundaryIds: [
+          ...new Set([...previousWatermark.boundaryIds, ...newlyObservedPreviousBoundaryIds]),
+        ],
       }
-      continue
     }
 
-    break
-  }
-
-  let nextWatermark: Watermark
-
-  if (maximumEpoch === null || maximumEpoch < previousEpoch) {
-    nextWatermark = previousWatermark
-  } else if (maximumEpoch === previousEpoch) {
-    nextWatermark = {
-      boundaryTime: previousWatermark.boundaryTime,
-      boundaryIds: [
-        ...new Set([...previousWatermark.boundaryIds, ...newlyObservedPreviousBoundaryIds]),
-      ],
-    }
-  } else {
-    nextWatermark = {
+    return {
       boundaryTime: maximumOriginalTime as string,
       boundaryIds: idsAtMaximum,
     }
   }
 
-  return {
-    newListings,
-    nextWatermark,
-    pagesRead: 1,
-    possibleMiss: false,
+  while (pagesRead < maxPages) {
+    const page = await adapter.fetchPage({ query, cursor })
+    pagesRead += 1
+
+    for (const current of page.listings) {
+      const epoch = Date.parse(current.listTime)
+
+      if (maximumEpoch === null || epoch > maximumEpoch) {
+        maximumEpoch = epoch
+        maximumOriginalTime = current.listTime
+        idsAtMaximum.length = 0
+        idsAtMaximum.push(current.listId)
+      } else if (epoch === maximumEpoch && !idsAtMaximum.includes(current.listId)) {
+        idsAtMaximum.push(current.listId)
+      }
+
+      if (epoch > previousEpoch) {
+        newListings.push(current)
+        continue
+      }
+
+      if (epoch === previousEpoch) {
+        if (!previousIds.has(current.listId)) {
+          newListings.push(current)
+          if (!newlyObservedPreviousBoundaryIds.includes(current.listId)) {
+            newlyObservedPreviousBoundaryIds.push(current.listId)
+          }
+        }
+        continue
+      }
+
+      boundaryCrossed = true
+      break
+    }
+
+    if (boundaryCrossed || page.nextCursor === null) {
+      return {
+        newListings,
+        nextWatermark: completedWatermark(),
+        pagesRead,
+        possibleMiss: false,
+      }
+    }
+
+    if (pagesRead === maxPages) {
+      return {
+        newListings,
+        nextWatermark: previousWatermark,
+        pagesRead,
+        possibleMiss: true,
+      }
+    }
+
+    cursor = page.nextCursor
   }
+
+  throw new Error('Watermark traversal loop terminated unexpectedly')
 }
