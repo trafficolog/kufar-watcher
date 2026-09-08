@@ -48,7 +48,7 @@ function input(
     monitorId: MONITOR_ID,
     startedAt: STARTED_AT,
     finishedAt: FINISHED_AT,
-    source: { sourceUrl: SOURCE_URL, query: QUERY },
+    source: { sourceUrl: SOURCE_URL, query: QUERY, state: 'active' },
     expectedCursor: { kind: 'missing' },
     listings: [LISTING],
     nextWatermark: {
@@ -62,12 +62,14 @@ function input(
 function makeTx(options: {
   sourceUrl?: string
   query?: unknown
+  state?: 'active' | 'paused' | 'archived'
   cursor?: { boundaryTime: Date | null; updatedAt: Date } | null
 } = {}) {
   const queryRaw = vi.fn().mockResolvedValue([{ id: MONITOR_ID }])
   const monitorFindUnique = vi.fn().mockResolvedValue({
     sourceUrl: options.sourceUrl ?? SOURCE_URL,
     query: options.query ?? QUERY,
+    state: options.state ?? 'active',
   })
   const cursorFindUnique = vi.fn().mockResolvedValue(options.cursor ?? null)
   const listingUpsert = vi.fn().mockResolvedValue(undefined)
@@ -157,6 +159,21 @@ describe('persistColdStartBaselineTransaction', () => {
     await expect(persistColdStartBaselineTransaction(mocks.tx, input())).rejects.toBeInstanceOf(
       StaleColdStartError,
     )
+
+    await expectNoWrites(mocks)
+  })
+
+  it('rejects archived-to-active source reset semantics before any baseline write', async () => {
+    const mocks = makeTx({ state: 'active' })
+
+    await expect(
+      persistColdStartBaselineTransaction(
+        mocks.tx,
+        input({
+          source: { sourceUrl: SOURCE_URL, query: QUERY, state: 'archived' },
+        }),
+      ),
+    ).rejects.toBeInstanceOf(StaleColdStartError)
 
     await expectNoWrites(mocks)
   })
