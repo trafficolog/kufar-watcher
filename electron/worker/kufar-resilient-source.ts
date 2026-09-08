@@ -40,18 +40,17 @@ export class KufarResilientSourceError extends Error {
   }
 }
 
-function isFallbackEligible(
+function fallbackFailureCode(
   error: KufarSourceRequestError,
-): error is KufarSourceRequestError & {
-  result: KufarSourceRequestError['result'] & {
-    code: SourceDegradationEvent['primaryFailureCode']
+): SourceDegradationEvent['primaryFailureCode'] | null {
+  switch (error.result.code) {
+    case 'network':
+    case 'timeout':
+    case 'http-5xx':
+      return error.result.code
+    default:
+      return null
   }
-} {
-  return (
-    error.result.code === 'network' ||
-    error.result.code === 'timeout' ||
-    error.result.code === 'http-5xx'
-  )
 }
 
 export class KufarResilientSource implements ResilientSource {
@@ -63,6 +62,7 @@ export class KufarResilientSource implements ResilientSource {
 
   async fetchPage(request: SourcePageRequest): Promise<SourceFetchResult> {
     let primaryError: KufarSourceRequestError
+    let primaryFailureCode: SourceDegradationEvent['primaryFailureCode']
 
     try {
       const page = await this.primary.fetchPage(request)
@@ -71,10 +71,15 @@ export class KufarResilientSource implements ResilientSource {
       if (error instanceof KufarNormalizationError) {
         throw new KufarResilientSourceError('pause-required', 'primary', error)
       }
-      if (!(error instanceof KufarSourceRequestError) || !isFallbackEligible(error)) {
+      if (!(error instanceof KufarSourceRequestError)) {
+        throw error
+      }
+      const eligibleCode = fallbackFailureCode(error)
+      if (eligibleCode === null) {
         throw error
       }
       primaryError = error
+      primaryFailureCode = eligibleCode
     }
 
     let page: SourcePage
@@ -91,7 +96,7 @@ export class KufarResilientSource implements ResilientSource {
     const event: SourceDegradationEvent = {
       kind: 'source-degraded',
       channel: 'html-fallback',
-      primaryFailureCode: primaryError.result.code,
+      primaryFailureCode,
       primaryStatus: primaryError.result.status,
     }
 
