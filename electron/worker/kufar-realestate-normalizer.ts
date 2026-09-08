@@ -2,10 +2,7 @@ import type { JsonValue, Listing } from '../../shared/listing'
 import type { SourcePage } from '../../shared/source-adapter'
 
 export type KufarNormalizationErrorCode =
-  | 'invalid-json'
-  | 'invalid-page'
-  | 'missing-field'
-  | 'invalid-field'
+  'invalid-json' | 'invalid-page' | 'missing-field' | 'invalid-field'
 
 export class KufarNormalizationError extends Error {
   constructor(
