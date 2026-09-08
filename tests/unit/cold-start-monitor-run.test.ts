@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  ColdStartNotRequiredError,
+  runColdStartMonitor,
+} from '../../electron/worker/cold-start-monitor-run'
 import type { PrismaClient } from '../../generated/prisma/client'
 import type { CanonicalQuery } from '../../shared/canonical-query'
 import type { Listing } from '../../shared/listing'
@@ -17,11 +21,6 @@ vi.mock('../../electron/worker/cold-start-traversal', () => ({
 vi.mock('../../electron/worker/cold-start-persistence', () => ({
   commitColdStartBaseline: dependencyMocks.commitColdStartBaseline,
 }))
-
-import {
-  ColdStartNotRequiredError,
-  runColdStartMonitor,
-} from '../../electron/worker/cold-start-monitor-run'
 
 const MONITOR_ID = 1_403
 const SOURCE_URL = 'https://www.kufar.by/l/electronics?query=phone'
