@@ -2,9 +2,11 @@
 
 > Статус: **электроника (`1.0.1`) и недвижимость (`1.0.2`) подтверждены живой
 > разведкой.** Search API, cursor pagination и обязательный core response-shape
-> подтверждены dated fixtures/evidence от 2026-09-07. Electronics дополнительно
-> подтверждает `/count`, договорную цену, detail availability semantics и HTML
-> embedded state.
+> подтверждены dated fixtures/evidence от 2026-09-07. Задача `1.3.4`
+> дополнительно подтвердила 2026-09-08 structured search-page HTML fallback для
+> обеих verticals: carrier `__NEXT_DATA__`, path `props.initialState.listing` и
+> opaque cursor pagination. Electronics также подтверждает `/count`, договорную
+> цену и detail availability semantics.
 
 ## Основной канал
 
@@ -266,6 +268,8 @@ real-estate pagination использует top-level `total` того же sear
 
 ## HTML-состояние
 
+### Detail-page evidence 2026-09-07
+
 Live `1.0.1` подтвердил два уровня HTML evidence:
 
 1. Server-rendered DOM товарной выдачи содержит карточки, `/item/{id}` links,
@@ -280,7 +284,7 @@ Browser Connector не читает `view-source:` scheme, поэтому exact 
 
 `tests/fixtures/kufar/2026-09-07-electronics-item-1082715190-next-data.fragment.txt`.
 
-Подтверждённые пути/значения:
+Подтверждённые пути/значения detail evidence:
 
 - page `/item/[id]`, query `id=1082715190`;
 - `props.initialState.adView.data`;
@@ -290,8 +294,60 @@ Browser Connector не читает `view-source:` scheme, поэтому exact 
 - `initial.ad_id`, `list_id`, `list_time`, `account_id`, `company_ad`,
   `ad_parameters`, `body`, `subject`.
 
-HTML embedded state является проверенным fallback shape. Primary path всё равно
-остаётся JSON API; DOM-разбор — последний рубеж.
+Это detail evidence сохраняется как подтверждение structured state, но **не
+подменяет search fallback**: обход выдачи должен получать search records и
+пагинацию со страницы листинга.
+
+### Search-page fallback contract 2026-09-08 (`1.3.4`)
+
+Live recon задачи `1.3.4` подтвердил одинаковый structured carrier на search
+pages обеих поддерживаемых verticals:
+
+`<script id="__NEXT_DATA__" type="application/json">...JSON...</script>`
+
+Точный путь search state:
+
+- root: `props.initialState.listing`;
+- records: `props.initialState.listing.ads`;
+- HTML pagination: `props.initialState.listing.pagination[]`;
+- optional total: `props.initialState.listing.total`.
+
+Primary JSON search normalizers уже ожидают `ads` и `pagination.pages[]`, поэтому
+HTML fallback делает **ровно одну shape-проекцию** перед теми же normalizers:
+
+`listing.pagination[] -> pagination.pages[]`
+
+`listing.ads` не преобразуется в альтернативную доменную модель и не проходит
+отдельную «облегчённую» validation path. Missing/malformed `__NEXT_DATA__`,
+отсутствующий `props.initialState.listing`, не-array `ads`/`pagination` или
+ошибка существующего vertical normalizer считаются schema/embedded-state
+failure, а не пустой успешной страницей.
+
+Подтверждённые user-facing search URLs:
+
+- electronics: `https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5`;
+- real estate: `https://re.kufar.by/l/minsk/kupit/kvartiru?cur=USD`.
+
+HTML request adapter сохраняет семантические query params пользовательского URL,
+добавляет `size=30` и, если он есть, передаёт `cursor=<opaque token>` без
+декодирования/синтеза. Page-2 evidence обеих verticals подтверждает `self=2` и
+новый `next` token, поэтому fallback не ограничен первой страницей.
+
+Dated fixtures:
+
+- `tests/fixtures/kufar/2026-09-08-electronics-search-page-1-embedded.html`;
+- `tests/fixtures/kufar/2026-09-08-electronics-search-page-2-embedded.html`;
+- `tests/fixtures/kufar/2026-09-08-realestate-search-page-1-embedded.html`;
+- `tests/fixtures/kufar/2026-09-08-realestate-search-page-2-embedded.html`.
+
+Real-estate page-2 fixture дополнительно подтвердил объявление `ad_id=1083591450`
+с response currency `EUR`: цена для EUR берётся из matching
+`calculator[currency="EUR"].price` в minor units. Неподтверждённое поле вроде
+`price_eur` не синтезируется. Это live evidence также подтверждает, что request
+`cur=USD` не является гарантией валюты каждой записи response.
+
+DOM/card scraping не входит в реализацию `1.3.4`: наличие server-rendered cards
+остаётся evidence уровня UI, но третий parsing level — Post-MVP.
 
 ## Статус объявления и проверка цены
 
@@ -329,20 +385,25 @@ Embedded `__NEXT_DATA__` активной electronics карточки согл�
 ## Уровни деградации
 
 1. **JSON-API** — основной путь; search подтверждён raw fixtures для electronics
-   и real estate, detail — для обеих вертикалей.
-2. **Встроенные данные HTML-страницы** — проверенный electronics fallback через
-   `__NEXT_DATA__` / `props.initialState.adView.data.initial`.
+   и real estate, detail — для обеих verticals.
+2. **Встроенные structured data search HTML** — проверенный fallback обеих
+   verticals через `__NEXT_DATA__` / `props.initialState.listing`, с той же
+   vertical normalization и cursor traversal.
 3. **Разбор DOM** — последний рубеж, Post-MVP.
 
 Переключение уровня — событие, о котором пользователь узнаёт: работа на втором
-уровне считается деградацией и отражается на экране здоровья.
+уровне считается деградацией. Source layer возвращает `channel=html-fallback` и
+await-ит typed `source-degraded` event до успешного ответа. `2.4.3` привязывает
+этот event/degraded level к Run-журналу, а экран здоровья появляется в своём
+срезе; silent degraded success запрещён.
 
 ## Порядок работ
 
 Этот документ проверяется **до** того, как по нему проектируется сетевой слой.
-Recon slices `1.0.1` и `1.0.2` закрыты live evidence. Нормализатор адресов и
-конкретные adapters строятся по подтверждённому контракту; непроверенные
-secondary параметры не угадываются заранее.
+Recon slices `1.0.1` и `1.0.2` закрыты live evidence; search HTML recon `1.3.4`
+закрыт dated evidence 2026-09-08. Нормализатор адресов и concrete adapters
+строятся по подтверждённому контракту; непроверенные secondary параметры не
+угадываются заранее.
 
 Отдельно учесть: внешние обращения к страницам площадки могут получать отказ в
 доступе в зависимости от того, как выполнен запрос. Если разведка получает
@@ -355,14 +416,13 @@ secondary параметры не угадываются заранее.
 - Обходы разных мониторов не выполняются одновременно.
 - Классификация ошибок едина для всего проекта:
   - **`429`** — увеличить паузу, снизить частоту, записать событие здоровья.
-    Ретраи и фолбэк запрещены: смена канала ради продолжения запросов и есть
+    Ретраи и fallback запрещены: смена канала ради продолжения запросов и есть
     обход только что выставленного ограничения.
   - **сеть, таймаут, `5xx`** — ограниченные ретраи с экспоненциальной задержкой;
-    после их исчерпания допустим проверенный фолбэк.
-  - **дрейф схемы** — пауза монитора и алерт. Фолбэк запрещён: он подменяет
-    пользователю диагноз.
+    после их исчерпания допустим проверенный fallback.
+  - **дрейф схемы** — `pause-required` и алерт; fallback запрещён: он подменяет
+    пользователю диагноз. Фактический переход `Monitor.state` выполняет эпик 4.3.
 - Работа анонимная, без входа в аккаунт.
-
 
 ## Reconfirmation 2026-09-08 — electronics adapter evidence
 
@@ -375,3 +435,23 @@ secondary параметры не угадываются заранее.
 - отдельный fresh `size=30` probe тех же effective filters нашёл 5 объявлений с `price_byn="0"`, повторно подтверждая наличие negotiable electronics records. Семантика `price_byn="0" -> priceKind: negotiable` остаётся electronics-specific и не обобщается на real estate без отдельного evidence.
 
 Cursor остаётся opaque transport state: concrete adapter только добавляет его в query parameter `cursor` и не включает в `CanonicalQuery`.
+
+## Reconfirmation 2026-09-08 — HTML search fallback evidence
+
+Задача `1.3.4` закрыла ранее отсутствовавшее доказательство search traversal через
+HTML embedded state:
+
+- обе verticals публикуют search records в `__NEXT_DATA__` по
+  `props.initialState.listing.ads`;
+- обе публикуют pagination как `listing.pagination[]`; fallback projection
+  переносит этот массив в `pagination.pages[]` и затем вызывает существующий
+  vertical normalizer;
+- page-2 fixtures подтверждают, что opaque cursor, полученный из page 1,
+  поддерживает traversal и приводит к `self=2` с новым next token;
+- primary fallback policy допускает HTML только для exhausted `network`,
+  `timeout`, `http-5xx`; `429`, permanent HTTP и primary schema drift не меняют
+  канал;
+- fallback structural/normalization drift возвращает `pause-required`, а
+  transport unavailability — `fail-run`;
+- degraded success возвращается только после успешной публикации
+  `source-degraded` event, поэтому silent fallback отсутствует.
