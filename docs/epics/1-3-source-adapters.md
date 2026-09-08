@@ -25,11 +25,11 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.3-tasks -->
-**Задач:** 4 · **done:** 0
+**Задач:** 4 · **done:** 1
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
-| `1.3.1` | [Интерфейс SourceAdapter и реестр](../tasks/1-3-1-adapter-interface.md) | ⬜ todo | 🟡 drifted |
+| `1.3.1` | [Интерфейс SourceAdapter и реестр](../tasks/1-3-1-adapter-interface.md) | ✅ done | 🟢 aligned |
 | `1.3.2` | [Адаптер «Электроника»](../tasks/1-3-2-adapter-electronics.md) | ⬜ todo | 🟡 drifted |
 | `1.3.3` | [Адаптер «Недвижимость»](../tasks/1-3-3-adapter-realestate.md) | ⬜ todo | 🟡 drifted |
 | `1.3.4` | [Фолбэк на встроенные данные HTML-страницы](../tasks/1-3-4-html-fallback.md) | ⬜ todo | 🟡 drifted |
