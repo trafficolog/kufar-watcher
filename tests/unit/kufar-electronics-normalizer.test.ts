@@ -63,9 +63,7 @@ describe('normalizeElectronicsSearchPage', () => {
       description: null,
     })
     expect(page.listings[0]?.raw).toMatchObject({ ad_id: 1084212880 })
-    expect(page.nextCursor).toBe(
-      'eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTI4MTQifQ==',
-    )
+    expect(page.nextCursor).toBe('eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTI4MTQifQ==')
   })
 
   it('normalizes zero electronics price as negotiable without a numeric amount', async () => {
@@ -91,9 +89,7 @@ describe('normalizeElectronicsSearchPage', () => {
     const firstIds = new Set(page1.listings.map(({ listId }) => listId))
 
     expect(page2.listings.every(({ listId }) => !firstIds.has(listId))).toBe(true)
-    expect(page2.nextCursor).toBe(
-      'eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MywicGl0IjoiMjk4MTI4MTQifQ==',
-    )
+    expect(page2.nextCursor).toBe('eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MywicGl0IjoiMjk4MTI4MTQifQ==')
   })
 
   it('returns null cursor when pagination has no next entry', async () => {
@@ -176,10 +172,6 @@ describe('normalizeElectronicsSearchPage', () => {
     const next = payload.pagination.pages.find((page) => page.label === 'next')
     if (next) next.token = 2
 
-    expectNormalizationError(
-      encodeJson(payload),
-      'invalid-field',
-      'pagination.pages[next].token',
-    )
+    expectNormalizationError(encodeJson(payload), 'invalid-field', 'pagination.pages[next].token')
   })
 })

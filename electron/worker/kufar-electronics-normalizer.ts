@@ -2,10 +2,7 @@ import type { JsonValue, Listing } from '../../shared/listing'
 import type { SourcePage } from '../../shared/source-adapter'
 
 export type KufarNormalizationErrorCode =
-  | 'invalid-json'
-  | 'invalid-page'
-  | 'missing-field'
-  | 'invalid-field'
+  'invalid-json' | 'invalid-page' | 'missing-field' | 'invalid-field'
 
 export class KufarNormalizationError extends Error {
   constructor(
@@ -105,7 +102,9 @@ function listingUrl(ad: UnknownRecord, adId: number, path: string): string {
 function regionFrom(ad: UnknownRecord): string | null {
   if (!Array.isArray(ad.ad_parameters)) return null
 
-  const region = ad.ad_parameters.find((parameter) => isRecord(parameter) && parameter.p === 'region')
+  const region = ad.ad_parameters.find(
+    (parameter) => isRecord(parameter) && parameter.p === 'region',
+  )
   return isRecord(region) && typeof region.vl === 'string' ? region.vl : null
 }
 
