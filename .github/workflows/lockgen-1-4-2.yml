@@ -1,0 +1,32 @@
+name: lockgen-1-4-2-temporary
+
+on:
+  push:
+    branches:
+      - 'feat/1.4.2-cursor-persistence'
+
+permissions:
+  contents: read
+
+jobs:
+  lockgen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Use npm 11.4.2
+        run: npm install --global npm@11.4.2
+      - name: Generate package metadata
+        run: |
+          npm install --package-lock-only --ignore-scripts @prisma/adapter-pg@7.10.0 pg
+          npm install --package-lock-only --ignore-scripts --save-dev @types/pg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: task-1-4-2-npm-lock
+          path: |
+            package.json
+            package-lock.json
