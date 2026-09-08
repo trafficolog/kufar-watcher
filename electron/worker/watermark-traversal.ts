@@ -22,6 +22,23 @@ export class WatermarkTraversalConfigError extends Error {
   }
 }
 
+export interface WatermarkOrderingObservation {
+  page: number
+  index: number
+  listId: string
+  listTime: string
+}
+
+export class WatermarkOrderingError extends Error {
+  constructor(
+    readonly previous: WatermarkOrderingObservation,
+    readonly current: WatermarkOrderingObservation,
+  ) {
+    super('Watermark traversal source order is not non-increasing')
+    this.name = 'WatermarkOrderingError'
+  }
+}
+
 function parsePreviousBoundary(value: string): number {
   const parsed = Date.parse(value)
   if (!Number.isFinite(parsed)) {
@@ -46,6 +63,7 @@ export async function traverseWatermark({
   const previousEpoch = parsePreviousBoundary(previousWatermark.boundaryTime)
 
   const previousIds = new Set(previousWatermark.boundaryIds)
+  const seenIds = new Set<string>()
   const newListings: Listing[] = []
   const newlyObservedPreviousBoundaryIds: string[] = []
   const idsAtMaximum: string[] = []
@@ -54,6 +72,7 @@ export async function traverseWatermark({
   let cursor: string | null = null
   let pagesRead = 0
   let boundaryCrossed = false
+  let previousObservation: { observation: WatermarkOrderingObservation; epoch: number } | null = null
 
   const completedWatermark = (): Watermark => {
     if (maximumEpoch === null || maximumEpoch < previousEpoch) {
@@ -79,15 +98,29 @@ export async function traverseWatermark({
     const page = await adapter.fetchPage({ query, cursor })
     pagesRead += 1
 
-    for (const current of page.listings) {
+    for (const [index, current] of page.listings.entries()) {
+      if (seenIds.has(current.listId)) continue
+      seenIds.add(current.listId)
+
       const epoch = Date.parse(current.listTime)
+      const observation: WatermarkOrderingObservation = {
+        page: pagesRead,
+        index,
+        listId: current.listId,
+        listTime: current.listTime,
+      }
+
+      if (previousObservation !== null && epoch > previousObservation.epoch) {
+        throw new WatermarkOrderingError(previousObservation.observation, observation)
+      }
+      previousObservation = { observation, epoch }
 
       if (maximumEpoch === null || epoch > maximumEpoch) {
         maximumEpoch = epoch
         maximumOriginalTime = current.listTime
         idsAtMaximum.length = 0
         idsAtMaximum.push(current.listId)
-      } else if (epoch === maximumEpoch && !idsAtMaximum.includes(current.listId)) {
+      } else if (epoch === maximumEpoch) {
         idsAtMaximum.push(current.listId)
       }
 
@@ -99,9 +132,7 @@ export async function traverseWatermark({
       if (epoch === previousEpoch) {
         if (!previousIds.has(current.listId)) {
           newListings.push(current)
-          if (!newlyObservedPreviousBoundaryIds.includes(current.listId)) {
-            newlyObservedPreviousBoundaryIds.push(current.listId)
-          }
+          newlyObservedPreviousBoundaryIds.push(current.listId)
         }
         continue
       }
