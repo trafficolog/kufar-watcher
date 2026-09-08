@@ -2,24 +2,14 @@ import { readFile } from 'node:fs/promises'
 
 import { describe, expect, it } from 'vitest'
 
-import type { CanonicalQuery } from '../../shared/canonical-query'
 import {
   KufarRealEstateAdapter,
   KufarRealEstateAdapterRequestError,
 } from '../../electron/worker/kufar-realestate-adapter'
 import type { KufarHttpResult } from '../../electron/worker/kufar-http-client'
+import { parseKufarListingUrl } from '../../shared/kufar-url'
 
-const query: CanonicalQuery = {
-  host: 're.kufar.by',
-  category: 'kvartiru',
-  query: null,
-  region: 'minsk',
-  sellerType: null,
-  sort: null,
-  operation: 'kupit',
-  pathFilters: [],
-  extraParams: { cur: ['USD'] },
-}
+const query = parseKufarListingUrl('https://re.kufar.by/l/minsk/kupit/kvartiru?cur=USD')
 
 async function fixtureBytes(name: string): Promise<Uint8Array> {
   return new Uint8Array(await readFile(new URL(`../fixtures/kufar/${name}`, import.meta.url)))
@@ -37,7 +27,7 @@ class FakeHttpGetter {
 }
 
 describe('KufarRealEstateAdapter', () => {
-  it('builds the confirmed first-page real-estate request and normalizes its body', async () => {
+  it('builds the confirmed request from a real-estate listing URL and normalizes its body', async () => {
     const http = new FakeHttpGetter({
       ok: true,
       status: 200,
