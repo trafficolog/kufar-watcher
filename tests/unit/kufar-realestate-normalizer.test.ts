@@ -202,14 +202,22 @@ describe('normalizeRealEstateSearchPage', () => {
       )
     }
 
-    expectNormalizationError(encodeJson(payload), 'missing-field', 'ads[0].calculator[EUR]')
+    expectNormalizationError(
+      encodeJson(payload),
+      'missing-field',
+      'ads[0].calculator[EUR]',
+    )
   })
 
   it('requires a digit-only EUR calculator price', async () => {
     const payload = await embeddedFixturePage()
     eurCalculator(payload).price = 'not-a-price'
 
-    expectNormalizationError(encodeJson(payload), 'invalid-field', 'ads[0].calculator[EUR].price')
+    expectNormalizationError(
+      encodeJson(payload),
+      'invalid-field',
+      'ads[0].calculator[EUR].price',
+    )
   })
 
   it('requires the currency-selected price field with its exact path', async () => {
