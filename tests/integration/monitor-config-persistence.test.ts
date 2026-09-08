@@ -66,7 +66,7 @@ integrationDescribe('monitor config persistence', () => {
         id: MONITOR_ID,
         name: 'config-persistence-fixture',
         sourceUrl: ORIGINAL_URL,
-        query: ORIGINAL_QUERY,
+        query: ORIGINAL_QUERY as unknown as Prisma.InputJsonValue,
         intervalSec: 60,
         keywords: ['phone'],
         searchInDescription: false,
