@@ -72,7 +72,9 @@ export async function traverseWatermark({
   let cursor: string | null = null
   let pagesRead = 0
   let boundaryCrossed = false
-  let previousObservation: { observation: WatermarkOrderingObservation; epoch: number } | null = null
+  let previousObservation:
+    | { observation: WatermarkOrderingObservation; epoch: number }
+    | null = null
 
   const completedWatermark = (): Watermark => {
     if (maximumEpoch === null || maximumEpoch < previousEpoch) {
