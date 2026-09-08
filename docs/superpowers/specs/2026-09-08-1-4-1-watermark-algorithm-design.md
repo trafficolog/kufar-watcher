@@ -1,6 +1,6 @@
 # Design — 1.4.1 Watermark traversal algorithm
 
-Status: approved in chat and written review on 2026-09-08; implementation planning.
+Status: approved in chat and written review on 2026-09-08; implemented and verified.
 
 ## Context
 
