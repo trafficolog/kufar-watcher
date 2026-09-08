@@ -42,6 +42,10 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint
+      - name: Prettier diff oracle
+        run: |
+          npx prettier --write electron/worker/cold-start-monitor-run.ts electron/worker/cold-start-persistence.ts electron/worker/monitor-cycle.ts tests/unit/cold-start-persistence.test.ts tests/unit/cold-start-traversal.test.ts
+          git diff -- electron/worker/cold-start-monitor-run.ts electron/worker/cold-start-persistence.ts electron/worker/monitor-cycle.ts tests/unit/cold-start-persistence.test.ts tests/unit/cold-start-traversal.test.ts
       - name: Formatting
         run: npm run format:check
       - name: Postgres compose integration
