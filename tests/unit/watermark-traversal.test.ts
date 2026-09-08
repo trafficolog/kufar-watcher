@@ -192,7 +192,12 @@ describe('watermark traversal core behavior', () => {
       },
     ])
 
-    const result = await traverseWatermark({ adapter, query, previousWatermark: boundary, maxPages: 3 })
+    const result = await traverseWatermark({
+      adapter,
+      query,
+      previousWatermark: boundary,
+      maxPages: 3,
+    })
 
     expect(ids(result.newListings)).toEqual(['new-a', 'new-b', 'new-c'])
     expect(result.nextWatermark).toEqual({
@@ -235,7 +240,12 @@ describe('watermark traversal core behavior', () => {
       },
     ])
 
-    const result = await traverseWatermark({ adapter, query, previousWatermark: boundary, maxPages: 3 })
+    const result = await traverseWatermark({
+      adapter,
+      query,
+      previousWatermark: boundary,
+      maxPages: 3,
+    })
 
     expect(ids(result.newListings)).toEqual(['new-offset'])
     expect(result.nextWatermark).toEqual({
