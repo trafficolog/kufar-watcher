@@ -1,9 +1,7 @@
 import { isRecord } from './kufar-search-normalizer'
 
 export type KufarEmbeddedStateErrorCode =
-  | 'missing-next-data'
-  | 'invalid-next-data-json'
-  | 'invalid-search-state'
+  'missing-next-data' | 'invalid-next-data-json' | 'invalid-search-state'
 
 export class KufarEmbeddedStateError extends Error {
   constructor(
