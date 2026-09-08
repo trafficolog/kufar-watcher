@@ -18,6 +18,7 @@ This design adds one pure orchestration component over `SourceAdapter`. It does 
 - Stop early once an older timestamp proves the previous boundary has been fully crossed.
 - Enforce a configured page cap and make an incomplete catch-up explicit.
 - Keep the marketplace pagination cursor local to one traversal.
+- Never move a completed watermark backward in time.
 
 ## Non-goals
 
@@ -91,7 +92,7 @@ traverseWatermark({
 A watermark is a pair:
 
 - `boundaryTime = T` — the maximum listing time observed by the previous completed traversal.
-- `boundaryIds` — exactly the IDs observed at temporal instant `T`, and no IDs from any other timestamp.
+- `boundaryIds` — exactly the IDs already known at temporal instant `T`, and no IDs from any other timestamp.
 
 `T` is interpreted chronologically via `Date.parse(previousWatermark.boundaryTime)`.
 
@@ -105,14 +106,16 @@ The algorithm never searches for one particular old listing ID. Therefore deleti
 
 ## Building the next watermark
 
-For a completed traversal, the next watermark is based on the maximum temporal instant actually observed during this traversal:
+Watermark progression is monotonic: a completed traversal never moves the boundary backward in time.
 
-1. Let `M` be the greatest parsed epoch timestamp encountered.
-2. `nextWatermark.boundaryTime` is the original `listTime` string from the first encountered listing at `M`.
-3. `nextWatermark.boundaryIds` contains every unique `listId` encountered exactly at temporal instant `M`.
-4. IDs are returned in deterministic first-appearance order.
+Let `T` be the previous boundary instant and `M` the maximum temporal instant actually observed during this traversal.
 
-If a completed traversal observes no listings, the previous watermark is returned unchanged.
+1. If no listing is observed, return the previous watermark unchanged.
+2. If `M < T`, return the previous watermark unchanged. This is the normal safe outcome when the prior boundary listing disappeared and the current source has already moved below it.
+3. If `M == T`, keep `previousWatermark.boundaryTime` and set `nextWatermark.boundaryIds` to the deterministic union of previous boundary IDs followed by any newly observed unique IDs at instant `T`. This preserves both newly discovered ties and previously known IDs that may have temporarily disappeared.
+4. If `M > T`, set `nextWatermark.boundaryTime` to the original `listTime` string from the first encountered listing at `M`, and set `boundaryIds` to every unique `listId` encountered exactly at `M`, in first-appearance order.
+
+This monotonic rule is required for the re-run/idempotency property. Moving backward after a deleted boundary record would make older records appear new on the next traversal.
 
 `newListings` preserve source traversal order after deduplication.
 
@@ -149,7 +152,7 @@ The watermark must not advance. Advancing it would make unread listings below th
 
 Candidates already observed above the cap may still be returned in `newListings`; persistence/transaction ownership in `1.4.2` decides how they are recorded together with the unchanged watermark.
 
-If `nextCursor == null`, source exhaustion is a complete traversal even when no listing with `listTime < T` was encountered. In that case `possibleMiss = false` and the next watermark may advance normally.
+If `nextCursor == null`, source exhaustion is a complete traversal even when no listing with `listTime < T` was encountered. In that case `possibleMiss = false` and the next watermark follows the monotonic rules above.
 
 ## Ordering invariant
 
@@ -217,21 +220,22 @@ TDD tests are written before production code and cover at least:
 2. Some listings newer than the boundary.
 3. All listings newer than the boundary with source exhaustion.
 4. Boundary found on page 3 and all listings above it returned.
-5. The specific old boundary listing has disappeared, without warning or cap exhaustion.
+5. The specific old boundary listing has disappeared: traversal stops without warning and the watermark does not regress.
 6. Five listings share the boundary timestamp; previously unseen IDs at `T` are new and known IDs are not.
-7. Equal temporal instant `T` spans a page boundary and is processed completely.
-8. Equal instants expressed with different valid ISO offsets compare as the same boundary.
-9. A raised/reappeared listing with the same `listId` but a genuinely newer `listTime` appears once as new on its first occurrence.
-10. Duplicate `listId` overlap across pages does not duplicate output.
-11. Page cap reached with `nextCursor != null` → `possibleMiss=true`, previous watermark unchanged.
-12. Page cap reached on a terminal page with `nextCursor=null` → complete result, no warning.
-13. Invalid `maxPages` fails before any adapter call.
-14. Invalid previous `boundaryTime` fails before any adapter call.
-15. Ordering violation inside a page throws typed error.
-16. Ordering violation across pages throws typed error.
-17. Adapter error propagates unchanged and no success result exists.
-18. Re-running the same complete traversal using its returned watermark yields no new listings.
-19. Empty terminal source leaves the previous watermark unchanged.
+7. When the next maximum remains exactly `T`, previous boundary IDs are retained and newly observed IDs at `T` are appended deterministically.
+8. Equal temporal instant `T` spans a page boundary and is processed completely.
+9. Equal instants expressed with different valid ISO offsets compare as the same boundary.
+10. A raised/reappeared listing with the same `listId` but a genuinely newer `listTime` appears once as new on its first occurrence.
+11. Duplicate `listId` overlap across pages does not duplicate output.
+12. Page cap reached with `nextCursor != null` → `possibleMiss=true`, previous watermark unchanged.
+13. Page cap reached on a terminal page with `nextCursor=null` → complete result, no warning.
+14. Invalid `maxPages` fails before any adapter call.
+15. Invalid previous `boundaryTime` fails before any adapter call.
+16. Ordering violation inside a page throws typed error.
+17. Ordering violation across pages throws typed error.
+18. Adapter error propagates unchanged and no success result exists.
+19. Re-running the same complete traversal using its returned watermark yields no new listings.
+20. Empty terminal source leaves the previous watermark unchanged.
 
 ## Suggested implementation boundary
 
