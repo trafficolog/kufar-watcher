@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
+import type { Prisma } from '../../generated/prisma/client'
 import { updateMonitorConfig } from '../../electron/worker/monitor-config-persistence'
 import { createPrismaClient } from '../../electron/worker/prisma-client'
 import { commitMonitorRun, type MonitorRunPersistenceInput } from '../../electron/worker/monitor-run-persistence'
@@ -79,7 +80,7 @@ integrationDescribe('stale monitor-run commit after config reset', () => {
         id: MONITOR_ID,
         name: 'stale-config-fixture',
         sourceUrl: SOURCE_URL,
-        query: QUERY,
+        query: QUERY as unknown as Prisma.InputJsonValue,
         intervalSec: 60,
         keywords: [],
       },
