@@ -62,7 +62,7 @@ export function shouldResetMonitorCursor(
   return (
     before.sourceUrl !== after.sourceUrl ||
     !canonicalQueryEquals(before.query, after.query) ||
-    (before.state === 'archived' && after.state === 'active')
+    (before.state === 'archived' && after.state !== 'archived')
   )
 }
 
