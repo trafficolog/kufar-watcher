@@ -6,7 +6,7 @@ import type { SourceAdapter, SourcePage, SourcePageRequest } from '../../shared/
 import type { Watermark } from '../../shared/watermark'
 import {
   traverseWatermark,
-  WatermarkTraversalConfigError,
+  type WatermarkTraversalConfigError,
 } from '../../electron/worker/watermark-traversal'
 
 const query: CanonicalQuery = {
