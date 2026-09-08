@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - 'feat/1.4.2-cursor-persistence'
+    paths:
+      - '.github/workflows/lockgen-1-4-2.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   lockgen:
@@ -24,9 +26,10 @@ jobs:
         run: |
           npm install --package-lock-only --ignore-scripts @prisma/adapter-pg@7.10.0 pg
           npm install --package-lock-only --ignore-scripts --save-dev @types/pg
-      - uses: actions/upload-artifact@v4
-        with:
-          name: task-1-4-2-npm-lock
-          path: |
-            package.json
-            package-lock.json
+      - name: Commit npm-generated metadata
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json
+          git commit -m 'chore(1.4.2): add Prisma PostgreSQL adapter dependencies'
+          git push origin HEAD:feat/1.4.2-cursor-persistence
