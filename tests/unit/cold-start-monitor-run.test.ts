@@ -55,6 +55,7 @@ function makePrisma(cursor: unknown) {
   const findUniqueOrThrow = vi.fn().mockResolvedValue({
     sourceUrl: SOURCE_URL,
     query: QUERY,
+    state: 'active',
     cursor,
   })
   return {
@@ -107,7 +108,7 @@ describe('runColdStartMonitor', () => {
       monitorId: MONITOR_ID,
       startedAt,
       finishedAt,
-      source: { sourceUrl: SOURCE_URL, query: QUERY },
+      source: { sourceUrl: SOURCE_URL, query: QUERY, state: 'active' },
       expectedCursor: { kind: 'missing' },
       listings: [LISTING],
       nextWatermark: {
