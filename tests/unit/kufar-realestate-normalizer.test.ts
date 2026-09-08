@@ -79,9 +79,7 @@ function eurCalculator(payload: MutablePage): MutableRecord {
 
   const entry = calculator.find(
     (value) =>
-      typeof value === 'object' &&
-      value !== null &&
-      (value as MutableRecord).currency === 'EUR',
+      typeof value === 'object' && value !== null && (value as MutableRecord).currency === 'EUR',
   )
   if (typeof entry !== 'object' || entry === null) {
     throw new Error('Expected EUR calculator entry')
@@ -202,22 +200,14 @@ describe('normalizeRealEstateSearchPage', () => {
       )
     }
 
-    expectNormalizationError(
-      encodeJson(payload),
-      'missing-field',
-      'ads[0].calculator[EUR]',
-    )
+    expectNormalizationError(encodeJson(payload), 'missing-field', 'ads[0].calculator[EUR]')
   })
 
   it('requires a digit-only EUR calculator price', async () => {
     const payload = await embeddedFixturePage()
     eurCalculator(payload).price = 'not-a-price'
 
-    expectNormalizationError(
-      encodeJson(payload),
-      'invalid-field',
-      'ads[0].calculator[EUR].price',
-    )
+    expectNormalizationError(encodeJson(payload), 'invalid-field', 'ads[0].calculator[EUR].price')
   })
 
   it('requires the currency-selected price field with its exact path', async () => {
