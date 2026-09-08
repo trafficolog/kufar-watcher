@@ -24,6 +24,7 @@ const NEW_WATERMARK: Watermark = {
   boundaryTime: '2026-09-08T11:00:00.000Z',
   boundaryIds: [`${LISTING_PREFIX}a`],
 }
+let expectedCursorUpdatedAt = new Date(0)
 
 function listing(id: string, title = `Listing ${id}`): Listing {
   return {
@@ -49,6 +50,7 @@ function input(nextWatermark: Watermark = NEW_WATERMARK): MonitorRunPersistenceI
     monitorId: MONITOR_ID,
     startedAt: new Date('2026-09-08T11:01:00.000Z'),
     finishedAt: new Date('2026-09-08T11:02:00.000Z'),
+    expectedCursorUpdatedAt,
     candidates: [first, second],
     selected: [
       {
@@ -87,14 +89,21 @@ integrationDescribe('monitor run persistence', () => {
       },
     })
 
-    await prisma.monitorCursor.create({
+    const cursor = await prisma.monitorCursor.create({
       data: {
         monitorId: MONITOR_ID,
         boundaryTime: new Date(OLD_WATERMARK.boundaryTime),
         boundaryIds: [...OLD_WATERMARK.boundaryIds],
       },
     })
+    expectedCursorUpdatedAt = cursor.updatedAt
   })
+
+  async function refreshCursorRevision(): Promise<void> {
+    expectedCursorUpdatedAt = (
+      await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    ).updatedAt
+  }
 
   it('commits Listing Match Cursor and Run together', async () => {
     await commitMonitorRun(prisma, input())
@@ -122,6 +131,7 @@ integrationDescribe('monitor run persistence', () => {
 
   it('repeating the same result creates no second Match', async () => {
     await commitMonitorRun(prisma, input())
+    await refreshCursorRevision()
     await commitMonitorRun(prisma, input())
 
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(1)
@@ -134,6 +144,7 @@ integrationDescribe('monitor run persistence', () => {
       where: { listId: `${LISTING_PREFIX}a` },
     })
 
+    await refreshCursorRevision()
     const retry = input()
     retry.candidates = [listing('a', 'Updated title'), listing('b')]
     retry.selected = [

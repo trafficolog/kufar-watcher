@@ -17,9 +17,17 @@ export interface MonitorRunPersistenceInput {
   monitorId: number
   startedAt: Date
   finishedAt: Date
+  expectedCursorUpdatedAt: Date
   candidates: readonly Listing[]
   selected: readonly SelectedListing[]
   nextWatermark: Watermark
+}
+
+export class StaleMonitorRunError extends Error {
+  constructor(readonly monitorId: number) {
+    super(`Stale monitor run for monitor ${monitorId}: cursor revision changed`)
+    this.name = 'StaleMonitorRunError'
+  }
 }
 
 function listingCreateData(listing: Listing): Prisma.ListingCreateInput {
@@ -52,6 +60,34 @@ function listingUpdateData(listing: Listing): Prisma.ListingUpdateInput {
     listTime: new Date(listing.listTime),
     description: listing.description,
     raw: listing.raw === null ? Prisma.JsonNull : (listing.raw as Prisma.InputJsonValue),
+  }
+}
+
+async function assertCurrentCursorRevision(
+  tx: Prisma.TransactionClient,
+  input: MonitorRunPersistenceInput,
+): Promise<void> {
+  const lockedMonitors = await tx.$queryRaw<Array<{ id: number }>>`
+    SELECT "id"
+    FROM "Monitor"
+    WHERE "id" = ${input.monitorId}
+    FOR UPDATE
+  `
+
+  if (lockedMonitors.length !== 1) {
+    throw new StaleMonitorRunError(input.monitorId)
+  }
+
+  const cursor = await tx.monitorCursor.findUnique({
+    where: { monitorId: input.monitorId },
+    select: { updatedAt: true },
+  })
+
+  if (
+    cursor === null ||
+    cursor.updatedAt.getTime() !== input.expectedCursorUpdatedAt.getTime()
+  ) {
+    throw new StaleMonitorRunError(input.monitorId)
   }
 }
 
@@ -127,6 +163,7 @@ export async function persistMonitorRunTransaction(
   tx: Prisma.TransactionClient,
   input: MonitorRunPersistenceInput,
 ): Promise<void> {
+  await assertCurrentCursorRevision(tx, input)
   await persistListingsAndMatches(tx, input)
   await persistMonitorCursor(tx, input)
   await persistSuccessfulRun(tx, input)

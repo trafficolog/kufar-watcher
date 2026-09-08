@@ -111,6 +111,7 @@ export async function runIncrementalMonitor({
         select: {
           boundaryTime: true,
           boundaryIds: true,
+          updatedAt: true,
         },
       },
     },
@@ -125,6 +126,7 @@ export async function runIncrementalMonitor({
     boundaryTime: monitor.cursor.boundaryTime.toISOString(),
     boundaryIds: parseBoundaryIds(monitor.cursor.boundaryIds),
   }
+  const expectedCursorUpdatedAt = monitor.cursor.updatedAt
   const startedAt = now()
 
   const traversal = await traverseWatermark({
@@ -147,6 +149,7 @@ export async function runIncrementalMonitor({
     monitorId,
     startedAt,
     finishedAt,
+    expectedCursorUpdatedAt,
     candidates: traversal.newListings,
     selected,
     nextWatermark: traversal.nextWatermark,

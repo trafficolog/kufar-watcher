@@ -27,6 +27,7 @@ const QUERY: CanonicalQuery = {
   pathFilters: ['phones'],
   extraParams: { condition: ['used'] },
 }
+let expectedCursorUpdatedAt = new Date(0)
 
 const listing: Listing = {
   listId: LISTING_ID,
@@ -48,6 +49,7 @@ function staleRunInput(): MonitorRunPersistenceInput {
     monitorId: MONITOR_ID,
     startedAt: new Date('2026-09-08T11:01:00.000Z'),
     finishedAt: new Date('2026-09-08T11:02:00.000Z'),
+    expectedCursorUpdatedAt,
     candidates: [listing],
     selected: [
       {
@@ -88,14 +90,21 @@ integrationDescribe('stale monitor-run commit after config reset', () => {
         keywords: [],
       },
     })
-    await prisma.monitorCursor.create({
+    const cursor = await prisma.monitorCursor.create({
       data: {
         monitorId: MONITOR_ID,
         boundaryTime: new Date('2026-09-08T10:00:00.000Z'),
         boundaryIds: ['known'],
       },
     })
+    expectedCursorUpdatedAt = cursor.updatedAt
   })
+
+  async function expectNoStaleWrites(): Promise<void> {
+    expect(await prisma.listing.findUnique({ where: { listId: LISTING_ID } })).toBeNull()
+    expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
+    expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
+  }
 
   it('rejects a stale result after source edit reset instead of recreating the cursor', async () => {
     await updateMonitorConfig(prisma, MONITOR_ID, {
@@ -106,8 +115,28 @@ integrationDescribe('stale monitor-run commit after config reset', () => {
     await expect(commitMonitorRun(prisma, staleRunInput())).rejects.toThrow(/stale|cursor/i)
 
     expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).toBeNull()
-    expect(await prisma.listing.findUnique({ where: { listId: LISTING_ID } })).toBeNull()
-    expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
-    expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
+    await expectNoStaleWrites()
+  })
+
+  it('rejects a stale result when a reset cursor has already been replaced', async () => {
+    await updateMonitorConfig(prisma, MONITOR_ID, {
+      sourceUrl: 'https://www.kufar.by/l/cars',
+    })
+
+    const replacementUpdatedAt = new Date(expectedCursorUpdatedAt.getTime() + 1_000)
+    await prisma.monitorCursor.create({
+      data: {
+        monitorId: MONITOR_ID,
+        boundaryTime: new Date('2026-09-08T10:00:00.000Z'),
+        boundaryIds: ['known'],
+        updatedAt: replacementUpdatedAt,
+      },
+    })
+
+    await expect(commitMonitorRun(prisma, staleRunInput())).rejects.toThrow(/stale|cursor/i)
+
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    expect(cursor.updatedAt.toISOString()).toBe(replacementUpdatedAt.toISOString())
+    await expectNoStaleWrites()
   })
 })
