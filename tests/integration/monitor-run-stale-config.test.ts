@@ -1,9 +1,12 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import type { Prisma } from '../../generated/prisma/client'
 import { updateMonitorConfig } from '../../electron/worker/monitor-config-persistence'
 import { createPrismaClient } from '../../electron/worker/prisma-client'
-import { commitMonitorRun, type MonitorRunPersistenceInput } from '../../electron/worker/monitor-run-persistence'
+import {
+  commitMonitorRun,
+  type MonitorRunPersistenceInput,
+} from '../../electron/worker/monitor-run-persistence'
+import type { Prisma } from '../../generated/prisma/client'
 import type { CanonicalQuery } from '../../shared/canonical-query'
 import type { Listing } from '../../shared/listing'
 
@@ -98,11 +101,15 @@ integrationDescribe('stale monitor-run commit after config reset', () => {
     await updateMonitorConfig(prisma, MONITOR_ID, {
       sourceUrl: 'https://www.kufar.by/l/cars',
     })
-    expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).toBeNull()
+    expect(
+      await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } }),
+    ).toBeNull()
 
     await expect(commitMonitorRun(prisma, staleRunInput())).rejects.toThrow(/stale|cursor/i)
 
-    expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).toBeNull()
+    expect(
+      await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } }),
+    ).toBeNull()
     expect(await prisma.listing.findUnique({ where: { listId: LISTING_ID } })).toBeNull()
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
     expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
