@@ -1,0 +1,38 @@
+name: format-1-4-2-reset-temporary
+
+on:
+  push:
+    branches:
+      - 'feat/1.4.2-cursor-persistence'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Use npm 11.4.2
+        run: npm install --global npm@11.4.2
+      - name: Install dependencies
+        run: npm ci
+      - name: Format reset-policy test
+        run: npx prettier --write tests/unit/monitor-config-persistence.test.ts
+      - name: Commit formatting if needed
+        run: |
+          if git diff --quiet -- tests/unit/monitor-config-persistence.test.ts; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/unit/monitor-config-persistence.test.ts
+          git commit -m 'style(1.4.2): format cursor reset policy test'
+          git push origin HEAD:feat/1.4.2-cursor-persistence
