@@ -29,6 +29,11 @@ export interface WatermarkOrderingObservation {
   listTime: string
 }
 
+interface WatermarkOrderingState {
+  observation: WatermarkOrderingObservation
+  epoch: number
+}
+
 export class WatermarkOrderingError extends Error {
   constructor(
     readonly previous: WatermarkOrderingObservation,
@@ -72,12 +77,7 @@ export async function traverseWatermark({
   let cursor: string | null = null
   let pagesRead = 0
   let boundaryCrossed = false
-  let previousObservation:
-    | {
-        observation: WatermarkOrderingObservation
-        epoch: number
-      }
-    | null = null
+  let previousObservation: WatermarkOrderingState | null = null
 
   const completedWatermark = (): Watermark => {
     if (maximumEpoch === null || maximumEpoch < previousEpoch) {
