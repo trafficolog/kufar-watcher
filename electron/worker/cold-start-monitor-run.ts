@@ -41,6 +41,7 @@ export async function runColdStartMonitor({
     select: {
       sourceUrl: true,
       query: true,
+      state: true,
       cursor: {
         select: {
           boundaryTime: true,
@@ -50,7 +51,7 @@ export async function runColdStartMonitor({
     },
   })
 
-  if (monitor.cursor?.boundaryTime !== null && monitor.cursor !== null) {
+  if (monitor.cursor !== null && monitor.cursor.boundaryTime !== null) {
     throw new ColdStartNotRequiredError(monitorId)
   }
 
@@ -76,6 +77,7 @@ export async function runColdStartMonitor({
     source: {
       sourceUrl: monitor.sourceUrl,
       query,
+      state: monitor.state,
     },
     expectedCursor,
     listings: traversal.listings,
