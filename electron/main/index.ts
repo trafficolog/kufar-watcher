@@ -17,6 +17,7 @@ import {
 } from './ipc-router'
 import { readPostgresRuntimeConfig } from './postgres-config'
 import { createWorkerSupervisor, type WorkerSupervisor } from './worker-supervisor'
+import { rawResponseJournalArg } from './worker-storage'
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -100,10 +101,11 @@ app.whenReady().then(async () => {
   }
 
   loadDevelopmentEnvironment()
+  const workerJournalArg = rawResponseJournalArg(app.getPath('userData'))
 
   const supervisor = createWorkerSupervisor({
     spawnWorker: () =>
-      utilityProcess.fork(workerPath, [], {
+      utilityProcess.fork(workerPath, [workerJournalArg], {
         serviceName: 'Kufar Monitor Worker',
       }),
     onEvent: (event) => {
