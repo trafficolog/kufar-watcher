@@ -41,9 +41,7 @@ const LISTING: Listing = {
   raw: { fixture: 'baseline-a' },
 }
 
-function input(
-  overrides: Partial<ColdStartPersistenceInput> = {},
-): ColdStartPersistenceInput {
+function input(overrides: Partial<ColdStartPersistenceInput> = {}): ColdStartPersistenceInput {
   return {
     monitorId: MONITOR_ID,
     startedAt: STARTED_AT,
@@ -59,12 +57,14 @@ function input(
   }
 }
 
-function makeTx(options: {
-  sourceUrl?: string
-  query?: unknown
-  state?: 'active' | 'paused' | 'archived'
-  cursor?: { boundaryTime: Date | null; updatedAt: Date } | null
-} = {}) {
+function makeTx(
+  options: {
+    sourceUrl?: string
+    query?: unknown
+    state?: 'active' | 'paused' | 'archived'
+    cursor?: { boundaryTime: Date | null; updatedAt: Date } | null
+  } = {},
+) {
   const queryRaw = vi.fn().mockResolvedValue([{ id: MONITOR_ID }])
   const monitorFindUnique = vi.fn().mockResolvedValue({
     sourceUrl: options.sourceUrl ?? SOURCE_URL,
