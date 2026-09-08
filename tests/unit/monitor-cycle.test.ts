@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { runMonitorCycle } from '../../electron/worker/monitor-cycle'
 import type { PrismaClient } from '../../generated/prisma/client'
 import type { SourceAdapter } from '../../shared/source-adapter'
 
@@ -15,8 +16,6 @@ vi.mock('../../electron/worker/cold-start-monitor-run', () => ({
 vi.mock('../../electron/worker/incremental-monitor-run', () => ({
   runIncrementalMonitor: dependencyMocks.runIncrementalMonitor,
 }))
-
-import { runMonitorCycle } from '../../electron/worker/monitor-cycle'
 
 const MONITOR_ID = 1_403
 const adapter = { fetchPage: vi.fn() } as SourceAdapter
