@@ -123,6 +123,7 @@ describe('KufarHtmlFallbackAdapter', () => {
       kind: 'temporary',
       code: 'http-5xx',
       status: 503,
+      body: new Uint8Array(),
       attempts: 3,
       message: 'upstream unavailable',
     } satisfies Extract<KufarHttpResult, { ok: false }>
