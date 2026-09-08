@@ -78,9 +78,14 @@ function eurCalculator(payload: MutablePage): MutableRecord {
   if (!Array.isArray(calculator)) throw new Error('Expected calculator array')
 
   const entry = calculator.find(
-    (value) => typeof value === 'object' && value !== null && (value as MutableRecord).currency === 'EUR',
+    (value) =>
+      typeof value === 'object' &&
+      value !== null &&
+      (value as MutableRecord).currency === 'EUR',
   )
-  if (typeof entry !== 'object' || entry === null) throw new Error('Expected EUR calculator entry')
+  if (typeof entry !== 'object' || entry === null) {
+    throw new Error('Expected EUR calculator entry')
+  }
 
   return entry as MutableRecord
 }
@@ -188,7 +193,12 @@ describe('normalizeRealEstateSearchPage', () => {
     const calculator = payload.ads[0]?.calculator
     if (Array.isArray(calculator)) {
       payload.ads[0]!.calculator = calculator.filter(
-        (value) => !(typeof value === 'object' && value !== null && (value as MutableRecord).currency === 'EUR'),
+        (value) =>
+          !(
+            typeof value === 'object' &&
+            value !== null &&
+            (value as MutableRecord).currency === 'EUR'
+          ),
       )
     }
 
