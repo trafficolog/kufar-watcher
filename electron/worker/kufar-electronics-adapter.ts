@@ -2,12 +2,13 @@ import type { SourceAdapter, SourcePage, SourcePageRequest } from '../../shared/
 import { buildKufarApiUrl } from '../../shared/kufar-url'
 import type { KufarHttpClient, KufarHttpResult } from './kufar-http-client'
 import { normalizeElectronicsSearchPage } from './kufar-electronics-normalizer'
+import { KufarSourceRequestError } from './kufar-source-request-error'
 
 export type KufarHttpGetter = Pick<KufarHttpClient, 'get'>
 
-export class KufarAdapterRequestError extends Error {
-  constructor(readonly result: Extract<KufarHttpResult, { ok: false }>) {
-    super(`Kufar electronics request failed: ${result.code}`)
+export class KufarAdapterRequestError extends KufarSourceRequestError {
+  constructor(result: Extract<KufarHttpResult, { ok: false }>) {
+    super(`Kufar electronics request failed: ${result.code}`, result)
     this.name = 'KufarAdapterRequestError'
   }
 }

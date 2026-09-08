@@ -2,12 +2,13 @@ import type { SourceAdapter, SourcePage, SourcePageRequest } from '../../shared/
 import { buildKufarApiUrl } from '../../shared/kufar-url'
 import type { KufarHttpClient, KufarHttpResult } from './kufar-http-client'
 import { normalizeRealEstateSearchPage } from './kufar-realestate-normalizer'
+import { KufarSourceRequestError } from './kufar-source-request-error'
 
 export type KufarRealEstateHttpGetter = Pick<KufarHttpClient, 'get'>
 
-export class KufarRealEstateAdapterRequestError extends Error {
-  constructor(readonly result: Extract<KufarHttpResult, { ok: false }>) {
-    super(`Kufar real-estate request failed: ${result.code}`)
+export class KufarRealEstateAdapterRequestError extends KufarSourceRequestError {
+  constructor(result: Extract<KufarHttpResult, { ok: false }>) {
+    super(`Kufar real-estate request failed: ${result.code}`, result)
     this.name = 'KufarRealEstateAdapterRequestError'
   }
 }
