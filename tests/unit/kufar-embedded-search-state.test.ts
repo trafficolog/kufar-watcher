@@ -85,9 +85,7 @@ describe('Kufar embedded search state', () => {
       priceAmount: '2100.00',
       currency: 'BYN',
     })
-    expect(page.nextCursor).toBe(
-      'eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTQzNjYifQ==',
-    )
+    expect(page.nextCursor).toBe('eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTQzNjYifQ==')
   })
 
   it('projects electronics page 2 without decoding its fresh cursor', async () => {
@@ -108,9 +106,7 @@ describe('Kufar embedded search state', () => {
       module.kufarSearchPayloadFromEmbeddedState(embedded.value),
     )
     expect(page.listings[0]?.listId).toBe('1084291401')
-    expect(page.nextCursor).toBe(
-      'eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MywicGl0IjoiMjk4MTQzNzkifQ==',
-    )
+    expect(page.nextCursor).toBe('eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MywicGl0IjoiMjk4MTQzNzkifQ==')
   })
 
   it('projects both real-estate fixtures through the existing normalizer', async () => {
