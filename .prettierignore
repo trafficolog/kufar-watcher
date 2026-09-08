@@ -6,3 +6,4 @@ package-lock.json
 docs
 prototypes
 tests/fixtures/kufar/*.json
+tests/fixtures/kufar/*-embedded.html
