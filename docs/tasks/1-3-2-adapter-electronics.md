@@ -2,9 +2,9 @@
 id: "1.3.2"
 phase: 1
 epic: "1.3"
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-05
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-08
 roles: [BACK]
 depends_on: ["1.3.1", "1.0.1"]
 estimated_hours: 4-6
@@ -14,7 +14,7 @@ tags: [adapter, contract]
 
 # Задача 1.3.2 — Адаптер «Электроника»
 
-> Эпик 1.3 · Фаза 1 · ⬜ todo · зависит от: 1.3.1 · оценка: 4-6 ч
+> Эпик 1.3 · Фаза 1 · ✅ done · зависит от: 1.3.1 · оценка: 4-6 ч
 
 ## Цель
 
@@ -37,13 +37,13 @@ tags: [adapter, contract]
 
 ## Критерии приёмки
 
-- [ ] Запрос по реальной ссылке возвращает непустой список нормализованных объявлений
-- [ ] Запрос второй страницы по курсору возвращает объявления, не пересекающиеся с первой
-- [ ] Договорная цена нормализуется в `priceKind: negotiable` без потери объявления
-- [ ] Все обязательные поля из спецификации контракта заполнены
-- [ ] Спека контракта обновлена: пометки «требует проверки» сняты или уточнены
-- [ ] Фикстура сохранена в `tests/fixtures/kufar/` с датой
-- [ ] Тесты нормализации работают на фикстуре, без обращения к сети
+- [x] Запрос по реальной ссылке возвращает непустой список нормализованных объявлений
+- [x] Запрос второй страницы по курсору возвращает объявления, не пересекающиеся с первой
+- [x] Договорная цена нормализуется в `priceKind: negotiable` без потери объявления
+- [x] Все обязательные поля из спецификации контракта заполнены
+- [x] Спека контракта обновлена: пометки «требует проверки» сняты или уточнены
+- [x] Фикстура сохранена в `tests/fixtures/kufar/` с датой
+- [x] Тесты нормализации работают на фикстуре, без обращения к сети
 
 ## Подсказки
 
@@ -53,3 +53,12 @@ tags: [adapter, contract]
 
 - Не реализовывать политику «сколько страниц брать» — это решает водяной знак в `1.4.1`; адаптер только предоставляет возможность
 - Не загружать полное описание — это эпик 1.5
+
+## Результат
+
+- Добавлен pure fixture-driven normalizer `normalizeElectronicsSearchPage` с typed schema-drift errors (`code` + exact `path`).
+- Подтверждены electronics price semantics: positive `price_byn` трактуется как BYN minor units; raw `currency=BYR|BYN` нормализуется в доменный `BYN`; `price_byn="0"` — `priceKind: negotiable` без числовой суммы.
+- Добавлен `KufarElectronicsAdapter` поверх injected classified HTTP getter; retry/rate-limit policy не дублируется.
+- Opaque pagination cursor передаётся без декодирования как transport state; page 1/page 2 live evidence от 2026-09-08 имеет непересекающиеся ID.
+- Сохранены dated raw fixtures `2026-09-08-electronics-search-page-1.json` и `...page-2.json`; отдельный live `size=30` probe того же запроса нашёл 5 записей с `price_byn="0"`.
+- Unit tests полностью offline; Task 1 и Task 2 прошли RED→GREEN exact-SHA verification.

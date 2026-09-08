@@ -362,3 +362,16 @@ secondary параметры не угадываются заранее.
   - **дрейф схемы** — пауза монитора и алерт. Фолбэк запрещён: он подменяет
     пользователю диагноз.
 - Работа анонимная, без входа в аккаунт.
+
+
+## Reconfirmation 2026-09-08 — electronics adapter evidence
+
+Задача `1.3.2` повторно проверила живой electronics search contract перед закрытием concrete adapter:
+
+- endpoint остался `https://api.kufar.by/search-api/v2/search/rendered-paginated`; request `cat=5040&rgn=7&query=ps5&size=2&sort=lst.d&lang=ru` вернул непустые `ads`, `pagination` и `total`;
+- raw page 1 сохранён как `tests/fixtures/kufar/2026-09-08-electronics-search-page-1.json`; его `next.token` был передан без декодирования как `cursor`;
+- raw page 2 сохранён как `tests/fixtures/kufar/2026-09-08-electronics-search-page-2.json`; он содержит `prev/self/next`, новый `next.token`, а IDs страниц не пересекаются;
+- в fresh fixed-price samples raw `currency="BYR"`, а `price_byn` остаётся digit string в minor units; concrete electronics normalizer принимает raw marker `BYR|BYN` и выдаёт domain currency `BYN`;
+- отдельный fresh `size=30` probe тех же effective filters нашёл 5 объявлений с `price_byn="0"`, повторно подтверждая наличие negotiable electronics records. Семантика `price_byn="0" -> priceKind: negotiable` остаётся electronics-specific и не обобщается на real estate без отдельного evidence.
+
+Cursor остаётся opaque transport state: concrete adapter только добавляет его в query parameter `cursor` и не включает в `CanonicalQuery`.

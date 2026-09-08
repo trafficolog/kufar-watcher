@@ -1,10 +1,10 @@
 ---
 id: "1.3"
 phase: 1
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-05
-status_note: "Нормализация выдачи двух категорий."
+status: in_progress
+sync_state: aligned
+last_reviewed: 2026-09-08
+status_note: "2/4: общий SourceAdapter и electronics adapter готовы; real estate и HTML fallback впереди."
 roles:
   - BACK
 ---
@@ -25,12 +25,12 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.3-tasks -->
-**Задач:** 4 · **done:** 1
+**Задач:** 4 · **done:** 2
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `1.3.1` | [Интерфейс SourceAdapter и реестр](../tasks/1-3-1-adapter-interface.md) | ✅ done | 🟢 aligned |
-| `1.3.2` | [Адаптер «Электроника»](../tasks/1-3-2-adapter-electronics.md) | ⬜ todo | 🟡 drifted |
+| `1.3.2` | [Адаптер «Электроника»](../tasks/1-3-2-adapter-electronics.md) | ✅ done | 🟢 aligned |
 | `1.3.3` | [Адаптер «Недвижимость»](../tasks/1-3-3-adapter-realestate.md) | ⬜ todo | 🟡 drifted |
 | `1.3.4` | [Фолбэк на встроенные данные HTML-страницы](../tasks/1-3-4-html-fallback.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-1.3-tasks -->
