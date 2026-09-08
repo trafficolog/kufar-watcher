@@ -315,7 +315,14 @@ npm run docs:ops:check
 
 Expected: both commands exit 0; epic `1.3` remains `todo/drifted` with `done: 1` of 4 tasks.
 
-- [ ] **Step 3: Run full repository verification**
+- [ ] **Step 3: Commit documentation alignment**
+
+```bash
+git add docs/tasks/1-3-1-adapter-interface.md docs/epics/1-3-source-adapters.md docs/phases docs/operations/status
+git commit -m "docs(1.3.1): align source adapter interface"
+```
+
+- [ ] **Step 4: Run full repository verification on the committed docs SHA**
 
 Run the same pipeline represented by `.github/workflows/verify.yml`, with the GitHub Actions run as the authoritative environment proof:
 
@@ -330,13 +337,6 @@ npm run docs:ops:check
 Then confirm the branch `verify` workflow completes successfully, including Postgres compose integration, Electron sandbox preparation, build/output verification, development launch smoke, and production launch smoke.
 
 Expected: zero failing tests/checks.
-
-- [ ] **Step 4: Commit documentation alignment**
-
-```bash
-git add docs/tasks/1-3-1-adapter-interface.md docs/epics/1-3-source-adapters.md docs/phases docs/operations/status
-git commit -m "docs(1.3.1): align source adapter interface"
-```
 
 - [ ] **Step 5: Final scope review**
 
