@@ -72,11 +72,23 @@ async function loadModule(): Promise<ResilientSourceModule> {
 function temporaryFailure(
   code: 'network' | 'timeout' | 'http-5xx',
 ): Extract<KufarHttpResult, { ok: false }> {
+  if (code === 'http-5xx') {
+    return {
+      ok: false,
+      kind: 'temporary',
+      code,
+      status: 503,
+      body: new Uint8Array(),
+      attempts: 3,
+      message: code,
+    }
+  }
+
   return {
     ok: false,
     kind: 'temporary',
     code,
-    status: code === 'http-5xx' ? 503 : null,
+    status: null,
     attempts: 3,
     message: code,
   }
@@ -164,6 +176,7 @@ describe('KufarResilientSource', () => {
       kind: 'rate-limited',
       code: 'rate-limited',
       status: 429,
+      body: new Uint8Array(),
       attempts: 1,
       message: 'limited',
       retryAfterMs: 60_000,
@@ -191,6 +204,7 @@ describe('KufarResilientSource', () => {
         kind: 'permanent',
         code,
         status,
+        body: new Uint8Array(),
         attempts: 1,
         message: code,
       } satisfies Extract<KufarHttpResult, { ok: false }>
