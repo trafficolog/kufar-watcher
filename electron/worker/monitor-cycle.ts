@@ -1,14 +1,8 @@
 import type { PrismaClient } from '../../generated/prisma/client'
 import type { SourceAdapter } from '../../shared/source-adapter'
 import type { WatermarkTraversalResult } from '../../shared/watermark'
-import {
-  runColdStartMonitor,
-  type ColdStartMonitorRunResult,
-} from './cold-start-monitor-run'
-import {
-  runIncrementalMonitor,
-  type CandidateSelector,
-} from './incremental-monitor-run'
+import { runColdStartMonitor, type ColdStartMonitorRunResult } from './cold-start-monitor-run'
+import { runIncrementalMonitor, type CandidateSelector } from './incremental-monitor-run'
 
 export interface RunMonitorCycleInput {
   prisma: PrismaClient
