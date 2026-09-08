@@ -74,9 +74,7 @@ describe('KufarHtmlFallbackAdapter', () => {
     expect(requested.searchParams.get('size')).toBe('30')
     expect(requested.searchParams.has('cursor')).toBe(false)
     expect(page.listings[0]?.listId).toBe('1084343116')
-    expect(page.nextCursor).toBe(
-      'eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTQzNjYifQ==',
-    )
+    expect(page.nextCursor).toBe('eyJ0IjoiYWJzIiwiZiI6dHJ1ZSwicCI6MiwicGl0IjoiMjk4MTQzNjYifQ==')
   })
 
   it('preserves the Real Estate listing route and semantic query params', async () => {
