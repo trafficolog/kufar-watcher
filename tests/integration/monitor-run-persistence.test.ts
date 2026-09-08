@@ -60,9 +60,10 @@ function input(nextWatermark: Watermark = NEW_WATERMARK): MonitorRunPersistenceI
 }
 
 integrationDescribe('monitor run persistence', () => {
-  const prisma = createPrismaClient()
+  let prisma: ReturnType<typeof createPrismaClient>
 
   beforeAll(async () => {
+    prisma = createPrismaClient()
     await prisma.$connect()
   })
 
@@ -97,10 +98,14 @@ integrationDescribe('monitor run persistence', () => {
   it('commits Listing Match Cursor and Run together', async () => {
     await commitMonitorRun(prisma, input())
 
-    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(2)
+    expect(
+      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
+    ).toBe(2)
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(1)
 
-    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
     expect(cursor.boundaryTime?.toISOString()).toBe(NEW_WATERMARK.boundaryTime)
     expect(cursor.boundaryIds).toEqual(NEW_WATERMARK.boundaryIds)
     expect(cursor.lastRunAt?.toISOString()).toBe('2026-09-08T11:02:00.000Z')
@@ -124,7 +129,9 @@ integrationDescribe('monitor run persistence', () => {
 
   it('preserves Listing.firstSeenAt across upserts', async () => {
     await commitMonitorRun(prisma, input())
-    const before = await prisma.listing.findUniqueOrThrow({ where: { listId: `${LISTING_PREFIX}a` } })
+    const before = await prisma.listing.findUniqueOrThrow({
+      where: { listId: `${LISTING_PREFIX}a` },
+    })
 
     const retry = input()
     retry.candidates = [listing('a', 'Updated title'), listing('b')]
@@ -136,12 +143,19 @@ integrationDescribe('monitor run persistence', () => {
     ]
     await commitMonitorRun(prisma, retry)
 
-    const after = await prisma.listing.findUniqueOrThrow({ where: { listId: `${LISTING_PREFIX}a` } })
+    const after = await prisma.listing.findUniqueOrThrow({
+      where: { listId: `${LISTING_PREFIX}a` },
+    })
     expect(after.title).toBe('Updated title')
     expect(after.firstSeenAt.toISOString()).toBe(before.firstSeenAt.toISOString())
 
     const match = await prisma.match.findUniqueOrThrow({
-      where: { monitorId_listingId: { monitorId: MONITOR_ID, listingId: `${LISTING_PREFIX}a` } },
+      where: {
+        monitorId_listingId: {
+          monitorId: MONITOR_ID,
+          listingId: `${LISTING_PREFIX}a`,
+        },
+      },
     })
     expect(match.matchedTerms).toEqual([])
     expect(match.matchedIn).toEqual([])
@@ -157,7 +171,9 @@ integrationDescribe('monitor run persistence', () => {
       }),
     ).rejects.toBe(sentinel)
 
-    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(0)
+    expect(
+      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
+    ).toBe(0)
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
     expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
   })
@@ -173,9 +189,13 @@ integrationDescribe('monitor run persistence', () => {
       }),
     ).rejects.toBe(sentinel)
 
-    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(0)
+    expect(
+      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
+    ).toBe(0)
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
-    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
     expect(cursor.boundaryTime?.toISOString()).toBe(OLD_WATERMARK.boundaryTime)
     expect(cursor.boundaryIds).toEqual(OLD_WATERMARK.boundaryIds)
   })
@@ -192,9 +212,13 @@ integrationDescribe('monitor run persistence', () => {
       }),
     ).rejects.toBe(sentinel)
 
-    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(0)
+    expect(
+      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
+    ).toBe(0)
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
-    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
     expect(cursor.boundaryTime?.toISOString()).toBe(OLD_WATERMARK.boundaryTime)
     expect(cursor.boundaryIds).toEqual(OLD_WATERMARK.boundaryIds)
     expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
@@ -213,7 +237,9 @@ integrationDescribe('monitor run persistence', () => {
 
     await commitMonitorRun(prisma, persistenceInput)
 
-    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(2)
+    expect(
+      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
+    ).toBe(2)
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(1)
     expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(1)
   })
@@ -221,9 +247,13 @@ integrationDescribe('monitor run persistence', () => {
   it('stores the unchanged watermark supplied by a possibleMiss traversal', async () => {
     await commitMonitorRun(prisma, input(OLD_WATERMARK))
 
-    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
     expect(cursor.boundaryTime?.toISOString()).toBe(OLD_WATERMARK.boundaryTime)
     expect(cursor.boundaryIds).toEqual(OLD_WATERMARK.boundaryIds)
-    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(2)
+    expect(
+      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
+    ).toBe(2)
   })
 })
