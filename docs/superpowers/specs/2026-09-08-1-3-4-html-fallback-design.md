@@ -2,7 +2,7 @@
 
 Date: 2026-09-08
 Task: `1.3.4`
-Status: approved in chat; written review pending
+Status: approved
 
 ## Goal
 
