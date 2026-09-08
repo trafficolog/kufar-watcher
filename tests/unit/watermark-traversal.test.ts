@@ -254,3 +254,175 @@ describe('watermark traversal core behavior', () => {
     })
   })
 })
+
+describe('watermark traversal pagination and page cap', () => {
+  it('finds the previous boundary on page three and preserves opaque cursors', async () => {
+    const adapter = adapterFromPages([
+      {
+        listings: [
+          listing('n5', '2026-09-08T10:05:00.000Z'),
+          listing('n4', '2026-09-08T10:04:00.000Z'),
+        ],
+        nextCursor: 'opaque-page-2',
+      },
+      {
+        listings: [
+          listing('n3', '2026-09-08T10:03:00.000Z'),
+          listing('n2', '2026-09-08T10:02:00.000Z'),
+        ],
+        nextCursor: 'opaque-page-3',
+      },
+      {
+        listings: [
+          listing('n1', '2026-09-08T10:01:00.000Z'),
+          listing('known-a', '2026-09-08T10:00:00.000Z'),
+          listing('old', '2026-09-08T09:59:00.000Z'),
+        ],
+        nextCursor: 'must-not-be-used',
+      },
+    ])
+
+    const result = await traverseWatermark({ adapter, query, previousWatermark, maxPages: 5 })
+
+    expect(ids(result.newListings)).toEqual(['n5', 'n4', 'n3', 'n2', 'n1'])
+    expect(result.nextWatermark).toEqual({
+      boundaryTime: '2026-09-08T10:05:00.000Z',
+      boundaryIds: ['n5'],
+    })
+    expect(result.pagesRead).toBe(3)
+    expect(result.possibleMiss).toBe(false)
+    expect(adapter.fetchPage).toHaveBeenCalledTimes(3)
+    expect(adapter.fetchPage.mock.calls.map(([request]) => request.cursor)).toEqual([
+      null,
+      'opaque-page-2',
+      'opaque-page-3',
+    ])
+    for (const [request] of adapter.fetchPage.mock.calls) expect(request.query).toBe(query)
+  })
+
+  it('processes equal-time boundary listings across a page boundary before stopping', async () => {
+    const adapter = adapterFromPages([
+      {
+        listings: [
+          listing('n1', '2026-09-08T10:01:00.000Z'),
+          listing('new-at-t-1', '2026-09-08T10:00:00.000Z'),
+        ],
+        nextCursor: 'page-2',
+      },
+      {
+        listings: [
+          listing('known-a', '2026-09-08T10:00:00.000Z'),
+          listing('new-at-t-2', '2026-09-08T10:00:00.000Z'),
+          listing('old', '2026-09-08T09:59:00.000Z'),
+        ],
+        nextCursor: 'must-not-be-used',
+      },
+    ])
+
+    const result = await traverseWatermark({ adapter, query, previousWatermark, maxPages: 3 })
+
+    expect(ids(result.newListings)).toEqual(['n1', 'new-at-t-1', 'new-at-t-2'])
+    expect(result.nextWatermark).toEqual({
+      boundaryTime: '2026-09-08T10:01:00.000Z',
+      boundaryIds: ['n1'],
+    })
+    expect(result.pagesRead).toBe(2)
+    expect(result.possibleMiss).toBe(false)
+  })
+
+  it('stops normally when the deleted boundary is crossed on a deeper page', async () => {
+    const adapter = adapterFromPages([
+      {
+        listings: [listing('n1', '2026-09-08T10:01:00.000Z')],
+        nextCursor: 'page-2',
+      },
+      {
+        listings: [listing('older', '2026-09-08T09:59:00.000Z')],
+        nextCursor: 'must-not-be-used',
+      },
+    ])
+
+    const result = await traverseWatermark({ adapter, query, previousWatermark, maxPages: 5 })
+
+    expect(ids(result.newListings)).toEqual(['n1'])
+    expect(result.nextWatermark).toEqual({
+      boundaryTime: '2026-09-08T10:01:00.000Z',
+      boundaryIds: ['n1'],
+    })
+    expect(result.pagesRead).toBe(2)
+    expect(result.possibleMiss).toBe(false)
+    expect(adapter.fetchPage).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns possibleMiss and does not advance when the page cap cuts off traversal', async () => {
+    const adapter = adapterFromPages([
+      {
+        listings: [listing('n3', '2026-09-08T10:03:00.000Z')],
+        nextCursor: 'page-2',
+      },
+      {
+        listings: [listing('n2', '2026-09-08T10:02:00.000Z')],
+        nextCursor: 'still-more',
+      },
+    ])
+
+    const result = await traverseWatermark({ adapter, query, previousWatermark, maxPages: 2 })
+
+    expect(ids(result.newListings)).toEqual(['n3', 'n2'])
+    expect(result.nextWatermark).toBe(previousWatermark)
+    expect(result.pagesRead).toBe(2)
+    expect(result.possibleMiss).toBe(true)
+    expect(adapter.fetchPage).toHaveBeenCalledTimes(2)
+  })
+
+  it('completes at the page cap when the source is terminal', async () => {
+    const adapter = adapterFromPages([
+      {
+        listings: [listing('n3', '2026-09-08T10:03:00.000Z')],
+        nextCursor: 'page-2',
+      },
+      {
+        listings: [listing('n2', '2026-09-08T10:02:00.000Z')],
+        nextCursor: null,
+      },
+    ])
+
+    const result = await traverseWatermark({ adapter, query, previousWatermark, maxPages: 2 })
+
+    expect(ids(result.newListings)).toEqual(['n3', 'n2'])
+    expect(result.nextWatermark).toEqual({
+      boundaryTime: '2026-09-08T10:03:00.000Z',
+      boundaryIds: ['n3'],
+    })
+    expect(result.pagesRead).toBe(2)
+    expect(result.possibleMiss).toBe(false)
+  })
+
+  it('completes on the cap page when the temporal boundary is crossed', async () => {
+    const adapter = adapterFromPages([
+      {
+        listings: [listing('n2', '2026-09-08T10:02:00.000Z')],
+        nextCursor: 'page-2',
+      },
+      {
+        listings: [
+          listing('n1', '2026-09-08T10:01:00.000Z'),
+          listing('known-a', '2026-09-08T10:00:00.000Z'),
+          listing('old', '2026-09-08T09:59:00.000Z'),
+        ],
+        nextCursor: 'still-more',
+      },
+    ])
+
+    const result = await traverseWatermark({ adapter, query, previousWatermark, maxPages: 2 })
+
+    expect(ids(result.newListings)).toEqual(['n2', 'n1'])
+    expect(result.nextWatermark).toEqual({
+      boundaryTime: '2026-09-08T10:02:00.000Z',
+      boundaryIds: ['n2'],
+    })
+    expect(result.pagesRead).toBe(2)
+    expect(result.possibleMiss).toBe(false)
+    expect(adapter.fetchPage).toHaveBeenCalledTimes(2)
+  })
+})
