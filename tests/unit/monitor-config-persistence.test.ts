@@ -53,9 +53,9 @@ describe('canonicalQueryEquals', () => {
   })
 
   it('treats pathFilters order as significant', () => {
-    expect(
-      canonicalQueryEquals(query(), query({ pathFilters: ['smartphones', 'phones'] })),
-    ).toBe(false)
+    expect(canonicalQueryEquals(query(), query({ pathFilters: ['smartphones', 'phones'] }))).toBe(
+      false,
+    )
   })
 
   it('treats extraParams value-array order as significant', () => {
