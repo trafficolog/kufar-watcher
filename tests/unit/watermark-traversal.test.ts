@@ -426,3 +426,235 @@ describe('watermark traversal pagination and page cap', () => {
     expect(adapter.fetchPage).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('watermark traversal robustness', () => {
+  it('deduplicates overlapping list ids across pages and keeps the first occurrence', async () => {
+    const firstRaised = {
+      ...listing('raised', '2026-09-08T10:05:00.000Z'),
+      title: 'First raised occurrence',
+    }
+    const repeatedRaised = {
+      ...listing('raised', '2026-09-08T10:03:00.000Z'),
+      title: 'Repeated raised occurrence',
+    }
+    const adapter = adapterFromPages([
+      {
+        listings: [firstRaised, listing('n4', '2026-09-08T10:04:00.000Z')],
+        nextCursor: 'page-2',
+      },
+      {
+        listings: [
+          repeatedRaised,
+          listing('n2', '2026-09-08T10:02:00.000Z'),
+          listing('known-a', '2026-09-08T10:00:00.000Z'),
+          listing('old', '2026-09-08T09:59:00.000Z'),
+        ],
+        nextCursor: null,
+      },
+    ])
+
+    const result = await traverseWatermark({ adapter, query, previousWatermark, maxPages: 3 })
+
+    expect(ids(result.newListings)).toEqual(['raised', 'n4', 'n2'])
+    expect(result.newListings[0]).toBe(firstRaised)
+    expect(result.newListings).not.toContain(repeatedRaised)
+    expect(result.nextWatermark).toEqual({
+      boundaryTime: '2026-09-08T10:05:00.000Z',
+      boundaryIds: ['raised'],
+    })
+  })
+
+  it('treats a genuinely raised known id as new exactly once', async () => {
+    const boundary: Watermark = {
+      boundaryTime: '2026-09-08T10:00:00.000Z',
+      boundaryIds: ['raised'],
+    }
+    const firstRaised = listing('raised', '2026-09-08T10:05:00.000Z')
+    const repeatedRaised = listing('raised', '2026-09-08T10:01:00.000Z')
+    const adapter = adapterFromPages([
+      {
+        listings: [firstRaised, listing('n4', '2026-09-08T10:04:00.000Z')],
+        nextCursor: 'page-2',
+      },
+      {
+        listings: [
+          repeatedRaised,
+          listing('known-at-t', '2026-09-08T10:00:00.000Z'),
+          listing('old', '2026-09-08T09:59:00.000Z'),
+        ],
+        nextCursor: null,
+      },
+    ])
+
+    const result = await traverseWatermark({
+      adapter,
+      query,
+      previousWatermark: boundary,
+      maxPages: 3,
+    })
+
+    expect(ids(result.newListings)).toEqual(['raised', 'n4', 'known-at-t'])
+    expect(result.newListings.filter(({ listId }) => listId === 'raised')).toEqual([firstRaised])
+  })
+
+  it('throws a typed ordering error for a newer unique listing inside one page', async () => {
+    const boundary: Watermark = {
+      boundaryTime: '2026-09-08T09:00:00.000Z',
+      boundaryIds: [],
+    }
+    const adapter = adapterFromPages([
+      {
+        listings: [
+          listing('a', '2026-09-08T10:05:00.000Z'),
+          listing('b', '2026-09-08T10:06:00.000Z'),
+        ],
+        nextCursor: null,
+      },
+    ])
+
+    await expect(
+      traverseWatermark({ adapter, query, previousWatermark: boundary, maxPages: 3 }),
+    ).rejects.toMatchObject({
+      name: 'WatermarkOrderingError',
+      previous: {
+        page: 1,
+        index: 0,
+        listId: 'a',
+        listTime: '2026-09-08T10:05:00.000Z',
+      },
+      current: {
+        page: 1,
+        index: 1,
+        listId: 'b',
+        listTime: '2026-09-08T10:06:00.000Z',
+      },
+    })
+  })
+
+  it('throws a typed ordering error when a later page moves forward in time', async () => {
+    const boundary: Watermark = {
+      boundaryTime: '2026-09-08T09:00:00.000Z',
+      boundaryIds: [],
+    }
+    const adapter = adapterFromPages([
+      {
+        listings: [listing('a', '2026-09-08T10:04:00.000Z')],
+        nextCursor: 'page-2',
+      },
+      {
+        listings: [listing('b', '2026-09-08T10:05:00.000Z')],
+        nextCursor: null,
+      },
+    ])
+
+    await expect(
+      traverseWatermark({ adapter, query, previousWatermark: boundary, maxPages: 3 }),
+    ).rejects.toMatchObject({
+      name: 'WatermarkOrderingError',
+      previous: {
+        page: 1,
+        index: 0,
+        listId: 'a',
+        listTime: '2026-09-08T10:04:00.000Z',
+      },
+      current: {
+        page: 2,
+        index: 0,
+        listId: 'b',
+        listTime: '2026-09-08T10:05:00.000Z',
+      },
+    })
+  })
+
+  it('allows equivalent timestamp spellings in ordering checks', async () => {
+    const boundary: Watermark = {
+      boundaryTime: '2026-09-08T09:00:00.000Z',
+      boundaryIds: [],
+    }
+    const adapter = adapterFromPages([
+      {
+        listings: [
+          listing('a', '2026-09-08T10:00:00.000Z'),
+          listing('b', '2026-09-08T12:00:00.000+02:00'),
+        ],
+        nextCursor: null,
+      },
+    ])
+
+    await expect(
+      traverseWatermark({ adapter, query, previousWatermark: boundary, maxPages: 3 }),
+    ).resolves.toMatchObject({ possibleMiss: false, pagesRead: 1 })
+  })
+
+  it('does not let an ignored duplicate replace the previous unique ordering observation', async () => {
+    const boundary: Watermark = {
+      boundaryTime: '2026-09-08T09:00:00.000Z',
+      boundaryIds: [],
+    }
+    const adapter = adapterFromPages([
+      {
+        listings: [
+          listing('dup', '2026-09-08T10:06:00.000Z'),
+          listing('unique-a', '2026-09-08T10:05:00.000Z'),
+          listing('dup', '2026-09-08T10:04:00.000Z'),
+          listing('unique-b', '2026-09-08T10:04:30.000Z'),
+        ],
+        nextCursor: null,
+      },
+    ])
+
+    const result = await traverseWatermark({
+      adapter,
+      query,
+      previousWatermark: boundary,
+      maxPages: 3,
+    })
+
+    expect(ids(result.newListings)).toEqual(['dup', 'unique-a', 'unique-b'])
+  })
+
+  it('propagates adapter errors by identity', async () => {
+    const sourceError = new Error('source failed')
+    const adapter: SourceAdapter = {
+      async fetchPage() {
+        throw sourceError
+      },
+    }
+
+    await expect(
+      traverseWatermark({ adapter, query, previousWatermark, maxPages: 3 }),
+    ).rejects.toBe(sourceError)
+  })
+
+  it('returns no new listings when rerun with the completed watermark', async () => {
+    const pages: SourcePage[] = [
+      {
+        listings: [
+          listing('n2', '2026-09-08T10:02:00.000Z'),
+          listing('n1', '2026-09-08T10:01:00.000Z'),
+          listing('new-at-t', '2026-09-08T10:00:00.000Z'),
+          listing('known-a', '2026-09-08T10:00:00.000Z'),
+          listing('old', '2026-09-08T09:59:00.000Z'),
+        ],
+        nextCursor: null,
+      },
+    ]
+
+    const first = await traverseWatermark({
+      adapter: adapterFromPages(pages),
+      query,
+      previousWatermark,
+      maxPages: 3,
+    })
+    const second = await traverseWatermark({
+      adapter: adapterFromPages(pages),
+      query,
+      previousWatermark: first.nextWatermark,
+      maxPages: 3,
+    })
+
+    expect(ids(first.newListings)).toEqual(['n2', 'n1', 'new-at-t'])
+    expect(second.newListings).toEqual([])
+    expect(second.possibleMiss).toBe(false)
+  })
+})
