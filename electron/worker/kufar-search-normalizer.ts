@@ -49,11 +49,7 @@ function required(record: KufarSearchAd, key: string, path: string): unknown {
   return record[key]
 }
 
-export function requiredNonEmptyString(
-  record: KufarSearchAd,
-  key: string,
-  path: string,
-): string {
+export function requiredNonEmptyString(record: KufarSearchAd, key: string, path: string): string {
   const value = required(record, key, path)
   if (typeof value !== 'string' || value.trim().length === 0) {
     invalid(path, `Expected non-empty string at ${path}`)
@@ -130,7 +126,11 @@ function descriptionFrom(ad: KufarSearchAd): string | null {
   return typeof ad.body_short === 'string' ? ad.body_short : null
 }
 
-function normalizeAd(value: unknown, index: number, options: KufarSearchNormalizerOptions): Listing {
+function normalizeAd(
+  value: unknown,
+  index: number,
+  options: KufarSearchNormalizerOptions,
+): Listing {
   const path = `ads[${index}]`
   if (!isRecord(value)) invalid(path, `Expected object at ${path}`)
 
