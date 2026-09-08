@@ -98,9 +98,9 @@ integrationDescribe('monitor run persistence', () => {
   it('commits Listing Match Cursor and Run together', async () => {
     await commitMonitorRun(prisma, input())
 
-    expect(
-      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
-    ).toBe(2)
+    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(
+      2,
+    )
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(1)
 
     const cursor = await prisma.monitorCursor.findUniqueOrThrow({
@@ -171,9 +171,9 @@ integrationDescribe('monitor run persistence', () => {
       }),
     ).rejects.toBe(sentinel)
 
-    expect(
-      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
-    ).toBe(0)
+    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(
+      0,
+    )
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
     expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
   })
@@ -189,9 +189,9 @@ integrationDescribe('monitor run persistence', () => {
       }),
     ).rejects.toBe(sentinel)
 
-    expect(
-      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
-    ).toBe(0)
+    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(
+      0,
+    )
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
     const cursor = await prisma.monitorCursor.findUniqueOrThrow({
       where: { monitorId: MONITOR_ID },
@@ -212,9 +212,9 @@ integrationDescribe('monitor run persistence', () => {
       }),
     ).rejects.toBe(sentinel)
 
-    expect(
-      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
-    ).toBe(0)
+    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(
+      0,
+    )
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
     const cursor = await prisma.monitorCursor.findUniqueOrThrow({
       where: { monitorId: MONITOR_ID },
@@ -237,9 +237,9 @@ integrationDescribe('monitor run persistence', () => {
 
     await commitMonitorRun(prisma, persistenceInput)
 
-    expect(
-      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
-    ).toBe(2)
+    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(
+      2,
+    )
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(1)
     expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(1)
   })
@@ -252,8 +252,8 @@ integrationDescribe('monitor run persistence', () => {
     })
     expect(cursor.boundaryTime?.toISOString()).toBe(OLD_WATERMARK.boundaryTime)
     expect(cursor.boundaryIds).toEqual(OLD_WATERMARK.boundaryIds)
-    expect(
-      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
-    ).toBe(2)
+    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(
+      2,
+    )
   })
 })
