@@ -101,15 +101,11 @@ integrationDescribe('stale monitor-run commit after config reset', () => {
     await updateMonitorConfig(prisma, MONITOR_ID, {
       sourceUrl: 'https://www.kufar.by/l/cars',
     })
-    expect(
-      await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } }),
-    ).toBeNull()
+    expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).toBeNull()
 
     await expect(commitMonitorRun(prisma, staleRunInput())).rejects.toThrow(/stale|cursor/i)
 
-    expect(
-      await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } }),
-    ).toBeNull()
+    expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).toBeNull()
     expect(await prisma.listing.findUnique({ where: { listId: LISTING_ID } })).toBeNull()
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
     expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
