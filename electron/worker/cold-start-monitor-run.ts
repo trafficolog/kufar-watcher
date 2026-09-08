@@ -1,10 +1,7 @@
 import type { PrismaClient } from '../../generated/prisma/client'
 import type { SourceAdapter } from '../../shared/source-adapter'
 import type { Watermark } from '../../shared/watermark'
-import {
-  type ColdStartCursorSnapshot,
-  commitColdStartBaseline,
-} from './cold-start-persistence'
+import { type ColdStartCursorSnapshot, commitColdStartBaseline } from './cold-start-persistence'
 import { traverseColdStartBaseline } from './cold-start-traversal'
 import { parsePersistedCanonicalQuery } from './monitor-config-persistence'
 
