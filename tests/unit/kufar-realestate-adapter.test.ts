@@ -56,9 +56,7 @@ describe('KufarRealEstateAdapter', () => {
     )
     expect(requested.searchParams.get('cat')).toBe('1010')
     expect(requested.searchParams.get('cur')).toBe('USD')
-    expect(requested.searchParams.get('gtsy')).toBe(
-      'country-belarus~province-minsk~locality-minsk',
-    )
+    expect(requested.searchParams.get('gtsy')).toBe('country-belarus~province-minsk~locality-minsk')
     expect(requested.searchParams.get('lang')).toBe('ru')
     expect(requested.searchParams.get('sort')).toBe('lst.d')
     expect(requested.searchParams.get('typ')).toBe('sell')
