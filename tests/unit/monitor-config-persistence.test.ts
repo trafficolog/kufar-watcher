@@ -98,6 +98,12 @@ describe('shouldResetMonitorCursor', () => {
     ).toBe(true)
   })
 
+  it('resets when an archived monitor becomes paused', () => {
+    expect(
+      shouldResetMonitorCursor(identity({ state: 'archived' }), identity({ state: 'paused' })),
+    ).toBe(true)
+  })
+
   it('preserves cursor when source identity is unchanged', () => {
     expect(shouldResetMonitorCursor(identity(), identity())).toBe(false)
   })
