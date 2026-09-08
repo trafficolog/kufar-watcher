@@ -37,6 +37,12 @@ class FakeHttpGetter {
 }
 
 describe('KufarElectronicsAdapter', () => {
+  it('uses the common classified Kufar request-error base', () => {
+    expect(Object.getPrototypeOf(KufarAdapterRequestError.prototype)?.constructor.name).toBe(
+      'KufarSourceRequestError',
+    )
+  })
+
   it('builds the confirmed first-page electronics request and normalizes its body', async () => {
     const http = new FakeHttpGetter({
       ok: true,
