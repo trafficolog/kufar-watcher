@@ -11,8 +11,7 @@ import { persistListings } from './monitor-run-persistence'
 export type ColdStartSourceSnapshot = MonitorSourceIdentity
 
 export type ColdStartCursorSnapshot =
-  | { kind: 'missing' }
-  | { kind: 'uninitialized'; updatedAt: Date }
+  { kind: 'missing' } | { kind: 'uninitialized'; updatedAt: Date }
 
 export interface ColdStartPersistenceInput {
   monitorId: number
