@@ -25,7 +25,7 @@ This design keeps network traversal and filtering outside the database transacti
 
 ## Non-goals
 
-- No cold-start behavior. A missing `MonitorCursor` is owned by `1.4.3`.
+- No cold-start behavior. An absent or uninitialized `MonitorCursor` is owned by `1.4.3`.
 - No notifications or Telegram work.
 - No real keyword/seller matcher. The current selector accepts every incremental candidate.
 - No scheduler or overlap handling.
@@ -57,6 +57,8 @@ The persisted Prisma cursor shape is equivalent at the domain boundary:
 - `MonitorCursor.boundaryTime` ↔ `Watermark.boundaryTime`
 - `MonitorCursor.boundaryIds` ↔ `Watermark.boundaryIds`
 
+`MonitorCursor.boundaryTime` is nullable in the database schema because the schema predates the runtime algorithm. For incremental traversal, both a missing cursor row and a row with `boundaryTime = null` mean that no usable watermark exists yet; both enter the `1.4.3` cold-start boundary. A non-null boundary with malformed `boundaryIds` is persisted-state corruption and must fail explicitly rather than silently becoming a cold start.
+
 `MonitorCursor.lastRunAt` is runtime metadata and is written at successful commit time. It is not part of the watermark comparison algorithm.
 
 `CanonicalQuery` has explicit fields (`host`, `category`, `query`, `region`, `sellerType`, `sort`, `operation`, `pathFilters`, `extraParams`) and is already the parsed source identity stored in `Monitor.query`.
@@ -70,13 +72,13 @@ The implementation has three narrow responsibilities.
 A worker-level orchestration function coordinates one non-cold-start monitor run:
 
 1. Load the monitor configuration and existing `MonitorCursor`.
-2. If the cursor is absent, stop with a typed `ColdStartRequired` result/error; do not interpret absence as “everything is new”. `1.4.3` will own that branch.
-3. Convert the persisted cursor into a `Watermark`.
+2. If the cursor row is absent or `boundaryTime` is null, stop with a typed `ColdStartRequired` result/error; do not interpret absence as “everything is new”. `1.4.3` will own that branch.
+3. Validate persisted `boundaryIds` as an array of strings and convert the cursor into a `Watermark`.
 4. Call `traverseWatermark(...)` outside any Prisma transaction.
 5. Pass each returned candidate through the injected selection seam, also outside the transaction.
 6. Commit the successful traversal result plus selected matches through the persistence transaction.
 
-Source/network errors and watermark ordering/configuration errors propagate before any database commit. They do not produce a partial persistence result in `1.4.2`.
+Source/network errors, malformed persisted cursor state, selector failures, and watermark ordering/configuration errors occur before any database commit. They do not produce a partial persistence result in `1.4.2`.
 
 ### 2. Persistence transaction
 
@@ -84,12 +86,13 @@ A dedicated persistence component accepts already collected data and performs on
 
 ```ts
 prisma.$transaction(async (tx) => {
-  // Listing upserts
-  // Match inserts/upserts
-  // MonitorCursor upsert
-  // minimal successful Run create
+  await persistListingsAndMatches(tx, input)
+  await persistMonitorCursor(tx, input)
+  await persistSuccessfulRun(tx, input)
 })
 ```
+
+These are focused database-step functions, not independent transactions. Production composes them inside one transaction. Their separation makes the dangerous boundaries directly testable with a real transaction by throwing a sentinel between steps, without adding production fault-injection hooks.
 
 The transaction callback performs no HTTP requests, pagination, description fetching, or matching work.
 
@@ -139,7 +142,14 @@ Every listing returned in `WatermarkTraversalResult.newListings` is persisted, r
 
 Each `Listing` is upserted by `listId`.
 
-On create, all normalized listing fields are written and `firstSeenAt` uses its database default unless the existing repository pattern requires an explicit value for deterministic integration tests.
+The domain-to-Prisma mapping is explicit:
+
+- `listTime` is already source-validated but is converted to `Date` for the Prisma `DateTime` column;
+- `priceAmount` remains exact decimal text and is passed to Prisma/Decimal without converting through JavaScript `number`;
+- `raw` is persisted as JSON;
+- nullable normalized fields remain nullable rather than being synthesized.
+
+On create, all normalized listing fields are written and `firstSeenAt` uses the database default.
 
 On update, normalized mutable listing fields and `raw` are refreshed, but `firstSeenAt` is never overwritten.
 
@@ -178,7 +188,7 @@ Therefore this task writes only a minimal successful commit record after travers
 - `startedAt` supplied by the orchestration call
 - `finishedAt` successful commit timestamp
 - `outcome = "success"`
-- `seen` = number of unique incremental candidates returned by traversal
+- `seen` = `result.newListings.length`
 - `matched` = number of candidates accepted by the selector
 - `error = null`
 - `httpStatus = null`
@@ -209,6 +219,7 @@ If any operation throws, the callback throws and all writes in that transaction 
 Examples:
 
 - source adapter failure;
+- malformed persisted cursor state;
 - watermark ordering/configuration error;
 - selector failure.
 
@@ -243,7 +254,7 @@ Preserve `MonitorCursor` when only these fields change:
 - seller filter fields, including `sellerType`, when the persisted canonical source query itself is unchanged;
 - state changes that are not `archived → active`, unless another later task defines a stronger rule.
 
-The source-identity comparison must be structural over the `CanonicalQuery` domain, not dependent on JSON object property insertion order. `pathFilters` order and each `extraParams` value-array order remain meaningful because they are part of the canonical parsed representation; `extraParams` object key order itself is not meaningful.
+The source-identity comparison must be structural over the `CanonicalQuery` domain, not dependent on JSON object property insertion order. Scalar fields compare directly. `pathFilters` order and each `extraParams` value-array order remain meaningful because they are part of the canonical parsed representation; `extraParams` object key order itself is not meaningful and is compared by key/value content.
 
 Monitor update and cursor deletion happen in one short Prisma transaction. A failed monitor update must not delete the cursor, and a failed cursor deletion must roll back the monitor update.
 
@@ -253,7 +264,7 @@ No traversal attempts to infer whether the source changed by comparing new listi
 
 `1.4.2` must not invent cold-start notification behavior.
 
-If no `MonitorCursor` exists, incremental orchestration exits through a typed cold-start boundary before calling `traverseWatermark`, because `1.4.1` requires an existing watermark.
+If no `MonitorCursor` exists, or if its `boundaryTime` is null, incremental orchestration exits through a typed cold-start boundary before calling `traverseWatermark`, because `1.4.1` requires an existing watermark.
 
 Task `1.4.3` will add the separate first-run flow that records baseline `Listing` rows and establishes the initial watermark without producing `Match` rows for existing listings.
 
@@ -271,34 +282,35 @@ Transaction guarantees must be tested against the real Postgres service used by 
 
 No production-only `testHook`, fault-injection flag, or callback is added.
 
-The persistence layer should expose a transaction-body function that accepts a Prisma transaction client and the already prepared persistence input. Production calls it from `prisma.$transaction(...)`. Integration tests can call the same body inside their own interactive transaction callback and throw a sentinel error at controlled points around the body to prove rollback.
+Production composes the same focused DB-step functions inside one interactive transaction. Integration tests open an interactive transaction and invoke those same steps in the same order, inserting a sentinel throw at a chosen boundary. Because the throw occurs before the interactive transaction callback returns, real Postgres must roll back all preceding steps.
 
 Required integration cases:
 
 1. **Successful commit** — Listing, Match, MonitorCursor, and Run all appear together.
 2. **Repeat same result** — no second Match is created; cursor remains valid; a second successful Run may be recorded because it represents a distinct completed attempt.
-3. **Rollback before persistence body** — throwing before writes leaves all tables unchanged.
-4. **Rollback after Listing/Match writes but before callback commit** — throwing inside the same interactive transaction rolls back those rows and leaves the old cursor intact.
-5. **Rollback after cursor write but before callback return** — sentinel throw proves the advanced cursor and preceding Match writes both roll back.
-6. **Process-equivalent retry after rollback** — re-running the same persistence input succeeds and creates the expected rows once.
-7. **`possibleMiss=true`** — observed candidates may persist, but the stored watermark remains exactly the previous watermark returned by `1.4.1`.
-8. **Source identity edit** — changing `sourceUrl` deletes `MonitorCursor` atomically.
-9. **Canonical query edit** — structural query change deletes `MonitorCursor` atomically.
-10. **Non-source edits** — interval/name/keywords/search-description/seller-only edits preserve the cursor.
-11. **Unarchive** — `archived → active` deletes the cursor.
-12. **Monitor edit rollback** — forced failure inside the config transaction preserves both old Monitor fields and its cursor.
+3. **Rollback before persistence steps** — throwing before writes leaves all tables unchanged.
+4. **Rollback after Listing/Match step** — execute `persistListingsAndMatches`, throw sentinel, then assert those writes disappeared and the old cursor remained.
+5. **Rollback after Cursor step** — execute Listing/Match and Cursor steps, throw sentinel before Run/callback completion, then assert both the advanced cursor and preceding rows rolled back.
+6. **Rollback after Run step but before callback return** — execute all steps, throw sentinel, then assert no part of the would-be successful commit survived.
+7. **Process-equivalent retry after rollback** — re-running the same persistence input succeeds and creates the expected rows once.
+8. **`possibleMiss=true`** — observed candidates may persist, but the stored watermark remains exactly the previous watermark returned by `1.4.1`.
+9. **Source identity edit** — changing `sourceUrl` deletes `MonitorCursor` atomically.
+10. **Canonical query edit** — structural query change deletes `MonitorCursor` atomically.
+11. **Non-source edits** — interval/name/keywords/search-description/seller-only edits preserve the cursor.
+12. **Unarchive** — `archived → active` deletes the cursor.
+13. **Monitor edit rollback** — forced failure after the Monitor update but before callback completion preserves both old Monitor fields and its cursor.
 
-Focused unit tests should cover pure structural query comparison and cursor-reset decision logic without Postgres where useful. Database atomicity remains an integration-test responsibility.
+Focused unit tests should cover persisted cursor decoding/validation, structural query comparison, and cursor-reset decision logic without Postgres where useful. Database atomicity remains an integration-test responsibility.
 
 ## Suggested implementation surface
 
 Keep the files narrow and worker-oriented. Exact names may be adjusted to existing repository conventions during the implementation plan, but the responsibilities should remain:
 
-- `electron/worker/monitor-run-persistence.ts` — persistence input types, transaction body, interactive transaction wrapper.
+- `electron/worker/monitor-run-persistence.ts` — persistence input types, focused DB-step functions, interactive transaction wrapper.
 - `electron/worker/incremental-monitor-run.ts` — orchestration around existing cursor → traversal → selector → persistence.
 - `electron/worker/monitor-config-persistence.ts` — monitor update plus cursor-reset policy.
 - `tests/integration/monitor-run-persistence.test.ts` — real Postgres atomicity/idempotency coverage.
-- focused unit tests for reset-policy/query identity if separated as pure helpers.
+- focused unit tests for cursor decoding and reset-policy/query identity helpers.
 
 Reuse `shared/watermark.ts`, `shared/listing.ts`, `shared/canonical-query.ts`, and the generated Prisma types rather than duplicating domain shapes.
 
