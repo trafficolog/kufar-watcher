@@ -4,7 +4,10 @@ import {
   IncompleteColdStartBaselineError,
   traverseColdStartBaseline,
 } from '../../electron/worker/cold-start-traversal'
-import { WatermarkOrderingError, WatermarkTraversalConfigError } from '../../electron/worker/watermark-traversal'
+import {
+  WatermarkOrderingError,
+  WatermarkTraversalConfigError,
+} from '../../electron/worker/watermark-traversal'
 import type { CanonicalQuery } from '../../shared/canonical-query'
 import type { Listing } from '../../shared/listing'
 import type { SourceAdapter } from '../../shared/source-adapter'
@@ -40,9 +43,10 @@ function listing(listId: string, listTime: string): Listing {
   }
 }
 
-function adapterForPages(
-  pages: Array<{ listings: Listing[]; nextCursor: string | null }>,
-): { adapter: SourceAdapter; fetchPage: ReturnType<typeof vi.fn> } {
+function adapterForPages(pages: Array<{ listings: Listing[]; nextCursor: string | null }>): {
+  adapter: SourceAdapter
+  fetchPage: ReturnType<typeof vi.fn>
+} {
   const fetchPage = vi.fn()
   pages.forEach((page) => fetchPage.mockResolvedValueOnce(page))
   return { adapter: { fetchPage } as SourceAdapter, fetchPage }
@@ -158,9 +162,7 @@ describe('traverseColdStartBaseline', () => {
     const topTime = '2026-09-08T11:59:00.000Z'
     const topA = listing('top-a', topTime)
     const topB = listing('top-b', topTime)
-    const { adapter } = adapterForPages([
-      { listings: [topA, topB], nextCursor: null },
-    ])
+    const { adapter } = adapterForPages([{ listings: [topA, topB], nextCursor: null }])
 
     const result = await traverseColdStartBaseline({
       adapter,
@@ -215,18 +217,21 @@ describe('traverseColdStartBaseline', () => {
     ).rejects.toBeInstanceOf(WatermarkOrderingError)
   })
 
-  it.each([0, -1, 1.5])('rejects invalid maxPages=%s before reading the source', async (maxPages) => {
-    const { adapter, fetchPage } = adapterForPages([])
+  it.each([0, -1, 1.5])(
+    'rejects invalid maxPages=%s before reading the source',
+    async (maxPages) => {
+      const { adapter, fetchPage } = adapterForPages([])
 
-    await expect(
-      traverseColdStartBaseline({
-        adapter,
-        query: QUERY,
-        maxPages,
-        startedAt: STARTED_AT,
-      }),
-    ).rejects.toBeInstanceOf(WatermarkTraversalConfigError)
+      await expect(
+        traverseColdStartBaseline({
+          adapter,
+          query: QUERY,
+          maxPages,
+          startedAt: STARTED_AT,
+        }),
+      ).rejects.toBeInstanceOf(WatermarkTraversalConfigError)
 
-    expect(fetchPage).not.toHaveBeenCalled()
-  })
+      expect(fetchPage).not.toHaveBeenCalled()
+    },
+  )
 })
