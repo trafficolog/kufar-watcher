@@ -61,18 +61,7 @@ Copy the complete structured-state `<script ...>...</script>` element that conta
 
 - [ ] **Step 3: Save a source-accurate page-1 fixture**
 
-Create `tests/fixtures/kufar/2026-09-08-electronics-search-page-1-embedded.html` containing a minimal valid HTML wrapper plus the exact copied script element, without rewriting JSON values:
-
-```html
-<!doctype html>
-<html>
-  <body>
-    <!-- exact live structured-state script element goes here unchanged -->
-  </body>
-</html>
-```
-
-The comment is an instruction for plan execution, not fixture content: replace it with the observed exact script element before committing. If no qualifying structured-state script exists, do not create a fake fixture.
+Create `tests/fixtures/kufar/2026-09-08-electronics-search-page-1-embedded.html` as a minimal valid HTML document whose `<body>` contains the complete copied structured-state script element byte-for-byte apart from line-ending normalization. Do not rewrite JSON keys or values. If no qualifying structured-state script exists, do not create a fixture.
 
 - [ ] **Step 4: Determine the exact search payload path**
 
@@ -138,7 +127,7 @@ Copy the complete structured-state script containing search results. Absence of 
 
 - [ ] **Step 3: Save the page-1 fixture and establish the exact payload path**
 
-Save the exact script inside a minimal HTML wrapper as `tests/fixtures/kufar/2026-09-08-realestate-search-page-1-embedded.html`.
+Save the exact script inside a minimal HTML document as `tests/fixtures/kufar/2026-09-08-realestate-search-page-1-embedded.html`.
 
 Verify the embedded records expose or losslessly contain the fields required by `normalizeRealEstateSearchPage`: `ad_id`, `list_time`, `subject`, price fields/currency, `account_id`, `company_ad`, relevant `ad_parameters`, and pagination. Record the exact carrier and property path independently of Electronics.
 
