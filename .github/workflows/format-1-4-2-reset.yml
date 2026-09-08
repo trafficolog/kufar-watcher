@@ -36,3 +36,5 @@ jobs:
           git add tests/unit/monitor-config-persistence.test.ts
           git commit -m 'style(1.4.2): format cursor reset policy test'
           git push origin HEAD:feat/1.4.2-cursor-persistence
+
+# registered trigger
