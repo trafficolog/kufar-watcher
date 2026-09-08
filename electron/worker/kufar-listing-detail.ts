@@ -1,6 +1,9 @@
 import type { KufarHttpResult } from './kufar-http-client'
 
-export type KufarDetailNormalizationErrorCode = 'invalid-json' | 'invalid-detail' | 'id-mismatch'
+export type KufarDetailNormalizationErrorCode =
+  | 'invalid-json'
+  | 'invalid-detail'
+  | 'id-mismatch'
 
 export class KufarDetailNormalizationError extends Error {
   constructor(
@@ -23,7 +26,11 @@ function hasOwn(record: UnknownRecord, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, key)
 }
 
-function invalid(code: KufarDetailNormalizationErrorCode, path: string, message: string): never {
+function invalid(
+  code: KufarDetailNormalizationErrorCode,
+  path: string,
+  message: string,
+): never {
   throw new KufarDetailNormalizationError(code, path, message)
 }
 
@@ -35,7 +42,11 @@ function parseJson(body: Uint8Array): unknown {
   }
 }
 
-function assertExpectedId(result: UnknownRecord, key: 'ad_id' | 'list_id', expectedListId: string) {
+function assertExpectedId(
+  result: UnknownRecord,
+  key: 'ad_id' | 'list_id',
+  expectedListId: string,
+) {
   if (!hasOwn(result, key)) return
 
   const value = result[key]
@@ -53,7 +64,8 @@ export function parseKufarFullDescription(body: Uint8Array, expectedListId: stri
   if (!isRecord(parsed)) invalid('invalid-detail', '$', 'Kufar detail root must be an object')
 
   const result = parsed.result
-  if (!isRecord(result)) invalid('invalid-detail', 'result', 'Kufar detail result must be an object')
+  if (!isRecord(result))
+    invalid('invalid-detail', 'result', 'Kufar detail result must be an object')
 
   assertExpectedId(result, 'ad_id', expectedListId)
   assertExpectedId(result, 'list_id', expectedListId)
