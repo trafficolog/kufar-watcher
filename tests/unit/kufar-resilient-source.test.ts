@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import type {
-  SourceAdapter,
-  SourcePage,
-  SourcePageRequest,
-} from '../../shared/source-adapter'
+import type { SourceAdapter, SourcePage, SourcePageRequest } from '../../shared/source-adapter'
 import { parseKufarListingUrl } from '../../shared/kufar-url'
 import { KufarAdapterRequestError } from '../../electron/worker/kufar-electronics-adapter'
 import { KufarEmbeddedStateError } from '../../electron/worker/kufar-embedded-search-state'
