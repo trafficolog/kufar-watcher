@@ -1,6 +1,7 @@
 import { Agent, request as undiciRequest } from 'undici'
 
 import { kufarRateLimiter } from './kufar-rate-limiter'
+import type { KufarRawResponseJournal } from './kufar-raw-response-journal'
 
 export const KUFAR_HTTP_DEFAULTS = {
   connectTimeoutMs: 10_000,
@@ -125,6 +126,8 @@ export interface KufarHttpClientOptions {
   retryBaseDelayMs?: number
   defaultRateLimitCooldownMs?: number
   maxRateLimitCooldownMs?: number
+  journal?: Pick<KufarRawResponseJournal, 'record'>
+  onJournalWarning?: (message: string) => void
 }
 
 interface UndiciKufarTransportOptions {
@@ -181,6 +184,8 @@ export class KufarHttpClient {
   private readonly retryBaseDelayMs: number
   private readonly defaultRateLimitCooldownMs: number
   private readonly maxRateLimitCooldownMs: number
+  private readonly journal?: Pick<KufarRawResponseJournal, 'record'>
+  private readonly onJournalWarning: (message: string) => void
 
   constructor(options: KufarHttpClientOptions = {}) {
     this.transport =
@@ -199,6 +204,8 @@ export class KufarHttpClient {
       options.defaultRateLimitCooldownMs ?? KUFAR_HTTP_DEFAULTS.defaultRateLimitCooldownMs
     this.maxRateLimitCooldownMs =
       options.maxRateLimitCooldownMs ?? KUFAR_HTTP_DEFAULTS.maxRateLimitCooldownMs
+    this.journal = options.journal
+    this.onJournalWarning = options.onJournalWarning ?? (() => undefined)
   }
 
   async get(url: string | URL, headers?: Record<string, string>): Promise<KufarHttpResult> {
@@ -234,6 +241,18 @@ export class KufarHttpClient {
       }
 
       if (response.status >= 200 && response.status < 300) {
+        if (this.journal) {
+          try {
+            await this.journal.record({
+              requestUrl: request.url,
+              status: response.status,
+              body: response.body,
+            })
+          } catch {
+            this.onJournalWarning('Raw response snapshot could not be stored')
+          }
+        }
+
         return {
           ok: true,
           status: response.status,
