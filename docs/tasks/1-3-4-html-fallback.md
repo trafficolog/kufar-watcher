@@ -6,7 +6,7 @@ status: done
 sync_state: aligned
 last_reviewed: 2026-09-08
 roles: [BACK]
-depends_on: ["1.3.2"]
+depends_on: ["1.3.2", "1.3.3"]
 estimated_hours: 4-5
 agent: backend-senior
 tags: [fallback, degradation]
@@ -14,7 +14,7 @@ tags: [fallback, degradation]
 
 # Задача 1.3.4 — Фолбэк на встроенные данные HTML-страницы
 
-> Эпик 1.3 · Фаза 1 · ✅ done · зависит от: 1.3.2 · оценка: 4-5 ч
+> Эпик 1.3 · Фаза 1 · ✅ done · зависит от: 1.3.2, 1.3.3 · оценка: 4-5 ч
 
 ## Цель
 
