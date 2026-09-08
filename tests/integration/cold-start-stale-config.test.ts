@@ -48,7 +48,7 @@ function baselineInput(): ColdStartPersistenceInput {
     monitorId: MONITOR_ID,
     startedAt: new Date('2026-09-08T12:00:00.000Z'),
     finishedAt: new Date('2026-09-08T12:00:02.000Z'),
-    source: { sourceUrl: SOURCE_URL, query: QUERY },
+    source: { sourceUrl: SOURCE_URL, query: QUERY, state: 'active' },
     expectedCursor: { kind: 'missing' },
     listings: [listing],
     nextWatermark: {
