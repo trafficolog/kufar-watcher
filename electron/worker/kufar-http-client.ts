@@ -106,9 +106,18 @@ export type KufarHttpResult =
     }
   | {
       ok: false
+      kind: 'temporary'
+      code: 'network' | 'timeout'
+      status: null
+      attempts: number
+      message: string
+    }
+  | {
+      ok: false
       kind: 'temporary' | 'permanent' | 'rate-limited'
-      code: 'network' | 'timeout' | 'http-4xx' | 'http-5xx' | 'unexpected-http' | 'rate-limited'
-      status: number | null
+      code: 'http-4xx' | 'http-5xx' | 'unexpected-http' | 'rate-limited'
+      status: number
+      body: Uint8Array
       attempts: number
       message: string
       retryAfterMs?: number
@@ -277,6 +286,7 @@ export class KufarHttpClient {
           kind: 'rate-limited',
           code: 'rate-limited',
           status: 429,
+          body: response.body,
           attempts: attempt,
           message: 'Kufar rate limit received; global request pace reduced',
           retryAfterMs,
@@ -294,6 +304,7 @@ export class KufarHttpClient {
           kind: 'temporary',
           code: 'http-5xx',
           status: response.status,
+          body: response.body,
           attempts: attempt,
           message: `Kufar returned HTTP ${response.status} after bounded retries`,
         }
@@ -305,6 +316,7 @@ export class KufarHttpClient {
           kind: 'permanent',
           code: 'http-4xx',
           status: response.status,
+          body: response.body,
           attempts: attempt,
           message: `Kufar returned permanent HTTP ${response.status}`,
         }
@@ -315,6 +327,7 @@ export class KufarHttpClient {
         kind: 'permanent',
         code: 'unexpected-http',
         status: response.status,
+        body: response.body,
         attempts: attempt,
         message: `Unexpected HTTP status ${response.status}`,
       }
