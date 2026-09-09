@@ -127,15 +127,33 @@ function existingMonitor(overrides: Record<string, unknown> = {}) {
 function traversalResult(
   overrides: Partial<WatermarkTraversalResult> = {},
 ): WatermarkTraversalResult {
-  return {
+  const base = {
     newListings: [LISTING_A, LISTING_B],
     nextWatermark: {
       boundaryTime: LISTING_A.listTime,
       boundaryIds: [LISTING_A.listId],
     },
     pagesRead: 2,
-    possibleMiss: false,
+  }
+
+  if (overrides.possibleMiss === true) {
+    return {
+      ...base,
+      ...overrides,
+      possibleMiss: true,
+      checkpoint: overrides.checkpoint ?? {
+        resumeCursor: 'next-page',
+        pendingWatermark: base.nextWatermark,
+        pagesRead: base.pagesRead,
+        lastObservation: null,
+      },
+    }
+  }
+
+  return {
+    ...base,
     ...overrides,
+    possibleMiss: false,
   }
 }
 
