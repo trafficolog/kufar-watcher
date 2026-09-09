@@ -20,12 +20,32 @@ task-карточка. Обычная задача проходит `branch → 
 minor, fix → patch. Patch-версии до `1.0.0` (`0.2.1`, `0.2.2`, …) выпускаются
 только для исправления уже выпущенного среза, а не после каждой задачи.
 
+## Draft release notes
+
+Release notes следующего среза разрешено создавать заранее в
+`docs/releases/vX.Y.Z.md`, чтобы scope, ограничения и release gate были видимы
+во время разработки. Такой файл обязан явно содержать маркер
+**`DRAFT — NOT RELEASED`** рядом с заголовком или в первом статусном блоке.
+
+Draft release notes:
+
+- не означают, что версия уже выпущена;
+- не меняют `package.json` / `package-lock.json`;
+- не разрешают ставить тег или создавать GitHub Release;
+- не расширяют scope delivery slice относительно `docs/ROADMAP.MD`;
+- могут фиксировать промежуточный burn-down, но финальные verification run,
+  release commit и tag target заполняются только по факту release PR.
+
+В отдельном `chore(release): X.Y.Z` draft-маркер снимается, версия обновляется,
+а release notes получают точные verification evidence и итоговый tag target.
+
 ## Release gate
 
 Когда закрыт весь срез поставки:
 
 1. Убедиться, что все входящие в срез task-карточки завершены и docs-ops
-   синхронизирован.
+   синхронизирован. Если у среза есть отдельная acceptance-карточка, она также
+   должна быть `done` (для MVP-1 `0.3.0` это `5.0.4`).
 2. Выполнить полный verification pipeline: tests, typecheck, lint, formatting,
    PostgreSQL integration, build и применимые Electron smoke checks.
 3. Обновить `version` в `package.json` и корневые version-поля в
@@ -36,6 +56,10 @@ minor, fix → patch. Patch-версии до `1.0.0` (`0.2.1`, `0.2.2`, …) в
 6. Поставить **annotated tag** `vX.Y.Z` на exact merge commit release PR. Тег
    после публикации не перемещать и историю не переписывать.
 7. Создать GitHub Release из этого тега и использовать проверенные release notes.
+
+До прохождения пунктов 1–2 версия в package metadata остаётся версией последнего
+фактически выпущенного среза. Наличие draft release notes не является поводом
+поднимать её заранее.
 
 ## Release notes
 
