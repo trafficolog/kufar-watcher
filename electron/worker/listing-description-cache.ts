@@ -1,10 +1,7 @@
 import type { PrismaClient } from '../../generated/prisma/client'
 import type { Listing } from '../../shared/listing'
 import type { KufarHttpClient } from './kufar-http-client'
-import {
-  hasKufarListingNotFoundCode,
-  parseKufarListingDescription,
-} from './kufar-listing-detail'
+import { hasKufarListingNotFoundCode, parseKufarListingDescription } from './kufar-listing-detail'
 import { KufarSourceRequestError } from './kufar-source-request-error'
 import { listingCreateData } from './listing-persistence-data'
 
