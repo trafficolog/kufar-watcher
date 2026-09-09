@@ -107,10 +107,12 @@ describe('watermark traversal core behavior', () => {
     await expect(
       traverseWatermark({ adapter, query, previousWatermark, maxPages: 3 }),
     ).resolves.toEqual({
+      kind: 'complete',
       newListings: [],
       nextWatermark: previousWatermark,
       pagesRead: 1,
       possibleMiss: false,
+      checkpoint: null,
     })
   })
 
@@ -166,10 +168,12 @@ describe('watermark traversal core behavior', () => {
     await expect(
       traverseWatermark({ adapter, query, previousWatermark, maxPages: 3 }),
     ).resolves.toEqual({
+      kind: 'complete',
       newListings: [],
       nextWatermark: previousWatermark,
       pagesRead: 1,
       possibleMiss: false,
+      checkpoint: null,
     })
   })
 
@@ -217,10 +221,12 @@ describe('watermark traversal core behavior', () => {
     await expect(
       traverseWatermark({ adapter, query, previousWatermark, maxPages: 3 }),
     ).resolves.toEqual({
+      kind: 'complete',
       newListings: [],
       nextWatermark: previousWatermark,
       pagesRead: 1,
       possibleMiss: false,
+      checkpoint: null,
     })
   })
 
