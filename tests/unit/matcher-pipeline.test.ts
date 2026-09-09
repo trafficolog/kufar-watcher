@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { runIncrementalMonitor } from '../../electron/worker/incremental-monitor-run'
 import type { PrismaClient } from '../../generated/prisma/client'
 import type { CanonicalQuery } from '../../shared/canonical-query'
 import type { Listing } from '../../shared/listing'
@@ -18,8 +19,6 @@ vi.mock('../../electron/worker/watermark-traversal', () => ({
 vi.mock('../../electron/worker/monitor-run-persistence', () => ({
   commitMonitorRun: dependencyMocks.commitMonitorRun,
 }))
-
-import { runIncrementalMonitor } from '../../electron/worker/incremental-monitor-run'
 
 const MONITOR_ID = 2_203
 const QUERY: CanonicalQuery = {
