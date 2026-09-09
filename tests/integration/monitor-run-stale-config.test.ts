@@ -57,9 +57,16 @@ function staleRunInput(): MonitorRunPersistenceInput {
         selection: { matchedTerms: [], matchedIn: [], snippet: null },
       },
     ],
-    nextWatermark: {
-      boundaryTime: listing.listTime,
-      boundaryIds: [listing.listId],
+    traversal: {
+      kind: 'complete',
+      newListings: [listing],
+      nextWatermark: {
+        boundaryTime: listing.listTime,
+        boundaryIds: [listing.listId],
+      },
+      pagesRead: 1,
+      possibleMiss: false,
+      checkpoint: null,
     },
   }
 }
