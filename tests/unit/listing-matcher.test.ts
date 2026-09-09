@@ -24,7 +24,7 @@ describe('listing matcher', () => {
       }),
     ).toEqual({
       matched: false,
-      hits: [{ term: 'ремонт', field: 'title', kind: 'exclude' }],
+      hits: [{ term: 'ремонт', field: 'title', kind: 'exclude', start: 9, end: 15 }],
     })
   })
 
@@ -38,7 +38,7 @@ describe('listing matcher', () => {
       }),
     ).toEqual({
       matched: true,
-      hits: [{ term: 'pixel', field: 'title', kind: 'include' }],
+      hits: [{ term: 'pixel', field: 'title', kind: 'include', start: 7, end: 12 }],
     })
 
     expect(
@@ -62,8 +62,8 @@ describe('listing matcher', () => {
     ).toEqual({
       matched: false,
       hits: [
-        { term: 'pixel*', field: 'title', kind: 'include' },
-        { term: 'разбит', field: 'title', kind: 'exclude' },
+        { term: 'pixel*', field: 'title', kind: 'include', start: 0, end: 6 },
+        { term: 'разбит', field: 'title', kind: 'exclude', start: 11, end: 17 },
       ],
     })
   })
@@ -78,7 +78,7 @@ describe('listing matcher', () => {
       }),
     ).toEqual({
       matched: true,
-      hits: [{ term: 'playstation*', field: 'title', kind: 'include' }],
+      hits: [{ term: 'playstation*', field: 'title', kind: 'include', start: 14, end: 27 }],
     })
   })
 
@@ -106,7 +106,7 @@ describe('listing matcher', () => {
       }),
     ).toEqual({
       matched: true,
-      hits: [{ term: 'pixel*', field: 'title', kind: 'include' }],
+      hits: [{ term: 'pixel*', field: 'title', kind: 'include', start: 0, end: 5 }],
     })
   })
 })
