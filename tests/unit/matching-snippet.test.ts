@@ -100,7 +100,13 @@ describe('matching snippet extraction', () => {
       text,
       field: 'title',
       hits: [
-        { term: 'iphone', field: 'title', kind: 'include', start: iphoneStart, end: iphoneStart + 6 },
+        {
+          term: 'iphone',
+          field: 'title',
+          kind: 'include',
+          start: iphoneStart,
+          end: iphoneStart + 6,
+        },
         { term: 'pixel', field: 'title', kind: 'include', start: pixelStart, end: pixelStart + 5 },
       ],
       maxLength: 26,
