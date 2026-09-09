@@ -89,7 +89,9 @@ integrationDescribe('watermark catch-up persistence', () => {
   function input(
     nextWatermark: Watermark,
     checkpoint: WatermarkCatchUpCheckpoint | null,
-  ): MonitorRunPersistenceInput & { checkpoint: WatermarkCatchUpCheckpoint | null } {
+  ): MonitorRunPersistenceInput & {
+    checkpoint: WatermarkCatchUpCheckpoint | null
+  } {
     const candidate = listing()
     return {
       monitorId: MONITOR_ID,
@@ -120,7 +122,9 @@ integrationDescribe('watermark catch-up persistence', () => {
         lastIndex: CHECKPOINT.lastObservation?.index ?? null,
         lastListId: CHECKPOINT.lastObservation?.listId ?? null,
         lastListTime:
-          CHECKPOINT.lastObservation === null ? null : new Date(CHECKPOINT.lastObservation.listTime),
+          CHECKPOINT.lastObservation === null
+            ? null
+            : new Date(CHECKPOINT.lastObservation.listTime),
       },
     })
   }
@@ -128,7 +132,9 @@ integrationDescribe('watermark catch-up persistence', () => {
   it('commits an incomplete chunk without advancing the stable watermark', async () => {
     await commitMonitorRun(prisma, input(OLD_WATERMARK, CHECKPOINT))
 
-    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
     expect(cursor.boundaryTime?.toISOString()).toBe(OLD_WATERMARK.boundaryTime)
     expect(cursor.boundaryIds).toEqual(OLD_WATERMARK.boundaryIds)
 
@@ -154,7 +160,9 @@ integrationDescribe('watermark catch-up persistence', () => {
 
     await commitMonitorRun(prisma, input(NEW_WATERMARK, null))
 
-    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
     expect(cursor.boundaryTime?.toISOString()).toBe(NEW_WATERMARK.boundaryTime)
     expect(cursor.boundaryIds).toEqual(NEW_WATERMARK.boundaryIds)
     expect(
