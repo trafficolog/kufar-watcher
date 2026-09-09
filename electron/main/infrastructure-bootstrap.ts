@@ -9,6 +9,32 @@ export interface InfrastructureBootstrapDependencies {
   publishBootState(state: BootState): void
 }
 
+export interface VisibleBootstrapDependencies {
+  createWindow(): void
+  initialize(): Promise<void>
+  onUnexpectedFailure(error: unknown): void
+}
+
+export interface UnhandledRejectionTarget {
+  on(event: 'unhandledRejection', listener: (reason: unknown) => void): void
+}
+
+export async function runVisibleBootstrap(deps: VisibleBootstrapDependencies): Promise<void> {
+  deps.createWindow()
+  try {
+    await deps.initialize()
+  } catch (error) {
+    deps.onUnexpectedFailure(error)
+  }
+}
+
+export function installUnhandledRejectionHandler(
+  target: UnhandledRejectionTarget,
+  onUnexpectedFailure: (reason: unknown) => void,
+): void {
+  target.on('unhandledRejection', onUnexpectedFailure)
+}
+
 function createBootState(): BootState {
   return {
     phase: 'starting',
