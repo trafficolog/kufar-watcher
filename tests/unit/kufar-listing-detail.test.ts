@@ -8,6 +8,14 @@ import {
 } from '../../electron/worker/kufar-listing-detail'
 
 const encoder = new TextEncoder()
+const EXPECTED_DESCRIPTION = [
+  'Помогу с оформлением на ваш аккаунт. ',
+  'NHL 27 для PS5 и Xbox Series X/S',
+  'Цифровая версия, не диск. ',
+  '',
+  'Самозанятая Прохорова Ирина Олеговна ',
+  'УНП CE6716956',
+].join('\n')
 
 async function fixture(name: string): Promise<Uint8Array> {
   return readFile(new URL(`../fixtures/kufar/${name}`, import.meta.url))
@@ -21,9 +29,7 @@ describe('Kufar listing detail contract', () => {
   it('returns only the full result.body from a captured detail response', async () => {
     const body = await fixture('2026-09-07-electronics-negotiable-detail.json')
 
-    expect(parseKufarListingDescription(body)).toBe(
-      'Помогу с оформлением на ваш аккаунт. \nNHL 27 для PS5 и Xbox Series X/S\nЦифровая версия, не диск. \n\nСамозанятая Прохорова Ирина Олеговна \nУНП CE6716956',
-    )
+    expect(parseKufarListingDescription(body)).toBe(EXPECTED_DESCRIPTION)
   })
 
   it('accepts null as a successfully loaded description', () => {
@@ -50,7 +56,7 @@ describe('Kufar listing detail contract', () => {
     json({ error: {} }),
     json({}),
     encoder.encode('{'),
-  ])('does not treat unrelated or malformed failures as listing-not-found', (body) => {
+  ])('rejects non-ASR0006 failure payloads', (body) => {
     expect(hasKufarListingNotFoundCode(body)).toBe(false)
   })
 })
