@@ -1,16 +1,22 @@
 import type { CanonicalQuery } from '../../shared/canonical-query'
 import type { Listing } from '../../shared/listing'
 import type { SourceAdapter } from '../../shared/source-adapter'
-import type { Watermark, WatermarkTraversalResult } from '../../shared/watermark'
+import type {
+  Watermark,
+  WatermarkCatchupCheckpoint,
+  WatermarkTraversalResult,
+} from '../../shared/watermark'
 
 export interface TraverseWatermarkInput {
   adapter: SourceAdapter
   query: CanonicalQuery
   previousWatermark: Watermark
   maxPages: number
+  checkpoint?: WatermarkCatchupCheckpoint
 }
 
-export type WatermarkTraversalConfigField = 'maxPages' | 'previousWatermark.boundaryTime'
+export type WatermarkTraversalConfigField =
+  'maxPages' | 'previousWatermark.boundaryTime' | 'checkpoint.pendingWatermark.boundaryTime'
 
 export class WatermarkTraversalConfigError extends Error {
   constructor(
@@ -44,10 +50,28 @@ export class WatermarkOrderingError extends Error {
   }
 }
 
-function parsePreviousBoundary(value: string): number {
+export class WatermarkListingTimeError extends Error {
+  constructor(readonly observation: WatermarkOrderingObservation) {
+    super(`Invalid listing listTime for ${observation.listId}`)
+    this.name = 'WatermarkListingTimeError'
+  }
+}
+
+export function parseListingObservationEpoch(observation: WatermarkOrderingObservation): number {
+  const parsed = Date.parse(observation.listTime)
+  if (!Number.isFinite(parsed)) {
+    throw new WatermarkListingTimeError(observation)
+  }
+  return parsed
+}
+
+function parseBoundary(
+  field: Exclude<WatermarkTraversalConfigField, 'maxPages'>,
+  value: string,
+): number {
   const parsed = Date.parse(value)
   if (!Number.isFinite(parsed)) {
-    throw new WatermarkTraversalConfigError('previousWatermark.boundaryTime', value)
+    throw new WatermarkTraversalConfigError(field, value)
   }
   return parsed
 }
@@ -58,28 +82,55 @@ function assertMaxPages(maxPages: number): void {
   }
 }
 
+function checkpointOrderingState(
+  checkpoint: WatermarkCatchupCheckpoint | undefined,
+): WatermarkOrderingState | null {
+  if (checkpoint?.lastObservation === null || checkpoint?.lastObservation === undefined) {
+    return null
+  }
+
+  const observation: WatermarkOrderingObservation = {
+    page: 0,
+    index: -1,
+    listId: checkpoint.lastObservation.listId,
+    listTime: checkpoint.lastObservation.listTime,
+  }
+  return {
+    observation,
+    epoch: parseListingObservationEpoch(observation),
+  }
+}
+
 export async function traverseWatermark({
   adapter,
   query,
   previousWatermark,
   maxPages,
+  checkpoint,
 }: TraverseWatermarkInput): Promise<WatermarkTraversalResult> {
   assertMaxPages(maxPages)
-  const previousEpoch = parsePreviousBoundary(previousWatermark.boundaryTime)
+  const previousEpoch = parseBoundary(
+    'previousWatermark.boundaryTime',
+    previousWatermark.boundaryTime,
+  )
 
   const previousIds = new Set(previousWatermark.boundaryIds)
   const seenIds = new Set<string>()
   const newListings: Listing[] = []
-  const newlyObservedPreviousBoundaryIds: string[] = []
-  const idsAtMaximum: string[] = []
-  let maximumEpoch: number | null = null
-  let maximumOriginalTime: string | null = null
-  let cursor: string | null = null
+  const idsAtMaximum: string[] = checkpoint ? [...checkpoint.pendingWatermark.boundaryIds] : []
+  let maximumEpoch: number | null = checkpoint
+    ? parseBoundary(
+        'checkpoint.pendingWatermark.boundaryTime',
+        checkpoint.pendingWatermark.boundaryTime,
+      )
+    : null
+  let maximumOriginalTime: string | null = checkpoint?.pendingWatermark.boundaryTime ?? null
+  let cursor: string | null = checkpoint?.resumeCursor ?? null
   let pagesRead = 0
   let boundaryCrossed = false
-  let previousObservation: WatermarkOrderingState | null = null
+  let previousObservation = checkpointOrderingState(checkpoint)
 
-  const completedWatermark = (): Watermark => {
+  const accumulatedWatermark = (): Watermark => {
     if (maximumEpoch === null || maximumEpoch < previousEpoch) {
       return previousWatermark
     }
@@ -87,15 +138,13 @@ export async function traverseWatermark({
     if (maximumEpoch === previousEpoch) {
       return {
         boundaryTime: previousWatermark.boundaryTime,
-        boundaryIds: [
-          ...new Set([...previousWatermark.boundaryIds, ...newlyObservedPreviousBoundaryIds]),
-        ],
+        boundaryIds: [...new Set([...previousWatermark.boundaryIds, ...idsAtMaximum])],
       }
     }
 
     return {
       boundaryTime: maximumOriginalTime as string,
-      boundaryIds: idsAtMaximum,
+      boundaryIds: [...new Set(idsAtMaximum)],
     }
   }
 
@@ -107,13 +156,13 @@ export async function traverseWatermark({
       if (seenIds.has(current.listId)) continue
       seenIds.add(current.listId)
 
-      const epoch = Date.parse(current.listTime)
       const observation: WatermarkOrderingObservation = {
         page: pagesRead,
         index,
         listId: current.listId,
         listTime: current.listTime,
       }
+      const epoch = parseListingObservationEpoch(observation)
 
       if (previousObservation !== null && epoch > previousObservation.epoch) {
         throw new WatermarkOrderingError(previousObservation.observation, observation)
@@ -125,7 +174,7 @@ export async function traverseWatermark({
         maximumOriginalTime = current.listTime
         idsAtMaximum.length = 0
         idsAtMaximum.push(current.listId)
-      } else if (epoch === maximumEpoch) {
+      } else if (epoch === maximumEpoch && !idsAtMaximum.includes(current.listId)) {
         idsAtMaximum.push(current.listId)
       }
 
@@ -137,7 +186,6 @@ export async function traverseWatermark({
       if (epoch === previousEpoch) {
         if (!previousIds.has(current.listId)) {
           newListings.push(current)
-          newlyObservedPreviousBoundaryIds.push(current.listId)
         }
         continue
       }
@@ -148,19 +196,35 @@ export async function traverseWatermark({
 
     if (boundaryCrossed || page.nextCursor === null) {
       return {
+        kind: 'complete',
         newListings,
-        nextWatermark: completedWatermark(),
+        nextWatermark: accumulatedWatermark(),
         pagesRead,
         possibleMiss: false,
+        checkpoint: null,
       }
     }
 
     if (pagesRead === maxPages) {
+      const pendingWatermark = accumulatedWatermark()
+      const lastObservation = previousObservation
+        ? {
+            listId: previousObservation.observation.listId,
+            listTime: previousObservation.observation.listTime,
+          }
+        : null
+
       return {
+        kind: 'incomplete',
         newListings,
         nextWatermark: previousWatermark,
         pagesRead,
         possibleMiss: true,
+        checkpoint: {
+          resumeCursor: page.nextCursor,
+          pendingWatermark,
+          lastObservation,
+        },
       }
     }
 
