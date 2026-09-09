@@ -189,7 +189,7 @@ export async function runIncrementalMonitor({
     expectedCursorUpdatedAt,
     candidates: traversal.newListings,
     selected,
-    nextWatermark: traversal.nextWatermark,
+    traversal,
   })
 
   return traversal
