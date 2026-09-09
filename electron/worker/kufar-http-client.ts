@@ -111,6 +111,7 @@ export type KufarHttpResult =
       status: number | null
       attempts: number
       message: string
+      body?: Uint8Array
       retryAfterMs?: number
     }
 
@@ -142,8 +143,8 @@ class UndiciKufarTransport implements KufarTransport {
   constructor(options: UndiciKufarTransportOptions) {
     this.agent = new Agent({
       connectTimeout: options.connectTimeoutMs,
-      headersTimeout: options.headersTimeoutMs,
-      bodyTimeout: options.bodyTimeoutMs,
+      headersTimeoutMs: options.headersTimeoutMs,
+      bodyTimeoutMs: options.bodyTimeoutMs,
     })
   }
 
@@ -279,6 +280,7 @@ export class KufarHttpClient {
           status: 429,
           attempts: attempt,
           message: 'Kufar rate limit received; global request pace reduced',
+          body: response.body,
           retryAfterMs,
         }
       }
@@ -296,6 +298,7 @@ export class KufarHttpClient {
           status: response.status,
           attempts: attempt,
           message: `Kufar returned HTTP ${response.status} after bounded retries`,
+          body: response.body,
         }
       }
 
@@ -307,6 +310,7 @@ export class KufarHttpClient {
           status: response.status,
           attempts: attempt,
           message: `Kufar returned permanent HTTP ${response.status}`,
+          body: response.body,
         }
       }
 
@@ -317,6 +321,7 @@ export class KufarHttpClient {
         status: response.status,
         attempts: attempt,
         message: `Unexpected HTTP status ${response.status}`,
+        body: response.body,
       }
     }
 
