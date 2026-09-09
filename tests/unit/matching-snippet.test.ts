@@ -92,7 +92,8 @@ describe('matching snippet extraction', () => {
   })
 
   it('uses the earliest include hit in the field rather than rule order', () => {
-    const text = 'Pixel в начале, а iPhone заметно позже в длинном заголовке объявления'
+    const text =
+      'Pixel в начале длинного заголовка с дополнительными словами, а модель iPhone упомянута заметно позже'
     const pixelStart = text.indexOf('Pixel')
     const iphoneStart = text.indexOf('iPhone')
     const snippet = extractMatchingSnippet({
