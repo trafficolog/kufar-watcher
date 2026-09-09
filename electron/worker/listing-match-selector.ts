@@ -1,24 +1,10 @@
 import type { Listing } from '../../shared/listing'
-import { matchListing, type ListingMatchField, type ListingMatchHit } from './listing-matcher'
-import { extractMatchingSnippet } from './matching-snippet'
+import { matchListing, type ListingMatchField } from './listing-matcher'
 import type { MatchSelection } from './monitor-run-persistence'
-
-const MATCH_SNIPPET_MAX_LENGTH = 160
 
 export interface PersistedKeywordRule {
   include: readonly string[]
   exclude: readonly string[]
-}
-
-export class PersistedKeywordRuleError extends Error {
-  constructor() {
-    super('Invalid persisted keyword rule')
-    this.name = 'PersistedKeywordRuleError'
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -30,36 +16,11 @@ function unique(values: readonly string[]): string[] {
 }
 
 export function parsePersistedKeywordRule(value: unknown): PersistedKeywordRule {
-  if (isStringArray(value)) {
-    return { include: [...value], exclude: [] }
-  }
-
-  if (!isRecord(value) || !isStringArray(value.include) || !isStringArray(value.exclude)) {
-    throw new PersistedKeywordRuleError()
-  }
-
+  const record = value as { include?: unknown; exclude?: unknown }
   return {
-    include: [...value.include],
-    exclude: [...value.exclude],
+    include: isStringArray(record.include) ? [...record.include] : [],
+    exclude: isStringArray(record.exclude) ? [...record.exclude] : [],
   }
-}
-
-function snippetField(
-  listing: Listing,
-  hits: readonly ListingMatchHit[],
-): ListingMatchField | null {
-  if (
-    typeof listing.description === 'string' &&
-    hits.some(({ field, kind }) => field === 'description' && kind === 'include')
-  ) {
-    return 'description'
-  }
-
-  if (hits.some(({ field, kind }) => field === 'title' && kind === 'include')) {
-    return 'title'
-  }
-
-  return null
 }
 
 export function createMatchingCandidateSelector(input: {
@@ -85,21 +46,10 @@ export function createMatchingCandidateSelector(input: {
       if (!result.matched) return null
 
       const includeHits = result.hits.filter(({ kind }) => kind === 'include')
-      const field = snippetField(listing, includeHits)
-      const snippet =
-        field === null
-          ? null
-          : extractMatchingSnippet({
-              text: field === 'description' ? (listing.description ?? '') : listing.title,
-              field,
-              hits: includeHits,
-              maxLength: MATCH_SNIPPET_MAX_LENGTH,
-            })
-
       return {
         matchedTerms: unique(includeHits.map(({ term }) => term)),
-        matchedIn: unique(includeHits.map(({ field: matchedField }) => matchedField)),
-        snippet,
+        matchedIn: unique(includeHits.map(({ field }) => field)),
+        snippet: null,
       }
     },
   }
