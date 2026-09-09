@@ -68,15 +68,17 @@ function traversalResult(): WatermarkTraversalResult {
   }
 }
 
-function prismaWithKeywordRule(): PrismaClient {
+function prismaWithKeywordRule(
+  keywords: unknown = {
+    include: ['candidate'],
+    exclude: ['b'],
+  },
+): PrismaClient {
   return {
     monitor: {
       findUniqueOrThrow: vi.fn().mockResolvedValue({
         query: QUERY,
-        keywords: {
-          include: ['candidate'],
-          exclude: ['b'],
-        },
+        keywords,
         searchInDescription: false,
         cursor: {
           boundaryTime: new Date('2026-09-09T17:00:00.000Z'),
@@ -124,5 +126,25 @@ describe('incremental matcher pipeline', () => {
         ],
       }),
     )
+  })
+
+  it('treats a legacy string array as an include-only keyword rule', async () => {
+    const prisma = prismaWithKeywordRule(['candidate'])
+    const adapter = {} as SourceAdapter
+    const traversal = traversalResult()
+    dependencyMocks.traverseWatermark.mockResolvedValue(traversal)
+
+    await runIncrementalMonitor({ prisma, monitorId: MONITOR_ID, adapter, maxPages: 1 })
+
+    expect(dependencyMocks.commitMonitorRun.mock.calls[0]?.[1].selected).toEqual([
+      {
+        listing: LISTING_A,
+        selection: { matchedTerms: ['candidate'], matchedIn: ['title'], snippet: null },
+      },
+      {
+        listing: LISTING_B,
+        selection: { matchedTerms: ['candidate'], matchedIn: ['title'], snippet: null },
+      },
+    ])
   })
 })
