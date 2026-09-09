@@ -85,10 +85,10 @@ integrationDescribe('ListingDescriptionCache PostgreSQL persistence', () => {
     const secondGet = vi.fn(async () => {
       throw new Error('persistent cache should prevent HTTP')
     })
-    const second = new ListingDescriptionCache(
-      prisma,
-      { get: secondGet } as unknown as Pick<KufarHttpClient, 'get'>,
-    )
+    const second = new ListingDescriptionCache(prisma, { get: secondGet } as unknown as Pick<
+      KufarHttpClient,
+      'get'
+    >)
 
     await expect(second.ensureDescription(candidate)).resolves.toEqual({
       kind: 'available',
@@ -100,7 +100,9 @@ integrationDescribe('ListingDescriptionCache PostgreSQL persistence', () => {
 
   it('persists null as a completed description fetch and reuses it from the database', async () => {
     const candidate = listing('null-body')
-    const firstHttp = httpClient(success(encoder.encode(JSON.stringify({ result: { body: null } }))))
+    const firstHttp = httpClient(
+      success(encoder.encode(JSON.stringify({ result: { body: null } }))),
+    )
     const first = new ListingDescriptionCache(prisma, firstHttp.client, () => LOADED_AT)
 
     await expect(first.ensureDescription(candidate)).resolves.toEqual({
@@ -112,10 +114,10 @@ integrationDescribe('ListingDescriptionCache PostgreSQL persistence', () => {
     const secondGet = vi.fn(async () => {
       throw new Error('null description is still cached')
     })
-    const second = new ListingDescriptionCache(
-      prisma,
-      { get: secondGet } as unknown as Pick<KufarHttpClient, 'get'>,
-    )
+    const second = new ListingDescriptionCache(prisma, { get: secondGet } as unknown as Pick<
+      KufarHttpClient,
+      'get'
+    >)
 
     await expect(second.ensureDescription(candidate)).resolves.toEqual({
       kind: 'available',
@@ -151,10 +153,10 @@ integrationDescribe('ListingDescriptionCache PostgreSQL persistence', () => {
     const secondGet = vi.fn(async () => {
       throw new Error('unavailable state should prevent HTTP')
     })
-    const second = new ListingDescriptionCache(
-      prisma,
-      { get: secondGet } as unknown as Pick<KufarHttpClient, 'get'>,
-    )
+    const second = new ListingDescriptionCache(prisma, { get: secondGet } as unknown as Pick<
+      KufarHttpClient,
+      'get'
+    >)
 
     await expect(second.ensureDescription(candidate)).resolves.toEqual({
       kind: 'unavailable',
