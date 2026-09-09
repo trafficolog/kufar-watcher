@@ -19,10 +19,7 @@ import {
   registerSystemIpcHandlers,
   routeWorkerBootEvent,
 } from './ipc-router'
-import {
-  loadOrCreatePostgresCredentials,
-  readPostgresRuntimeConfig,
-} from './postgres-config'
+import { loadOrCreatePostgresCredentials, readPostgresRuntimeConfig } from './postgres-config'
 import { createWorkerSupervisor, type WorkerSupervisor } from './worker-supervisor'
 import { openRawResponseJournal, rawResponseJournalArg } from './worker-storage'
 
