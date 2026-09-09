@@ -25,7 +25,9 @@ describe('watermark catch-up persistence schema', () => {
     const migration = await readFile(migrationUrl, 'utf8')
 
     expect(migration).toMatch(/CREATE TABLE "MonitorCatchUpCheckpoint"/)
-    expect(migration).toMatch(/CONSTRAINT "MonitorCatchUpCheckpoint_pkey" PRIMARY KEY \("monitorId"\)/)
+    expect(migration).toMatch(
+      /CONSTRAINT "MonitorCatchUpCheckpoint_pkey" PRIMARY KEY \("monitorId"\)/,
+    )
     expect(migration).toMatch(/CHECK \("pagesRead" >= 1\)/)
     expect(migration).toMatch(
       /FOREIGN KEY \("monitorId"\) REFERENCES "MonitorCursor"\("monitorId"\) ON DELETE CASCADE/,
