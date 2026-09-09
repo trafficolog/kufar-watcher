@@ -34,12 +34,12 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.1-tasks -->
-**Задач:** 3 · **done:** 1
+**Задач:** 3 · **done:** 2
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `2.1.1` | [Нормализация текста и токенизация](../tasks/2-1-1-normalization.md) | ✅ done | 🟢 aligned |
-| `2.1.2` | [Сопоставление glob-масок и литеральных термов](../tasks/2-1-2-glob-match.md) | ⬜ todo | 🟡 drifted |
+| `2.1.2` | [Сопоставление glob-масок и литеральных термов](../tasks/2-1-2-glob-match.md) | ✅ done | 🟢 aligned |
 | `2.1.3` | [Интерфейс сопоставления с одной реализацией](../tasks/2-1-3-match-interface.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-2.1-tasks -->
 
