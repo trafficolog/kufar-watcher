@@ -8,6 +8,8 @@ export interface ListingMatchHit {
   term: string
   field: ListingMatchField
   kind: ListingMatchKind
+  start: number
+  end: number
 }
 
 export interface ListingMatchDocument {
@@ -44,7 +46,7 @@ function collectHits(
 
     for (const { field, tokens } of fields) {
       if (tokens.some((token) => matches(token))) {
-        hits.push({ term, field, kind })
+        hits.push({ term, field, kind, start: 0, end: 0 })
       }
     }
   }
