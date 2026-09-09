@@ -2,7 +2,12 @@ import type { PrismaClient } from '../../generated/prisma/client'
 import type { SourceAdapter } from '../../shared/source-adapter'
 import type { WatermarkTraversalResult } from '../../shared/watermark'
 import { runColdStartMonitor, type ColdStartMonitorRunResult } from './cold-start-monitor-run'
-import { runIncrementalMonitor, type CandidateSelector } from './incremental-monitor-run'
+import {
+  runIncrementalMonitor,
+  type CandidatePrefilter,
+  type CandidateSelector,
+  type DescriptionLoader,
+} from './incremental-monitor-run'
 
 export interface RunMonitorCycleInput {
   prisma: PrismaClient
@@ -10,6 +15,8 @@ export interface RunMonitorCycleInput {
   adapter: SourceAdapter
   maxPages: number
   selector?: CandidateSelector
+  prefilter?: CandidatePrefilter
+  descriptionLoader?: DescriptionLoader
   now?: () => Date
 }
 
@@ -23,6 +30,8 @@ export async function runMonitorCycle({
   adapter,
   maxPages,
   selector,
+  prefilter,
+  descriptionLoader,
   now,
 }: RunMonitorCycleInput): Promise<MonitorCycleResult> {
   const monitor = await prisma.monitor.findUniqueOrThrow({
@@ -51,6 +60,8 @@ export async function runMonitorCycle({
     adapter,
     maxPages,
     selector,
+    ...(prefilter === undefined ? {} : { prefilter }),
+    ...(descriptionLoader === undefined ? {} : { descriptionLoader }),
     now,
   })
   return { kind: 'incremental', ...result }
