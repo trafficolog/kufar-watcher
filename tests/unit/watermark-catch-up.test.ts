@@ -6,10 +6,10 @@ import type { SourceAdapter, SourcePage } from '../../shared/source-adapter'
 import type { Watermark, WatermarkCatchUpCheckpoint } from '../../shared/watermark'
 import { traverseColdStartBaseline } from '../../electron/worker/cold-start-traversal'
 import {
-  WatermarkCatchUpResumeError,
   WatermarkListingTimeError,
   WatermarkOrderingError,
   traverseWatermark,
+  type WatermarkCatchUpResumeError,
 } from '../../electron/worker/watermark-traversal'
 
 const query: CanonicalQuery = {
