@@ -51,12 +51,10 @@ describe('Kufar listing detail contract', () => {
     expect(hasKufarListingNotFoundCode(body)).toBe(true)
   })
 
-  it.each([
-    json({ error: { code: 'OTHER' } }),
-    json({ error: {} }),
-    json({}),
-    encoder.encode('{'),
-  ])('rejects non-ASR0006 failure payloads', (body) => {
-    expect(hasKufarListingNotFoundCode(body)).toBe(false)
-  })
+  it.each([json({ error: { code: 'OTHER' } }), json({ error: {} }), json({}), encoder.encode('{')])(
+    'rejects non-ASR0006 failure payloads',
+    (body) => {
+      expect(hasKufarListingNotFoundCode(body)).toBe(false)
+    },
+  )
 })
