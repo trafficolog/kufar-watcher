@@ -103,6 +103,11 @@ function makePrisma(searchInDescription: boolean): PrismaClient {
         cursor: {
           boundaryTime: BOUNDARY_TIME,
           boundaryIds: ['known'],
+          catchupCursor: null,
+          catchupBoundaryTime: null,
+          catchupBoundaryIds: [],
+          catchupLastListTime: null,
+          catchupLastListId: null,
           updatedAt: UPDATED_AT,
         },
       }),
@@ -130,16 +135,22 @@ function makeLoader(
   return { ensureDescription }
 }
 
-beforeEach(() => {
-  dependencyMocks.traverseWatermark.mockReset().mockResolvedValue({
+function completeTraversal() {
+  return {
+    kind: 'complete' as const,
     newListings: [LISTING_A, LISTING_B],
     nextWatermark: {
       boundaryTime: LISTING_A.listTime,
       boundaryIds: [LISTING_A.listId],
     },
     pagesRead: 1,
-    possibleMiss: false,
-  })
+    possibleMiss: false as const,
+    checkpoint: null,
+  }
+}
+
+beforeEach(() => {
+  dependencyMocks.traverseWatermark.mockReset().mockResolvedValue(completeTraversal())
   dependencyMocks.commitMonitorRun.mockReset().mockResolvedValue(undefined)
 })
 
@@ -229,6 +240,79 @@ describe('incremental description loading policy', () => {
     expect(selector.select).toHaveBeenCalledTimes(1)
     expect(selector.select).toHaveBeenCalledWith(
       expect.objectContaining({ listId: LISTING_B.listId, description: 'full policy-b' }),
+    )
+  })
+
+  it('keeps prefilter description and selector order for an incomplete catch-up chunk', async () => {
+    const module = await loadModule()
+    const traversal = {
+      kind: 'incomplete' as const,
+      newListings: [LISTING_A, LISTING_B],
+      nextWatermark: {
+        boundaryTime: BOUNDARY_TIME.toISOString(),
+        boundaryIds: ['known'],
+      },
+      pagesRead: 1,
+      possibleMiss: true as const,
+      checkpoint: {
+        resumeCursor: 'page-2',
+        pendingWatermark: {
+          boundaryTime: LISTING_A.listTime,
+          boundaryIds: [LISTING_A.listId],
+        },
+        lastObservation: {
+          listId: LISTING_B.listId,
+          listTime: LISTING_B.listTime,
+        },
+      },
+    }
+    dependencyMocks.traverseWatermark.mockResolvedValue(traversal)
+
+    const order: string[] = []
+    const prefilter: CandidatePrefilter = {
+      accept: vi.fn(async (listing) => {
+        order.push(`prefilter:${listing.listId}`)
+        return true
+      }),
+    }
+    const descriptionLoader = makeLoader(async (listing) => {
+      order.push(`load:${listing.listId}`)
+      return {
+        kind: 'available',
+        description: `full ${listing.listId}`,
+        source: 'network',
+      }
+    })
+    const selector = makeSelector()
+    selector.select.mockImplementation(async (listing: Listing) => {
+      order.push(`select:${listing.listId}`)
+      return { matchedTerms: ['phone'], matchedIn: ['title'], snippet: null }
+    })
+
+    await module.runIncrementalMonitor({
+      prisma: makePrisma(true),
+      monitorId: MONITOR_ID,
+      adapter: { fetchPage: vi.fn() },
+      maxPages: 1,
+      prefilter,
+      descriptionLoader,
+      selector,
+    })
+
+    expect(order).toEqual([
+      'prefilter:policy-a',
+      'load:policy-a',
+      'select:policy-a',
+      'prefilter:policy-b',
+      'load:policy-b',
+      'select:policy-b',
+    ])
+    expect(dependencyMocks.commitMonitorRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        candidates: [LISTING_A, LISTING_B],
+        traversal,
+      }),
     )
   })
 
