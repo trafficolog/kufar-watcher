@@ -1,7 +1,8 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client'
 import type { Listing } from '../../shared/listing'
-import type { Watermark } from '../../shared/watermark'
+import type { Watermark, WatermarkCatchUpCheckpoint } from '../../shared/watermark'
 import { listingCreateData, listingSearchUpdateData } from './listing-persistence-data'
+import { persistCatchUpCheckpoint } from './watermark-catch-up-persistence'
 
 export interface MatchSelection {
   matchedTerms: readonly string[]
@@ -22,6 +23,7 @@ export interface MonitorRunPersistenceInput {
   candidates: readonly Listing[]
   selected: readonly SelectedListing[]
   nextWatermark: Watermark
+  checkpoint?: WatermarkCatchUpCheckpoint | null
 }
 
 export class StaleMonitorRunError extends Error {
@@ -126,7 +128,7 @@ export async function persistSuccessfulRun(
       matched: input.selected.length,
       error: null,
       httpStatus: null,
-      degradedLevel: null,
+      degradedLevel: input.checkpoint == null ? null : 'watermark-catch-up',
     },
   })
 }
@@ -138,6 +140,7 @@ export async function persistMonitorRunTransaction(
   await assertCurrentCursorRevision(tx, input)
   await persistListingsAndMatches(tx, input)
   await persistMonitorCursor(tx, input)
+  await persistCatchUpCheckpoint(tx, input.monitorId, input.checkpoint ?? null)
   await persistSuccessfulRun(tx, input)
 }
 
