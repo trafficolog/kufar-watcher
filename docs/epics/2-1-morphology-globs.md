@@ -1,8 +1,8 @@
 ---
 id: "2.1"
 phase: 2
-status: todo
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-09
 status_note: "Нормализация текста и glob-маски — входит в срез MVP-1."
 roles:
@@ -34,20 +34,20 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.1-tasks -->
-**Задач:** 3 · **done:** 2
+**Задач:** 3 · **done:** 3
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `2.1.1` | [Нормализация текста и токенизация](../tasks/2-1-1-normalization.md) | ✅ done | 🟢 aligned |
 | `2.1.2` | [Сопоставление glob-масок и литеральных термов](../tasks/2-1-2-glob-match.md) | ✅ done | 🟢 aligned |
-| `2.1.3` | [Интерфейс сопоставления с одной реализацией](../tasks/2-1-3-match-interface.md) | ⬜ todo | 🟡 drifted |
+| `2.1.3` | [Интерфейс сопоставления с одной реализацией](../tasks/2-1-3-match-interface.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-2.1-tasks -->
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
-- [ ] `sync_state: aligned` (код соответствует карточкам)
-- [ ] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+- [x] Все дочерние задачи в статусе `done`
+- [x] `sync_state: aligned` (код соответствует карточкам)
+- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
 
 ## Связанные документы
 
