@@ -25,6 +25,10 @@ const ORIGINAL_QUERY: CanonicalQuery = {
 }
 const BOUNDARY_TIME = new Date('2026-09-08T10:00:00.000Z')
 const BOUNDARY_IDS = ['config-boundary']
+const CATCHUP_BOUNDARY_TIME = new Date('2026-09-08T11:00:00.000Z')
+const CATCHUP_BOUNDARY_IDS = ['config-pending']
+const CATCHUP_LAST_LIST_TIME = new Date('2026-09-08T10:30:00.000Z')
+const CATCHUP_LAST_LIST_ID = 'config-last'
 
 type ConfigPersistenceModule = {
   updateMonitorConfig: (
@@ -78,11 +82,16 @@ integrationDescribe('monitor config persistence', () => {
         monitorId: MONITOR_ID,
         boundaryTime: BOUNDARY_TIME,
         boundaryIds: BOUNDARY_IDS,
+        catchupCursor: 'page-2',
+        catchupBoundaryTime: CATCHUP_BOUNDARY_TIME,
+        catchupBoundaryIds: CATCHUP_BOUNDARY_IDS,
+        catchupLastListTime: CATCHUP_LAST_LIST_TIME,
+        catchupLastListId: CATCHUP_LAST_LIST_ID,
       },
     })
   })
 
-  it('deletes cursor atomically when sourceUrl changes', async () => {
+  it('deletes cursor and catch-up checkpoint atomically when sourceUrl changes', async () => {
     await updateMonitorConfig(prisma, MONITOR_ID, {
       sourceUrl: 'https://www.kufar.by/l/cars',
     })
@@ -92,7 +101,7 @@ integrationDescribe('monitor config persistence', () => {
     expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).toBeNull()
   })
 
-  it('deletes cursor atomically when canonical query changes', async () => {
+  it('deletes cursor and catch-up checkpoint atomically when canonical query changes', async () => {
     await updateMonitorConfig(prisma, MONITOR_ID, {
       query: { ...ORIGINAL_QUERY, region: 'gomel' },
     })
@@ -100,7 +109,7 @@ integrationDescribe('monitor config persistence', () => {
     expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).toBeNull()
   })
 
-  it('preserves cursor for non-source edits', async () => {
+  it('preserves confirmed cursor and catch-up checkpoint for non-source edits', async () => {
     await updateMonitorConfig(prisma, MONITOR_ID, {
       name: 'renamed monitor',
       intervalSec: 300,
@@ -121,9 +130,14 @@ integrationDescribe('monitor config persistence', () => {
     })
     expect(cursor.boundaryTime?.toISOString()).toBe(BOUNDARY_TIME.toISOString())
     expect(cursor.boundaryIds).toEqual(BOUNDARY_IDS)
+    expect(cursor.catchupCursor).toBe('page-2')
+    expect(cursor.catchupBoundaryTime?.toISOString()).toBe(CATCHUP_BOUNDARY_TIME.toISOString())
+    expect(cursor.catchupBoundaryIds).toEqual(CATCHUP_BOUNDARY_IDS)
+    expect(cursor.catchupLastListTime?.toISOString()).toBe(CATCHUP_LAST_LIST_TIME.toISOString())
+    expect(cursor.catchupLastListId).toBe(CATCHUP_LAST_LIST_ID)
   })
 
-  it('deletes cursor when archived monitor becomes active', async () => {
+  it('deletes cursor and catch-up checkpoint when archived monitor becomes active', async () => {
     await prisma.monitor.update({
       where: { id: MONITOR_ID },
       data: { state: 'archived' },
@@ -134,7 +148,7 @@ integrationDescribe('monitor config persistence', () => {
     expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).toBeNull()
   })
 
-  it('rolls back monitor edit and cursor deletion when transaction callback throws', async () => {
+  it('rolls back monitor edit and full cursor deletion when transaction callback throws', async () => {
     const sentinel = new Error('rollback-monitor-config')
 
     await expect(
@@ -148,9 +162,9 @@ integrationDescribe('monitor config persistence', () => {
 
     const monitor = await prisma.monitor.findUniqueOrThrow({ where: { id: MONITOR_ID } })
     expect(monitor.sourceUrl).toBe(ORIGINAL_URL)
-    expect(
-      await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } }),
-    ).not.toBeNull()
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    expect(cursor.catchupCursor).toBe('page-2')
+    expect(cursor.catchupBoundaryIds).toEqual(CATCHUP_BOUNDARY_IDS)
   })
 
   it('rejects malformed persisted canonical query without mutating cursor state', async () => {
@@ -165,8 +179,8 @@ integrationDescribe('monitor config persistence', () => {
 
     const monitor = await prisma.monitor.findUniqueOrThrow({ where: { id: MONITOR_ID } })
     expect(monitor.name).toBe('config-persistence-fixture')
-    expect(
-      await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } }),
-    ).not.toBeNull()
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    expect(cursor.catchupCursor).toBe('page-2')
+    expect(cursor.catchupBoundaryIds).toEqual(CATCHUP_BOUNDARY_IDS)
   })
 })
