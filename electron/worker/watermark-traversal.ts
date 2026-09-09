@@ -59,7 +59,9 @@ export class WatermarkListingTimeError extends Error {
   }
 }
 
-export function parseListingObservationEpoch(observation: WatermarkOrderingObservation): number {
+export function parseListingObservationEpoch(
+  observation: WatermarkOrderingObservation,
+): number {
   const parsed = Date.parse(observation.listTime)
   if (!Number.isFinite(parsed)) {
     throw new WatermarkListingTimeError(observation)
@@ -87,7 +89,10 @@ function assertMaxPages(maxPages: number): void {
 function checkpointOrderingState(
   checkpoint: WatermarkCatchupCheckpoint | undefined,
 ): WatermarkOrderingState | null {
-  if (checkpoint?.lastObservation === null || checkpoint?.lastObservation === undefined) {
+  if (
+    checkpoint?.lastObservation === null ||
+    checkpoint?.lastObservation === undefined
+  ) {
     return null
   }
 
@@ -119,7 +124,9 @@ export async function traverseWatermark({
   const previousIds = new Set(previousWatermark.boundaryIds)
   const seenIds = new Set<string>()
   const newListings: Listing[] = []
-  const idsAtMaximum: string[] = checkpoint ? [...checkpoint.pendingWatermark.boundaryIds] : []
+  const idsAtMaximum: string[] = checkpoint
+    ? [...checkpoint.pendingWatermark.boundaryIds]
+    : []
   let maximumEpoch: number | null = checkpoint
     ? parseBoundary(
         'checkpoint.pendingWatermark.boundaryTime',
@@ -140,7 +147,9 @@ export async function traverseWatermark({
     if (maximumEpoch === previousEpoch) {
       return {
         boundaryTime: previousWatermark.boundaryTime,
-        boundaryIds: [...new Set([...previousWatermark.boundaryIds, ...idsAtMaximum])],
+        boundaryIds: [
+          ...new Set([...previousWatermark.boundaryIds, ...idsAtMaximum]),
+        ],
       }
     }
 
