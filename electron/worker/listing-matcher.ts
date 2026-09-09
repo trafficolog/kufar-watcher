@@ -1,4 +1,7 @@
-import { tokenizeMatchingText } from './matching-normalization'
+import {
+  tokenizeMatchingTextWithSpans,
+  type MatchingTokenSpan,
+} from './matching-normalization'
 import { matchingTermCompiler } from './matching-term-compiler'
 
 export type ListingMatchField = 'title' | 'description'
@@ -31,7 +34,7 @@ export interface ListingMatchResult {
 
 interface TokenizedField {
   field: ListingMatchField
-  tokens: string[]
+  tokens: MatchingTokenSpan[]
 }
 
 function collectHits(
@@ -45,9 +48,8 @@ function collectHits(
     const matches = matchingTermCompiler.compile(term)
 
     for (const { field, tokens } of fields) {
-      if (tokens.some((token) => matches(token))) {
-        hits.push({ term, field, kind, start: 0, end: 0 })
-      }
+      const token = tokens.find(({ value }) => matches(value))
+      if (token) hits.push({ term, field, kind, start: token.start, end: token.end })
     }
   }
 
@@ -57,7 +59,9 @@ function collectHits(
 export function matchListing(input: ListingMatchInput): ListingMatchResult {
   const fields = input.fields.flatMap((field): TokenizedField[] => {
     const value = input.document[field]
-    return typeof value === 'string' ? [{ field, tokens: tokenizeMatchingText(value) }] : []
+    return typeof value === 'string'
+      ? [{ field, tokens: tokenizeMatchingTextWithSpans(value) }]
+      : []
   })
 
   const includeHits = collectHits(input.include, 'include', fields)
