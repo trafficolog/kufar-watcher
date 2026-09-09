@@ -44,6 +44,7 @@ interface IncrementalMonitorRunModule {
 const MONITOR_ID = 1_402
 const BOUNDARY_TIME = new Date('2026-09-08T10:00:00.000Z')
 const BOUNDARY_IDS = ['known-at-boundary']
+const UPDATED_AT = new Date('2026-09-08T10:05:00.000Z')
 const QUERY: CanonicalQuery = {
   host: 'www.kufar.by',
   category: 'electronics',
@@ -116,15 +117,40 @@ function makePrisma(monitor: unknown) {
   return { prisma, findUniqueOrThrow, transaction }
 }
 
+function baseCursor() {
+  return {
+    boundaryTime: BOUNDARY_TIME,
+    boundaryIds: BOUNDARY_IDS,
+    updatedAt: UPDATED_AT,
+    catchupCursor: null,
+    catchupBoundaryTime: null,
+    catchupBoundaryIds: [],
+    catchupLastListTime: null,
+    catchupLastListId: null,
+  }
+}
+
 function existingMonitor(overrides: Record<string, unknown> = {}) {
   return {
     query: QUERY,
-    cursor: {
-      boundaryTime: BOUNDARY_TIME,
-      boundaryIds: BOUNDARY_IDS,
-    },
+    searchInDescription: false,
+    cursor: baseCursor(),
     ...overrides,
   }
+}
+
+function persistedCheckpointMonitor(overrides: Record<string, unknown> = {}) {
+  return existingMonitor({
+    cursor: {
+      ...baseCursor(),
+      catchupCursor: 'opaque-page-2',
+      catchupBoundaryTime: new Date(LISTING_A.listTime),
+      catchupBoundaryIds: [LISTING_A.listId],
+      catchupLastListTime: new Date(LISTING_B.listTime),
+      catchupLastListId: LISTING_B.listId,
+      ...overrides,
+    },
+  })
 }
 
 function traversalResult(
@@ -174,7 +200,7 @@ describe('runIncrementalMonitor', () => {
     const { adapter, fetchPage } = makeAdapter()
     const { prisma, transaction } = makePrisma(
       existingMonitor({
-        cursor: { boundaryTime: null, boundaryIds: BOUNDARY_IDS },
+        cursor: { ...baseCursor(), boundaryTime: null },
       }),
     )
 
@@ -214,6 +240,95 @@ describe('runIncrementalMonitor', () => {
     expect(actual).toBe(result)
   })
 
+  it('forwards a persisted catch-up checkpoint with restored ISO timestamps', async () => {
+    const module = await loadModule()
+    const { adapter } = makeAdapter()
+    const { prisma } = makePrisma(persistedCheckpointMonitor())
+    const result = traversalResult()
+    dependencyMocks.traverseWatermark.mockResolvedValue(result)
+
+    await module.runIncrementalMonitor({ prisma, monitorId: MONITOR_ID, adapter, maxPages: 3 })
+
+    expect(dependencyMocks.traverseWatermark).toHaveBeenCalledWith({
+      adapter,
+      query: QUERY,
+      previousWatermark: {
+        boundaryTime: BOUNDARY_TIME.toISOString(),
+        boundaryIds: BOUNDARY_IDS,
+      },
+      maxPages: 3,
+      checkpoint: {
+        resumeCursor: 'opaque-page-2',
+        pendingWatermark: {
+          boundaryTime: LISTING_A.listTime,
+          boundaryIds: [LISTING_A.listId],
+        },
+        lastObservation: {
+          listId: LISTING_B.listId,
+          listTime: LISTING_B.listTime,
+        },
+      },
+    })
+  })
+
+  it('falls back once to a fresh traversal when persisted resume fails', async () => {
+    const module = await loadModule()
+    const { adapter } = makeAdapter()
+    const { prisma } = makePrisma(persistedCheckpointMonitor())
+    const resumedError = new Error('resume-cursor-expired')
+    const result = traversalResult()
+    dependencyMocks.traverseWatermark.mockRejectedValueOnce(resumedError).mockResolvedValueOnce(result)
+
+    const actual = await module.runIncrementalMonitor({
+      prisma,
+      monitorId: MONITOR_ID,
+      adapter,
+      maxPages: 3,
+    })
+
+    expect(actual).toBe(result)
+    expect(dependencyMocks.traverseWatermark).toHaveBeenCalledTimes(2)
+    expect(dependencyMocks.traverseWatermark.mock.calls[0]?.[0]).toMatchObject({
+      checkpoint: { resumeCursor: 'opaque-page-2' },
+    })
+    expect(dependencyMocks.traverseWatermark.mock.calls[1]?.[0]).not.toHaveProperty('checkpoint')
+    expect(dependencyMocks.commitMonitorRun).toHaveBeenCalledTimes(1)
+  })
+
+  it('propagates the fresh traversal failure and never commits after resume and fallback both fail', async () => {
+    const module = await loadModule()
+    const { adapter } = makeAdapter()
+    const { prisma } = makePrisma(persistedCheckpointMonitor())
+    const resumedError = new Error('resume-failed')
+    const freshError = new Error('fresh-failed')
+    dependencyMocks.traverseWatermark.mockRejectedValueOnce(resumedError).mockRejectedValueOnce(freshError)
+
+    await expect(
+      module.runIncrementalMonitor({ prisma, monitorId: MONITOR_ID, adapter, maxPages: 3 }),
+    ).rejects.toBe(freshError)
+
+    expect(dependencyMocks.traverseWatermark).toHaveBeenCalledTimes(2)
+    expect(dependencyMocks.commitMonitorRun).not.toHaveBeenCalled()
+  })
+
+  it('rejects malformed persisted checkpoint state before network work', async () => {
+    const module = await loadModule()
+    const { adapter, fetchPage } = makeAdapter()
+    const { prisma } = makePrisma(
+      persistedCheckpointMonitor({
+        catchupBoundaryTime: null,
+      }),
+    )
+
+    await expect(
+      module.runIncrementalMonitor({ prisma, monitorId: MONITOR_ID, adapter, maxPages: 3 }),
+    ).rejects.toThrow(/persisted cursor|checkpoint/i)
+
+    expect(fetchPage).not.toHaveBeenCalled()
+    expect(dependencyMocks.traverseWatermark).not.toHaveBeenCalled()
+    expect(dependencyMocks.commitMonitorRun).not.toHaveBeenCalled()
+  })
+
   it('accepts every candidate by default with empty match metadata', async () => {
     const module = await loadModule()
     const { adapter } = makeAdapter()
@@ -238,6 +353,7 @@ describe('runIncrementalMonitor', () => {
             selection: { matchedTerms: [], matchedIn: [], snippet: null },
           },
         ],
+        traversal: result,
       }),
     )
   })
@@ -384,9 +500,7 @@ describe('runIncrementalMonitor', () => {
 
     expect(actual).toBe(result)
     expect(dependencyMocks.commitMonitorRun).toHaveBeenCalledTimes(1)
-    expect(dependencyMocks.commitMonitorRun.mock.calls[0]?.[1].nextWatermark).toBe(
-      unchangedWatermark,
-    )
+    expect(dependencyMocks.commitMonitorRun.mock.calls[0]?.[1].traversal).toBe(result)
   })
 
   it.each([
@@ -398,7 +512,7 @@ describe('runIncrementalMonitor', () => {
     {
       name: 'non-string boundary ids',
       monitor: existingMonitor({
-        cursor: { boundaryTime: BOUNDARY_TIME, boundaryIds: ['known', 42] },
+        cursor: { ...baseCursor(), boundaryIds: ['known', 42] },
       }),
       message: /boundaryIds/i,
     },
