@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from '../../generated/prisma/client'
 import type { Listing } from '../../shared/listing'
 import type { Watermark } from '../../shared/watermark'
+import { listingCreateData, listingSearchUpdateData } from './listing-persistence-data'
 
 export interface MatchSelection {
   matchedTerms: readonly string[]
@@ -27,39 +28,6 @@ export class StaleMonitorRunError extends Error {
   constructor(readonly monitorId: number) {
     super(`Stale monitor run for monitor ${monitorId}: cursor revision changed`)
     this.name = 'StaleMonitorRunError'
-  }
-}
-
-function listingCreateData(listing: Listing): Prisma.ListingCreateInput {
-  return {
-    listId: listing.listId,
-    title: listing.title,
-    priceKind: listing.priceKind,
-    priceAmount: listing.priceAmount,
-    currency: listing.currency,
-    url: listing.url,
-    region: listing.region,
-    accountId: listing.accountId,
-    isCompany: listing.isCompany,
-    listTime: new Date(listing.listTime),
-    description: listing.description,
-    raw: listing.raw === null ? Prisma.JsonNull : (listing.raw as Prisma.InputJsonValue),
-  }
-}
-
-function listingUpdateData(listing: Listing): Prisma.ListingUpdateInput {
-  return {
-    title: listing.title,
-    priceKind: listing.priceKind,
-    priceAmount: listing.priceAmount,
-    currency: listing.currency,
-    url: listing.url,
-    region: listing.region,
-    accountId: listing.accountId,
-    isCompany: listing.isCompany,
-    listTime: new Date(listing.listTime),
-    description: listing.description,
-    raw: listing.raw === null ? Prisma.JsonNull : (listing.raw as Prisma.InputJsonValue),
   }
 }
 
@@ -96,7 +64,7 @@ export async function persistListings(
     await tx.listing.upsert({
       where: { listId: listing.listId },
       create: listingCreateData(listing),
-      update: listingUpdateData(listing),
+      update: listingSearchUpdateData(listing),
     })
   }
 }
