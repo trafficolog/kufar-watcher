@@ -42,7 +42,12 @@ function failure(
 ): Extract<KufarHttpResult, { ok: false }> {
   return {
     ok: false,
-    kind: status === 429 ? 'rate-limited' : status === null || status >= 500 ? 'temporary' : 'permanent',
+    kind:
+      status === 429
+        ? 'rate-limited'
+        : status === null || status >= 500
+          ? 'temporary'
+          : 'permanent',
     code,
     status,
     attempts: 1,
