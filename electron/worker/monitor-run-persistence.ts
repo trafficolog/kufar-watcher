@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from '../../generated/prisma/client'
+import type { Prisma, PrismaClient } from '../../generated/prisma/client'
 import type { Listing } from '../../shared/listing'
 import type { Watermark } from '../../shared/watermark'
 import { listingCreateData, listingSearchUpdateData } from './listing-persistence-data'
