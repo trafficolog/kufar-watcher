@@ -22,7 +22,9 @@ function block(source: string, kind: 'enum' | 'model', name: string): string {
 describe('Prisma listing description cache schema', () => {
   it('declares the exact ListingAvailability states', async () => {
     const schema = await schemaSource()
-    const values = block(schema, 'enum', 'ListingAvailability').split(/\s+/).filter(Boolean)
+    const values = block(schema, 'enum', 'ListingAvailability')
+      .split(/\s+/)
+      .filter(Boolean)
 
     expect(values).toEqual(['unknown', 'available', 'unavailable'])
   })
@@ -39,10 +41,10 @@ describe('Prisma listing description cache schema', () => {
     const migration = await migrationSource()
 
     expect(migration).toContain(
-      'CREATE TYPE "ListingAvailability" AS ENUM (\'unknown\', \'available\', \'unavailable\');',
+      `CREATE TYPE "ListingAvailability" AS ENUM ('unknown', 'available', 'unavailable');`,
     )
     expect(migration).toContain(
-      'ADD COLUMN "availability" "ListingAvailability" NOT NULL DEFAULT \'unknown\'',
+      `ADD COLUMN "availability" "ListingAvailability" NOT NULL DEFAULT 'unknown'`,
     )
     expect(migration).toContain('ADD COLUMN "descriptionLoadedAt" TIMESTAMP(3)')
   })
