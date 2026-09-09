@@ -24,12 +24,12 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.2-tasks -->
-**Задач:** 3 · **done:** 1
+**Задач:** 3 · **done:** 2
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `2.2.1` | [Правила include и exclude по полям](../tasks/2-2-1-include-exclude.md) | ✅ done | 🟢 aligned |
-| `2.2.2` | [Извлечение фрагмента вокруг совпадения](../tasks/2-2-2-snippet.md) | ⬜ todo | 🟡 drifted |
+| `2.2.2` | [Извлечение фрагмента вокруг совпадения](../tasks/2-2-2-snippet.md) | ✅ done | 🟢 aligned |
 | `2.2.3` | [Подключение матчера в конвейер обхода](../tasks/2-2-3-matcher-pipeline.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-2.2-tasks -->
 
