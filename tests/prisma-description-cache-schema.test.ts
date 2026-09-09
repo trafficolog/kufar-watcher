@@ -22,9 +22,7 @@ function block(source: string, kind: 'enum' | 'model', name: string): string {
 describe('Prisma listing description cache schema', () => {
   it('declares the exact ListingAvailability states', async () => {
     const schema = await schemaSource()
-    const values = block(schema, 'enum', 'ListingAvailability')
-      .split(/\s+/)
-      .filter(Boolean)
+    const values = block(schema, 'enum', 'ListingAvailability').split(/\s+/).filter(Boolean)
 
     expect(values).toEqual(['unknown', 'available', 'unavailable'])
   })
