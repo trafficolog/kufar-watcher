@@ -16,6 +16,10 @@ function unique(values: readonly string[]): string[] {
 }
 
 export function parsePersistedKeywordRule(value: unknown): PersistedKeywordRule {
+  if (isStringArray(value)) {
+    return { include: [...value], exclude: [] }
+  }
+
   const record = value as { include?: unknown; exclude?: unknown }
   return {
     include: isStringArray(record.include) ? [...record.include] : [],
