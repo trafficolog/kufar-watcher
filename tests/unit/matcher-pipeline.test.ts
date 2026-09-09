@@ -147,4 +147,16 @@ describe('incremental matcher pipeline', () => {
       },
     ])
   })
+
+  it('rejects a malformed persisted keyword rule before traversal', async () => {
+    const prisma = prismaWithKeywordRule({ include: ['candidate'], exclude: [42] })
+    const adapter = {} as SourceAdapter
+
+    await expect(
+      runIncrementalMonitor({ prisma, monitorId: MONITOR_ID, adapter, maxPages: 1 }),
+    ).rejects.toThrow(/keyword rule/i)
+
+    expect(dependencyMocks.traverseWatermark).not.toHaveBeenCalled()
+    expect(dependencyMocks.commitMonitorRun).not.toHaveBeenCalled()
+  })
 })
