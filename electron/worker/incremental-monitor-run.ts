@@ -3,6 +3,7 @@ import type { CanonicalQuery } from '../../shared/canonical-query'
 import type { Listing } from '../../shared/listing'
 import type { SourceAdapter } from '../../shared/source-adapter'
 import type { WatermarkTraversalResult } from '../../shared/watermark'
+import type { ListingDescriptionResult } from './listing-description-cache'
 import {
   commitMonitorRun,
   type MatchSelection,
@@ -31,12 +32,28 @@ export const acceptAllCandidateSelector: CandidateSelector = {
   },
 }
 
+export interface CandidatePrefilter {
+  accept(listing: Listing): Promise<boolean>
+}
+
+export const acceptAllCandidatePrefilter: CandidatePrefilter = {
+  async accept() {
+    return true
+  },
+}
+
+export interface DescriptionLoader {
+  ensureDescription(listing: Listing): Promise<ListingDescriptionResult>
+}
+
 export interface RunIncrementalMonitorInput {
   prisma: PrismaClient
   monitorId: number
   adapter: SourceAdapter
   maxPages: number
   selector?: CandidateSelector
+  prefilter?: CandidatePrefilter
+  descriptionLoader?: DescriptionLoader
   now?: () => Date
 }
 
@@ -101,12 +118,15 @@ export async function runIncrementalMonitor({
   adapter,
   maxPages,
   selector = acceptAllCandidateSelector,
+  prefilter = acceptAllCandidatePrefilter,
+  descriptionLoader,
   now = () => new Date(),
 }: RunIncrementalMonitorInput): Promise<WatermarkTraversalResult> {
   const monitor = await prisma.monitor.findUniqueOrThrow({
     where: { id: monitorId },
     select: {
       query: true,
+      searchInDescription: true,
       cursor: {
         select: {
           boundaryTime: true,
@@ -138,9 +158,26 @@ export async function runIncrementalMonitor({
 
   const selected: SelectedListing[] = []
   for (const listing of traversal.newListings) {
-    const selection = await selector.select(listing)
+    if (!(await prefilter.accept(listing))) continue
+
+    let candidate = listing
+    if (monitor.searchInDescription) {
+      if (descriptionLoader === undefined) {
+        throw new Error('Description loader is required when search in description is enabled')
+      }
+
+      const descriptionResult = await descriptionLoader.ensureDescription(listing)
+      if (descriptionResult.kind === 'unavailable') continue
+
+      candidate = {
+        ...listing,
+        description: descriptionResult.description,
+      }
+    }
+
+    const selection = await selector.select(candidate)
     if (selection !== null) {
-      selected.push({ listing, selection })
+      selected.push({ listing: candidate, selection })
     }
   }
 

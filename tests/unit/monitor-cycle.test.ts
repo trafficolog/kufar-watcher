@@ -96,4 +96,36 @@ describe('runMonitorCycle', () => {
     expect(dependencyMocks.runColdStartMonitor).not.toHaveBeenCalled()
     expect(result).toMatchObject({ kind: 'incremental', pagesRead: 1 })
   })
+
+  it('forwards prefilter and description loader to the incremental path', async () => {
+    const prisma = prismaWithCursor(new Date('2026-09-08T11:59:00.000Z'))
+    const prefilter = { accept: vi.fn() }
+    const descriptionLoader = { ensureDescription: vi.fn() }
+    const policyAwareRunMonitorCycle = runMonitorCycle as unknown as (
+      input: Parameters<typeof runMonitorCycle>[0] & {
+        prefilter: typeof prefilter
+        descriptionLoader: typeof descriptionLoader
+      },
+    ) => ReturnType<typeof runMonitorCycle>
+
+    await policyAwareRunMonitorCycle({
+      prisma,
+      monitorId: MONITOR_ID,
+      adapter,
+      maxPages: 5,
+      prefilter,
+      descriptionLoader,
+    })
+
+    expect(dependencyMocks.runIncrementalMonitor).toHaveBeenCalledWith({
+      prisma,
+      monitorId: MONITOR_ID,
+      adapter,
+      maxPages: 5,
+      selector: undefined,
+      prefilter,
+      descriptionLoader,
+      now: undefined,
+    })
+  })
 })
