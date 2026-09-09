@@ -43,12 +43,17 @@ model Monitor {
 }
 
 model MonitorCursor {
-  monitorId    Int       @id
-  boundaryTime DateTime?
-  boundaryIds  Json
-  lastRunAt    DateTime?
-  updatedAt    DateTime  @updatedAt
-  monitor      Monitor   @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  monitorId            Int       @id
+  boundaryTime         DateTime?
+  boundaryIds          Json
+  catchupCursor        String?
+  catchupBoundaryTime  DateTime?
+  catchupBoundaryIds   Json      @default("[]")
+  catchupLastListTime  DateTime?
+  catchupLastListId    String?
+  lastRunAt            DateTime?
+  updatedAt            DateTime  @updatedAt
+  monitor              Monitor   @relation(fields: [monitorId], references: [id], onDelete: Cascade)
 }
 
 model Run {
