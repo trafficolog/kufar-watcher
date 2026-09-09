@@ -21,6 +21,12 @@ enum PriceKind {
   unknown
 }
 
+enum ListingAvailability {
+  unknown
+  available
+  unavailable
+}
+
 model Monitor {
   id                  Int            @id @default(autoincrement())
   name                String
@@ -62,20 +68,22 @@ model Run {
 }
 
 model Listing {
-  listId      String    @id
-  title       String
-  priceKind   PriceKind
-  priceAmount Decimal?
-  currency    String?
-  url         String
-  region      String?
-  accountId   String?
-  isCompany   Boolean?
-  listTime    DateTime
-  description String?
-  raw         Json
-  firstSeenAt DateTime  @default(now())
-  matches     Match[]
+  listId              String              @id
+  title               String
+  priceKind           PriceKind
+  priceAmount         Decimal?
+  currency            String?
+  url                 String
+  region              String?
+  accountId           String?
+  isCompany           Boolean?
+  listTime            DateTime
+  description         String?
+  availability        ListingAvailability @default(unknown)
+  descriptionLoadedAt DateTime?
+  raw                 Json
+  firstSeenAt         DateTime            @default(now())
+  matches             Match[]
 
   @@index([listTime(sort: Desc)])
 }
