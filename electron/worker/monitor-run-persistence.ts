@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client'
 import type { Listing } from '../../shared/listing'
-import type { Watermark } from '../../shared/watermark'
+import type { WatermarkTraversalResult } from '../../shared/watermark'
 import { listingCreateData, listingSearchUpdateData } from './listing-persistence-data'
 
 export interface MatchSelection {
@@ -21,7 +21,7 @@ export interface MonitorRunPersistenceInput {
   expectedCursorUpdatedAt: Date
   candidates: readonly Listing[]
   selected: readonly SelectedListing[]
-  nextWatermark: Watermark
+  traversal: WatermarkTraversalResult
 }
 
 export class StaleMonitorRunError extends Error {
@@ -99,16 +99,37 @@ export async function persistMonitorCursor(
   tx: Prisma.TransactionClient,
   input: MonitorRunPersistenceInput,
 ): Promise<void> {
-  const data = {
-    boundaryTime: new Date(input.nextWatermark.boundaryTime),
-    boundaryIds: [...input.nextWatermark.boundaryIds],
-    lastRunAt: input.finishedAt,
+  const commonData = { lastRunAt: input.finishedAt }
+
+  if (input.traversal.kind === 'incomplete') {
+    const { checkpoint } = input.traversal
+    await tx.monitorCursor.update({
+      where: { monitorId: input.monitorId },
+      data: {
+        ...commonData,
+        catchupCursor: checkpoint.resumeCursor,
+        catchupBoundaryTime: new Date(checkpoint.pendingWatermark.boundaryTime),
+        catchupBoundaryIds: [...checkpoint.pendingWatermark.boundaryIds],
+        catchupLastListTime:
+          checkpoint.lastObservation === null ? null : new Date(checkpoint.lastObservation.listTime),
+        catchupLastListId: checkpoint.lastObservation?.listId ?? null,
+      },
+    })
+    return
   }
 
-  await tx.monitorCursor.upsert({
+  await tx.monitorCursor.update({
     where: { monitorId: input.monitorId },
-    create: { monitorId: input.monitorId, ...data },
-    update: data,
+    data: {
+      ...commonData,
+      boundaryTime: new Date(input.traversal.nextWatermark.boundaryTime),
+      boundaryIds: [...input.traversal.nextWatermark.boundaryIds],
+      catchupCursor: null,
+      catchupBoundaryTime: null,
+      catchupBoundaryIds: [],
+      catchupLastListTime: null,
+      catchupLastListId: null,
+    },
   })
 }
 
@@ -116,17 +137,19 @@ export async function persistSuccessfulRun(
   tx: Prisma.TransactionClient,
   input: MonitorRunPersistenceInput,
 ): Promise<void> {
+  const isCatchup = input.traversal.kind === 'incomplete'
+
   await tx.run.create({
     data: {
       monitorId: input.monitorId,
       startedAt: input.startedAt,
       finishedAt: input.finishedAt,
-      outcome: 'success',
+      outcome: isCatchup ? 'catchup' : 'success',
       seen: input.candidates.length,
       matched: input.selected.length,
       error: null,
       httpStatus: null,
-      degradedLevel: null,
+      degradedLevel: isCatchup ? 'watermark-catchup' : null,
     },
   })
 }
