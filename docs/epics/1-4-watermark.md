@@ -3,7 +3,7 @@ id: "1.4"
 phase: 1
 status: todo
 sync_state: drifted
-last_reviewed: 2026-09-05
+last_reviewed: 2026-09-09
 status_note: "Ядро логики «что считать новым»."
 roles:
   - BACK
@@ -21,17 +21,19 @@ roles:
 - `1.4.1` — Алгоритм водяного знака
 - `1.4.2` — Персистентность курсора и идемпотентная запись
 - `1.4.3` — Холодный старт монитора
+- `1.4.4` — Персистентный catch-up checkpoint
 
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.4-tasks -->
-**Задач:** 3 · **done:** 2
+**Задач:** 4 · **done:** 4
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `1.4.1` | [Алгоритм водяного знака](../tasks/1-4-1-watermark-algo.md) | ✅ done | 🟢 aligned |
 | `1.4.2` | [Персистентность водяного знака и граница транзакции](../tasks/1-4-2-cursor-persistence.md) | ✅ done | 🟢 aligned |
-| `1.4.3` | [Холодный старт монитора](../tasks/1-4-3-cold-start.md) | ⬜ todo | 🟡 drifted |
+| `1.4.3` | [Холодный старт монитора](../tasks/1-4-3-cold-start.md) | ✅ done | 🟢 aligned |
+| `1.4.4` | [Персистентный catch-up checkpoint водяного знака](../tasks/1-4-4-watermark-catchup-checkpoint.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-1.4-tasks -->
 
 ## Критерии приёмки эпика
