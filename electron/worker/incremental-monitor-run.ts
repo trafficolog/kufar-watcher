@@ -2,7 +2,10 @@ import type { PrismaClient } from '../../generated/prisma/client'
 import type { CanonicalQuery } from '../../shared/canonical-query'
 import type { Listing } from '../../shared/listing'
 import type { SourceAdapter } from '../../shared/source-adapter'
-import type { WatermarkTraversalResult } from '../../shared/watermark'
+import type {
+  WatermarkCatchupCheckpoint,
+  WatermarkTraversalResult,
+} from '../../shared/watermark'
 import type { ListingDescriptionResult } from './listing-description-cache'
 import {
   commitMonitorRun,
@@ -57,6 +60,14 @@ export interface RunIncrementalMonitorInput {
   now?: () => Date
 }
 
+interface PersistedCatchupCursor {
+  catchupCursor: string | null
+  catchupBoundaryTime: Date | null
+  catchupBoundaryIds: unknown
+  catchupLastListTime: Date | null
+  catchupLastListId: string | null
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -67,6 +78,10 @@ function isNullableString(value: unknown): value is string | null {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
+function isValidDate(value: Date): boolean {
+  return Number.isFinite(value.getTime())
 }
 
 function parseCanonicalQuery(value: unknown): CanonicalQuery {
@@ -112,6 +127,76 @@ function parseBoundaryIds(value: unknown): string[] {
   return [...value]
 }
 
+function parseCatchupCheckpoint(cursor: PersistedCatchupCursor): WatermarkCatchupCheckpoint | undefined {
+  const hasResumeCursor = cursor.catchupCursor !== null
+  const hasBoundaryTime = cursor.catchupBoundaryTime !== null
+  const hasLastListTime = cursor.catchupLastListTime !== null
+  const hasLastListId = cursor.catchupLastListId !== null
+
+  if (!hasResumeCursor) {
+    if (
+      hasBoundaryTime ||
+      hasLastListTime ||
+      hasLastListId ||
+      !isStringArray(cursor.catchupBoundaryIds) ||
+      cursor.catchupBoundaryIds.length !== 0
+    ) {
+      throw new Error('Invalid persisted cursor catch-up checkpoint')
+    }
+    return undefined
+  }
+
+  if (
+    !hasBoundaryTime ||
+    !isValidDate(cursor.catchupBoundaryTime as Date) ||
+    !isStringArray(cursor.catchupBoundaryIds) ||
+    hasLastListTime !== hasLastListId ||
+    (hasLastListTime && !isValidDate(cursor.catchupLastListTime as Date))
+  ) {
+    throw new Error('Invalid persisted cursor catch-up checkpoint')
+  }
+
+  return {
+    resumeCursor: cursor.catchupCursor as string,
+    pendingWatermark: {
+      boundaryTime: (cursor.catchupBoundaryTime as Date).toISOString(),
+      boundaryIds: [...cursor.catchupBoundaryIds],
+    },
+    lastObservation:
+      hasLastListTime && hasLastListId
+        ? {
+            listId: cursor.catchupLastListId as string,
+            listTime: (cursor.catchupLastListTime as Date).toISOString(),
+          }
+        : null,
+  }
+}
+
+async function traverseWithRecovery(input: {
+  adapter: SourceAdapter
+  query: CanonicalQuery
+  previousWatermark: { boundaryTime: string; boundaryIds: string[] }
+  maxPages: number
+  checkpoint: WatermarkCatchupCheckpoint | undefined
+}): Promise<WatermarkTraversalResult> {
+  const common = {
+    adapter: input.adapter,
+    query: input.query,
+    previousWatermark: input.previousWatermark,
+    maxPages: input.maxPages,
+  }
+
+  if (input.checkpoint === undefined) {
+    return traverseWatermark(common)
+  }
+
+  try {
+    return await traverseWatermark({ ...common, checkpoint: input.checkpoint })
+  } catch {
+    return traverseWatermark(common)
+  }
+}
+
 export async function runIncrementalMonitor({
   prisma,
   monitorId,
@@ -131,6 +216,11 @@ export async function runIncrementalMonitor({
         select: {
           boundaryTime: true,
           boundaryIds: true,
+          catchupCursor: true,
+          catchupBoundaryTime: true,
+          catchupBoundaryIds: true,
+          catchupLastListTime: true,
+          catchupLastListId: true,
           updatedAt: true,
         },
       },
@@ -146,14 +236,16 @@ export async function runIncrementalMonitor({
     boundaryTime: monitor.cursor.boundaryTime.toISOString(),
     boundaryIds: parseBoundaryIds(monitor.cursor.boundaryIds),
   }
+  const checkpoint = parseCatchupCheckpoint(monitor.cursor)
   const expectedCursorUpdatedAt = monitor.cursor.updatedAt
   const startedAt = now()
 
-  const traversal = await traverseWatermark({
+  const traversal = await traverseWithRecovery({
     adapter,
     query,
     previousWatermark,
     maxPages,
+    checkpoint,
   })
 
   const selected: SelectedListing[] = []
