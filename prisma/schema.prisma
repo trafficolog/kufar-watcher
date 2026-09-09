@@ -43,12 +43,27 @@ model Monitor {
 }
 
 model MonitorCursor {
-  monitorId    Int       @id
-  boundaryTime DateTime?
-  boundaryIds  Json
-  lastRunAt    DateTime?
-  updatedAt    DateTime  @updatedAt
-  monitor      Monitor   @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  monitorId          Int                       @id
+  boundaryTime       DateTime?
+  boundaryIds        Json
+  lastRunAt          DateTime?
+  updatedAt          DateTime                  @updatedAt
+  monitor            Monitor                   @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  catchUpCheckpoint  MonitorCatchUpCheckpoint?
+}
+
+model MonitorCatchUpCheckpoint {
+  monitorId           Int           @id
+  resumeCursor        String
+  pendingBoundaryTime DateTime
+  pendingBoundaryIds  Json
+  pagesRead           Int
+  lastPage            Int?
+  lastIndex           Int?
+  lastListId          String?
+  lastListTime        DateTime?
+  updatedAt           DateTime      @updatedAt
+  cursor              MonitorCursor @relation(fields: [monitorId], references: [monitorId], onDelete: Cascade)
 }
 
 model Run {

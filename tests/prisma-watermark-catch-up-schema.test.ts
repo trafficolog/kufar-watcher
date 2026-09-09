@@ -10,7 +10,7 @@ describe('watermark catch-up persistence schema', () => {
   it('models the checkpoint as an optional one-to-one child of MonitorCursor', async () => {
     const schema = await readFile(new URL('../prisma/schema.prisma', import.meta.url), 'utf8')
 
-    expect(schema).toMatch(/catchUpCheckpoint\s+MonitorCatchUpCheckpoint\?/) 
+    expect(schema).toMatch(/catchUpCheckpoint\s+MonitorCatchUpCheckpoint\?/)
     expect(schema).toMatch(/model MonitorCatchUpCheckpoint \{[\s\S]*monitorId\s+Int\s+@id/)
     expect(schema).toMatch(/[\s\S]*resumeCursor\s+String/)
     expect(schema).toMatch(/[\s\S]*pendingBoundaryTime\s+DateTime/)
