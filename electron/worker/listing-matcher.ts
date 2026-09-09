@@ -1,7 +1,4 @@
-import {
-  tokenizeMatchingTextWithSpans,
-  type MatchingTokenSpan,
-} from './matching-normalization'
+import { tokenizeMatchingTextWithSpans, type MatchingTokenSpan } from './matching-normalization'
 import { matchingTermCompiler } from './matching-term-compiler'
 
 export type ListingMatchField = 'title' | 'description'
