@@ -2,10 +2,7 @@ import type { PrismaClient } from '../../generated/prisma/client'
 import type { CanonicalQuery } from '../../shared/canonical-query'
 import type { Listing } from '../../shared/listing'
 import type { SourceAdapter } from '../../shared/source-adapter'
-import type {
-  WatermarkCatchupCheckpoint,
-  WatermarkTraversalResult,
-} from '../../shared/watermark'
+import type { WatermarkCatchupCheckpoint, WatermarkTraversalResult } from '../../shared/watermark'
 import type { ListingDescriptionResult } from './listing-description-cache'
 import {
   commitMonitorRun,
@@ -127,7 +124,9 @@ function parseBoundaryIds(value: unknown): string[] {
   return [...value]
 }
 
-function parseCatchupCheckpoint(cursor: PersistedCatchupCursor): WatermarkCatchupCheckpoint | undefined {
+function parseCatchupCheckpoint(
+  cursor: PersistedCatchupCursor,
+): WatermarkCatchupCheckpoint | undefined {
   const hasResumeCursor = cursor.catchupCursor !== null
   const hasBoundaryTime = cursor.catchupBoundaryTime !== null
   const hasLastListTime = cursor.catchupLastListTime !== null

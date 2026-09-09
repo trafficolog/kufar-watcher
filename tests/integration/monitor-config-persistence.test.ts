@@ -162,7 +162,9 @@ integrationDescribe('monitor config persistence', () => {
 
     const monitor = await prisma.monitor.findUniqueOrThrow({ where: { id: MONITOR_ID } })
     expect(monitor.sourceUrl).toBe(ORIGINAL_URL)
-    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
     expect(cursor.catchupCursor).toBe('page-2')
     expect(cursor.catchupBoundaryIds).toEqual(CATCHUP_BOUNDARY_IDS)
   })
@@ -179,7 +181,9 @@ integrationDescribe('monitor config persistence', () => {
 
     const monitor = await prisma.monitor.findUniqueOrThrow({ where: { id: MONITOR_ID } })
     expect(monitor.name).toBe('config-persistence-fixture')
-    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
     expect(cursor.catchupCursor).toBe('page-2')
     expect(cursor.catchupBoundaryIds).toEqual(CATCHUP_BOUNDARY_IDS)
   })

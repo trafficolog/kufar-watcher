@@ -111,7 +111,9 @@ export async function persistMonitorCursor(
         catchupBoundaryTime: new Date(checkpoint.pendingWatermark.boundaryTime),
         catchupBoundaryIds: [...checkpoint.pendingWatermark.boundaryIds],
         catchupLastListTime:
-          checkpoint.lastObservation === null ? null : new Date(checkpoint.lastObservation.listTime),
+          checkpoint.lastObservation === null
+            ? null
+            : new Date(checkpoint.lastObservation.listTime),
         catchupLastListId: checkpoint.lastObservation?.listId ?? null,
       },
     })

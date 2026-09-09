@@ -72,7 +72,9 @@ function incompleteTraversal(): WatermarkTraversalResult {
   }
 }
 
-function input(traversal: WatermarkTraversalResult = completeTraversal()): MonitorRunPersistenceInput {
+function input(
+  traversal: WatermarkTraversalResult = completeTraversal(),
+): MonitorRunPersistenceInput {
   const first = listing('a')
   const second = listing('b')
   return {

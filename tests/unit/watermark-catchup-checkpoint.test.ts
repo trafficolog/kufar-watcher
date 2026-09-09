@@ -165,7 +165,9 @@ describe('persistent watermark catch-up checkpoint', () => {
       previousWatermark,
       maxPages: 1,
       checkpoint: checkpointFrom(first),
-    } as Parameters<typeof traverseWatermark>[0] & { checkpoint: ReturnType<typeof checkpointFrom> })
+    } as Parameters<typeof traverseWatermark>[0] & {
+      checkpoint: ReturnType<typeof checkpointFrom>
+    })
 
     const thirdSource = adapterFromPages([
       {
@@ -182,7 +184,9 @@ describe('persistent watermark catch-up checkpoint', () => {
       previousWatermark,
       maxPages: 1,
       checkpoint: checkpointFrom(second),
-    } as Parameters<typeof traverseWatermark>[0] & { checkpoint: ReturnType<typeof checkpointFrom> })
+    } as Parameters<typeof traverseWatermark>[0] & {
+      checkpoint: ReturnType<typeof checkpointFrom>
+    })
 
     expect(firstSource.fetchPage.mock.calls.map(([request]) => request.cursor)).toEqual([null])
     expect(secondSource.fetchPage.mock.calls.map(([request]) => request.cursor)).toEqual(['page-2'])
@@ -226,7 +230,9 @@ describe('persistent watermark catch-up checkpoint', () => {
       previousWatermark,
       maxPages: 2,
       checkpoint: checkpointFrom(first),
-    } as Parameters<typeof traverseWatermark>[0] & { checkpoint: ReturnType<typeof checkpointFrom> })
+    } as Parameters<typeof traverseWatermark>[0] & {
+      checkpoint: ReturnType<typeof checkpointFrom>
+    })
 
     expect(result).toMatchObject({
       kind: 'complete',
@@ -267,7 +273,9 @@ describe('persistent watermark catch-up checkpoint', () => {
       previousWatermark,
       maxPages: 2,
       checkpoint: checkpointFrom(first),
-    } as Parameters<typeof traverseWatermark>[0] & { checkpoint: ReturnType<typeof checkpointFrom> })
+    } as Parameters<typeof traverseWatermark>[0] & {
+      checkpoint: ReturnType<typeof checkpointFrom>
+    })
 
     expect(result).toMatchObject({
       kind: 'complete',

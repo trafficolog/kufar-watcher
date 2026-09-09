@@ -277,7 +277,9 @@ describe('runIncrementalMonitor', () => {
     const { prisma } = makePrisma(persistedCheckpointMonitor())
     const resumedError = new Error('resume-cursor-expired')
     const result = traversalResult()
-    dependencyMocks.traverseWatermark.mockRejectedValueOnce(resumedError).mockResolvedValueOnce(result)
+    dependencyMocks.traverseWatermark
+      .mockRejectedValueOnce(resumedError)
+      .mockResolvedValueOnce(result)
 
     const actual = await module.runIncrementalMonitor({
       prisma,
@@ -301,7 +303,9 @@ describe('runIncrementalMonitor', () => {
     const { prisma } = makePrisma(persistedCheckpointMonitor())
     const resumedError = new Error('resume-failed')
     const freshError = new Error('fresh-failed')
-    dependencyMocks.traverseWatermark.mockRejectedValueOnce(resumedError).mockRejectedValueOnce(freshError)
+    dependencyMocks.traverseWatermark
+      .mockRejectedValueOnce(resumedError)
+      .mockRejectedValueOnce(freshError)
 
     await expect(
       module.runIncrementalMonitor({ prisma, monitorId: MONITOR_ID, adapter, maxPages: 3 }),
