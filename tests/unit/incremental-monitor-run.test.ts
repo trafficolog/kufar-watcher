@@ -82,6 +82,9 @@ const LISTING_B: Listing = {
   description: 'second candidate',
 }
 
+type CompleteTraversalResult = Extract<WatermarkTraversalResult, { kind: 'complete' }>
+type IncompleteTraversalResult = Extract<WatermarkTraversalResult, { kind: 'incomplete' }>
+
 async function loadModule(): Promise<IncrementalMonitorRunModule> {
   let loaded: unknown
   try {
@@ -125,9 +128,10 @@ function existingMonitor(overrides: Record<string, unknown> = {}) {
 }
 
 function traversalResult(
-  overrides: Partial<WatermarkTraversalResult> = {},
-): WatermarkTraversalResult {
+  overrides: Partial<CompleteTraversalResult> = {},
+): CompleteTraversalResult {
   return {
+    kind: 'complete',
     newListings: [LISTING_A, LISTING_B],
     nextWatermark: {
       boundaryTime: LISTING_A.listTime,
@@ -135,6 +139,7 @@ function traversalResult(
     },
     pagesRead: 2,
     possibleMiss: false,
+    checkpoint: null,
     ...overrides,
   }
 }
@@ -342,7 +347,7 @@ describe('runIncrementalMonitor', () => {
     )
   })
 
-  it('passes a possible-miss traversal result and unchanged watermark through untouched', async () => {
+  it('passes an incomplete traversal result and unchanged watermark through untouched', async () => {
     const module = await loadModule()
     const { adapter } = makeAdapter()
     const { prisma } = makePrisma(existingMonitor())
@@ -350,10 +355,24 @@ describe('runIncrementalMonitor', () => {
       boundaryTime: BOUNDARY_TIME.toISOString(),
       boundaryIds: BOUNDARY_IDS,
     }
-    const result = traversalResult({
+    const result: IncompleteTraversalResult = {
+      kind: 'incomplete',
+      newListings: [LISTING_A, LISTING_B],
       nextWatermark: unchangedWatermark,
+      pagesRead: 1,
       possibleMiss: true,
-    })
+      checkpoint: {
+        resumeCursor: 'page-2',
+        pendingWatermark: {
+          boundaryTime: LISTING_A.listTime,
+          boundaryIds: [LISTING_A.listId],
+        },
+        lastObservation: {
+          listId: LISTING_B.listId,
+          listTime: LISTING_B.listTime,
+        },
+      },
+    }
     dependencyMocks.traverseWatermark.mockResolvedValue(result)
 
     const actual = await module.runIncrementalMonitor({
