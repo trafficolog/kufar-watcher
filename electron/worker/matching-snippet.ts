@@ -21,7 +21,12 @@ function getWords(text: string): WordSpan[] {
   }))
 }
 
-function renderSnippet(text: string, words: readonly WordSpan[], left: number, right: number): string {
+function renderSnippet(
+  text: string,
+  words: readonly WordSpan[],
+  left: number,
+  right: number,
+): string {
   const leftWord = words[left]!
   const rightWord = words[right]!
   const prefix = left > 0 ? '… ' : ''
