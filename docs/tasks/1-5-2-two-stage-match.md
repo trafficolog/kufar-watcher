@@ -2,9 +2,9 @@
 id: "1.5.2"
 phase: 1
 epic: "1.5"
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-05
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-09
 roles: [BACK]
 depends_on: ["1.5.1"]
 estimated_hours: 2
@@ -14,7 +14,7 @@ tags: [matching, policy]
 
 # Задача 1.5.2 — Политика загрузки описания
 
-> Эпик 1.5 · Фаза 1 · ⬜ todo · зависит от: 1.5.1 · оценка: 2 ч
+> Эпик 1.5 · Фаза 1 · ✅ done · зависит от: 1.5.1 · оценка: 2 ч
 
 ## Цель
 
@@ -49,11 +49,31 @@ tags: [matching, policy]
 
 ## Критерии приёмки
 
-- [ ] При выключенном поиске по описанию дополнительных запросов нет
-- [ ] При включённом описание загружается для каждого нового объявления, включая те, что уже совпали по заголовку
-- [ ] Загрузка выполняется после всех дешёвых отсевов, а не до них; при наличии фильтра продавца (эпик 2.3) объявление из чёрного списка описание не загружает
-- [ ] Повторный обход не загружает описание второй раз
-- [ ] Юнит-тесты на обе ветви зелёные
+- [x] При выключенном поиске по описанию дополнительных запросов нет
+- [x] При включённом описание загружается для каждого нового объявления, включая те, что уже совпали по заголовку
+- [x] Загрузка выполняется после всех дешёвых отсевов, а не до них; при наличии фильтра продавца (эпик 2.3) объявление из чёрного списка описание не загружает
+- [x] Повторный обход не загружает описание второй раз
+- [x] Юнит-тесты на обе ветви зелёные
+
+## Реализация
+
+- `runIncrementalMonitor` читает persisted `Monitor.searchInDescription` вместе с canonical query и cursor revision, поэтому правило определяется сохранённой конфигурацией монитора, а не параметром вызывающего кода.
+- В incremental pipeline добавлен дешёвый `CandidatePrefilter` с accept-all реализацией по умолчанию. Порядок обработки теперь фиксирован: watermark/deduplication в traversal → prefilter → при необходимости загрузка описания → downstream selector.
+- При `searchInDescription=false` `DescriptionLoader` не вызывается вообще. При `true` `ensureDescription` вызывается для каждого нового объявления, прошедшего prefilter, до вызова selector; поэтому совпадение по заголовку не может стать эвристикой для пропуска detail request.
+- Для `available` результата из кеша/сети selector получает копию `Listing` с полным `description`. `unavailable` считается обычным отсевом: такое объявление не передаётся selector и не роняет monitor run.
+- Ошибка загрузки detail возникает до `commitMonitorRun`, поэтому не фиксируются Match/Run и не продвигается cursor для незавершённого обхода.
+- Повторные detail requests не реализуют отдельный кеш в policy-слое: `DescriptionLoader` использует контракт `ListingDescriptionCache` из `1.5.1`, где persistent `descriptionLoadedAt`/`availability` уже исключают второй HTTP request, включая reuse между экземплярами сервиса.
+- `CandidatePrefilter` является точкой для дешёвых отсевов до сети. Когда фильтр продавца из эпика `2.3` будет подключён, отклонённое им объявление не дойдёт до `DescriptionLoader`; сама логика blacklist в эту задачу намеренно не входит.
+- `runMonitorCycle` пробрасывает `prefilter` и `descriptionLoader` только в incremental path. Cold start не менялся и не выполняет detail loading.
+- Сам keyword matcher и генерация snippet остаются в эпике `2.2`; задача `1.5.2` фиксирует только детерминированную сетевую policy и порядок стадий.
+
+## Проверка
+
+- Первый TDD RED: GitHub Actions `verify` run `#580` — новый policy-suite дал ровно четыре ожидаемых падения: enabled loader не вызывался, prefilter игнорировался, unavailable попадал в selector, detail failure не прерывал run; disabled-ветка уже была зелёной.
+- После минимальной production-реализации policy-suite стал зелёным; `verify` run `#581` также подтвердил unit tests, typecheck, lint и formatting до следующего TDD-цикла.
+- Второй TDD RED: `verify` run `#582` — единственным новым падением было отсутствие forwarding `prefilter`/`descriptionLoader` через `runMonitorCycle`, при этом пять policy-тестов оставались зелёными.
+- Production HEAD перед обновлением карточки проверен `verify` run `#583`: полностью GREEN, включая documentation consistency, unit tests, CI failure-mode self-check, typecheck, lint, formatting, Postgres compose integration, build/output verification, development smoke и production smoke.
+- Повторное отсутствие HTTP подтверждается существующим unit/PostgreSQL coverage `ListingDescriptionCache` из `1.5.1`; policy всегда обращается к этому cache primitive, а не к HTTP напрямую.
 
 ## Подсказки
 
