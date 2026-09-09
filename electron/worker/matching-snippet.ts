@@ -22,18 +22,22 @@ function getWords(text: string): WordSpan[] {
 }
 
 function renderSnippet(text: string, words: readonly WordSpan[], left: number, right: number): string {
+  const leftWord = words[left]!
+  const rightWord = words[right]!
   const prefix = left > 0 ? '… ' : ''
   const suffix = right < words.length - 1 ? ' …' : ''
-  return `${prefix}${text.slice(words[left].start, words[right].end)}${suffix}`
+  return `${prefix}${text.slice(leftWord.start, rightWord.end)}${suffix}`
 }
 
 export function extractMatchingSnippet(input: MatchingSnippetInput): string | null {
   if (input.maxLength <= 0) return null
   if (input.field === 'title' && input.text.length <= input.maxLength) return null
 
-  const hit = input.hits
-    .filter(({ field, kind }) => field === input.field && kind === 'include')
-    .toSorted((left, right) => left.start - right.start)[0]
+  const matchingHits = input.hits.filter(
+    ({ field, kind }) => field === input.field && kind === 'include',
+  )
+  matchingHits.sort((left, right) => left.start - right.start)
+  const hit = matchingHits[0]
 
   if (!hit) return null
 
@@ -60,20 +64,23 @@ export function extractMatchingSnippet(input: MatchingSnippetInput): string | nu
 
     if (fitting.length === 0) break
 
-    const next = fitting.toSorted((first, second) => {
-      const firstLeft = hit.start - words[first.left].start
-      const firstRight = words[first.right].end - hit.end
-      const secondLeft = hit.start - words[second.left].start
-      const secondRight = words[second.right].end - hit.end
+    fitting.sort((first, second) => {
+      const firstLeft = hit.start - words[first.left]!.start
+      const firstRight = words[first.right]!.end - hit.end
+      const secondLeft = hit.start - words[second.left]!.start
+      const secondRight = words[second.right]!.end - hit.end
       return Math.abs(firstLeft - firstRight) - Math.abs(secondLeft - secondRight)
-    })[0]
+    })
 
+    const next = fitting[0]!
     left = next.left
     right = next.right
   }
 
   if (left === 0 && right === words.length - 1) {
-    return input.field === 'title' ? null : input.text.slice(words[0].start, words.at(-1)!.end)
+    return input.field === 'title'
+      ? null
+      : input.text.slice(words[0]!.start, words[words.length - 1]!.end)
   }
 
   return renderSnippet(input.text, words, left, right)
