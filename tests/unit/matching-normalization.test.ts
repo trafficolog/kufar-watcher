@@ -38,10 +38,11 @@ describe('matching text tokenization', () => {
     const compound = tokenizeMatchingText('PlayStation-4 Pro')
     const spaced = tokenizeMatchingText('playstation 4 pro')
 
-    expect(spaced.every((token) => compound.includes(token))).toBe(true)
+    expect(spaced).toEqual(['playstation', '4', 'pro'])
+    expect(compound).toEqual(expect.arrayContaining(spaced))
   })
 
-  it('drops tokens that contain only edge punctuation', () => {
-    expect(tokenizeMatchingText('... !!! «»')).toEqual([])
+  it('drops punctuation-only tokens without dropping neighboring words', () => {
+    expect(tokenizeMatchingText('... слово !!! «»')).toEqual(['слово'])
   })
 })
