@@ -16,25 +16,17 @@ describe('matching text normalization', () => {
 })
 
 describe('matching text tokenization', () => {
-  it(
-    'strips punctuation at token edges while preserving an internal hyphen',
-    () => {
-      expect(tokenizeMatchingText('«PlayStation-4», (Pro)!')).toEqual([
-        'playstation-4',
-        'playstation',
-        '4',
-        'pro',
-      ])
-    },
-  )
+  it('strips punctuation at token edges while preserving an internal hyphen', () => {
+    expect(tokenizeMatchingText('«PlayStation-4», (Pro)!')).toEqual([
+      'playstation-4',
+      'playstation',
+      '4',
+      'pro',
+    ])
+  })
 
   it('keeps mixed scripts and digits in product-model tokens', () => {
-    expect(tokenizeMatchingText('iPhone-15 Чехол')).toEqual([
-      'iphone-15',
-      'iphone',
-      '15',
-      'чехол',
-    ])
+    expect(tokenizeMatchingText('iPhone-15 Чехол')).toEqual(['iphone-15', 'iphone', '15', 'чехол'])
   })
 
   it('makes a hyphenated compound comparable with its spaced form', () => {
