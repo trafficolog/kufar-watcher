@@ -8,10 +8,18 @@ export interface BootStep {
   detail: string
 }
 
+export type BootErrorCode =
+  | 'docker-unavailable'
+  | 'database-timeout'
+  | 'migration-failed'
+  | 'worker-failed'
+  | 'configuration-invalid'
+  | 'unexpected-failure'
+
 export interface BootState {
   phase: 'starting' | 'ready' | 'error'
   steps: BootStep[]
-  errorCode?: 'docker-unavailable' | 'database-timeout' | 'migration-failed' | 'worker-failed'
+  errorCode?: BootErrorCode
 }
 
 export interface KufarDesktopApi {
