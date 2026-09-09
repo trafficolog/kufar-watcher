@@ -1,16 +1,27 @@
 import type { CanonicalQuery } from '../../shared/canonical-query'
 import type { Listing } from '../../shared/listing'
 import type { SourceAdapter } from '../../shared/source-adapter'
-import type { Watermark, WatermarkTraversalResult } from '../../shared/watermark'
+import type {
+  Watermark,
+  WatermarkCatchUpCheckpoint,
+  WatermarkCatchUpObservation,
+  WatermarkTraversalResult,
+} from '../../shared/watermark'
 
 export interface TraverseWatermarkInput {
   adapter: SourceAdapter
   query: CanonicalQuery
   previousWatermark: Watermark
   maxPages: number
+  checkpoint?: WatermarkCatchUpCheckpoint
 }
 
-export type WatermarkTraversalConfigField = 'maxPages' | 'previousWatermark.boundaryTime'
+export type WatermarkTraversalConfigField =
+  | 'maxPages'
+  | 'previousWatermark.boundaryTime'
+  | 'checkpoint.pendingWatermark.boundaryTime'
+  | 'checkpoint.pagesRead'
+  | 'checkpoint.lastObservation.listTime'
 
 export class WatermarkTraversalConfigError extends Error {
   constructor(
@@ -22,12 +33,7 @@ export class WatermarkTraversalConfigError extends Error {
   }
 }
 
-export interface WatermarkOrderingObservation {
-  page: number
-  index: number
-  listId: string
-  listTime: string
-}
+export type WatermarkOrderingObservation = WatermarkCatchUpObservation
 
 interface WatermarkOrderingState {
   observation: WatermarkOrderingObservation
@@ -44,12 +50,33 @@ export class WatermarkOrderingError extends Error {
   }
 }
 
-function parsePreviousBoundary(value: string): number {
+export class WatermarkListingTimeError extends Error {
+  constructor(readonly observation: WatermarkOrderingObservation) {
+    super(`Invalid listing time for ${observation.listId}`)
+    this.name = 'WatermarkListingTimeError'
+  }
+}
+
+export class WatermarkCatchUpResumeError extends Error {
+  readonly cause: unknown
+
+  constructor(cause: unknown) {
+    super('Watermark catch-up cursor could not be resumed')
+    this.name = 'WatermarkCatchUpResumeError'
+    this.cause = cause
+  }
+}
+
+function parseBoundary(value: string, field: WatermarkTraversalConfigField): number {
   const parsed = Date.parse(value)
   if (!Number.isFinite(parsed)) {
-    throw new WatermarkTraversalConfigError('previousWatermark.boundaryTime', value)
+    throw new WatermarkTraversalConfigError(field, value)
   }
   return parsed
+}
+
+function parsePreviousBoundary(value: string): number {
+  return parseBoundary(value, 'previousWatermark.boundaryTime')
 }
 
 function assertMaxPages(maxPages: number): void {
@@ -58,75 +85,112 @@ function assertMaxPages(maxPages: number): void {
   }
 }
 
+function assertCheckpoint(checkpoint: WatermarkCatchUpCheckpoint): void {
+  if (!Number.isInteger(checkpoint.pagesRead) || checkpoint.pagesRead < 1) {
+    throw new WatermarkTraversalConfigError('checkpoint.pagesRead', checkpoint.pagesRead)
+  }
+
+  parseBoundary(
+    checkpoint.pendingWatermark.boundaryTime,
+    'checkpoint.pendingWatermark.boundaryTime',
+  )
+
+  if (checkpoint.lastObservation !== null) {
+    parseBoundary(checkpoint.lastObservation.listTime, 'checkpoint.lastObservation.listTime')
+  }
+}
+
+export function parseListingTime(observation: WatermarkOrderingObservation): number {
+  const epoch = Date.parse(observation.listTime)
+  if (!Number.isFinite(epoch)) {
+    throw new WatermarkListingTimeError(observation)
+  }
+  return epoch
+}
+
+function cloneWatermark(watermark: Watermark): Watermark {
+  return {
+    boundaryTime: watermark.boundaryTime,
+    boundaryIds: [...watermark.boundaryIds],
+  }
+}
+
 export async function traverseWatermark({
   adapter,
   query,
   previousWatermark,
   maxPages,
+  checkpoint,
 }: TraverseWatermarkInput): Promise<WatermarkTraversalResult> {
   assertMaxPages(maxPages)
   const previousEpoch = parsePreviousBoundary(previousWatermark.boundaryTime)
+  if (checkpoint !== undefined) assertCheckpoint(checkpoint)
 
   const previousIds = new Set(previousWatermark.boundaryIds)
   const seenIds = new Set<string>()
   const newListings: Listing[] = []
-  const newlyObservedPreviousBoundaryIds: string[] = []
-  const idsAtMaximum: string[] = []
-  let maximumEpoch: number | null = null
-  let maximumOriginalTime: string | null = null
-  let cursor: string | null = null
+  let pendingWatermark = cloneWatermark(checkpoint?.pendingWatermark ?? previousWatermark)
+  let pendingEpoch = parseBoundary(
+    pendingWatermark.boundaryTime,
+    checkpoint === undefined
+      ? 'previousWatermark.boundaryTime'
+      : 'checkpoint.pendingWatermark.boundaryTime',
+  )
+  let cursor: string | null = checkpoint?.resumeCursor ?? null
   let pagesRead = 0
+  const pageOffset = checkpoint?.pagesRead ?? 0
   let boundaryCrossed = false
   let previousObservation: WatermarkOrderingState | null = null
 
-  const completedWatermark = (): Watermark => {
-    if (maximumEpoch === null || maximumEpoch < previousEpoch) {
-      return previousWatermark
-    }
-
-    if (maximumEpoch === previousEpoch) {
-      return {
-        boundaryTime: previousWatermark.boundaryTime,
-        boundaryIds: [
-          ...new Set([...previousWatermark.boundaryIds, ...newlyObservedPreviousBoundaryIds]),
-        ],
-      }
-    }
-
-    return {
-      boundaryTime: maximumOriginalTime as string,
-      boundaryIds: idsAtMaximum,
+  if (checkpoint?.lastObservation !== null && checkpoint?.lastObservation !== undefined) {
+    previousObservation = {
+      observation: checkpoint.lastObservation,
+      epoch: parseBoundary(
+        checkpoint.lastObservation.listTime,
+        'checkpoint.lastObservation.listTime',
+      ),
     }
   }
 
   while (pagesRead < maxPages) {
-    const page = await adapter.fetchPage({ query, cursor })
+    let page
+    try {
+      page = await adapter.fetchPage({ query, cursor })
+    } catch (error) {
+      if (checkpoint !== undefined) throw new WatermarkCatchUpResumeError(error)
+      throw error
+    }
     pagesRead += 1
+    const observationPage = pageOffset + pagesRead
 
     for (const [index, current] of page.listings.entries()) {
       if (seenIds.has(current.listId)) continue
       seenIds.add(current.listId)
 
-      const epoch = Date.parse(current.listTime)
       const observation: WatermarkOrderingObservation = {
-        page: pagesRead,
+        page: observationPage,
         index,
         listId: current.listId,
         listTime: current.listTime,
       }
+      const epoch = parseListingTime(observation)
 
       if (previousObservation !== null && epoch > previousObservation.epoch) {
         throw new WatermarkOrderingError(previousObservation.observation, observation)
       }
       previousObservation = { observation, epoch }
 
-      if (maximumEpoch === null || epoch > maximumEpoch) {
-        maximumEpoch = epoch
-        maximumOriginalTime = current.listTime
-        idsAtMaximum.length = 0
-        idsAtMaximum.push(current.listId)
-      } else if (epoch === maximumEpoch) {
-        idsAtMaximum.push(current.listId)
+      if (epoch > pendingEpoch) {
+        pendingEpoch = epoch
+        pendingWatermark = {
+          boundaryTime: current.listTime,
+          boundaryIds: [current.listId],
+        }
+      } else if (epoch === pendingEpoch && !pendingWatermark.boundaryIds.includes(current.listId)) {
+        pendingWatermark = {
+          boundaryTime: pendingWatermark.boundaryTime,
+          boundaryIds: [...pendingWatermark.boundaryIds, current.listId],
+        }
       }
 
       if (epoch > previousEpoch) {
@@ -137,7 +201,6 @@ export async function traverseWatermark({
       if (epoch === previousEpoch) {
         if (!previousIds.has(current.listId)) {
           newListings.push(current)
-          newlyObservedPreviousBoundaryIds.push(current.listId)
         }
         continue
       }
@@ -149,7 +212,7 @@ export async function traverseWatermark({
     if (boundaryCrossed || page.nextCursor === null) {
       return {
         newListings,
-        nextWatermark: completedWatermark(),
+        nextWatermark: pendingWatermark,
         pagesRead,
         possibleMiss: false,
       }
@@ -161,6 +224,12 @@ export async function traverseWatermark({
         nextWatermark: previousWatermark,
         pagesRead,
         possibleMiss: true,
+        checkpoint: {
+          resumeCursor: page.nextCursor,
+          pendingWatermark,
+          pagesRead: pageOffset + pagesRead,
+          lastObservation: previousObservation?.observation ?? null,
+        },
       }
     }
 
