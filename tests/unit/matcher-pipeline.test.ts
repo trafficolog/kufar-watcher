@@ -161,10 +161,7 @@ describe('incremental matcher pipeline', () => {
   })
 
   it('persists title and description hits with a snippet around the description hit', async () => {
-    const prisma = prismaWithKeywordRule(
-      { include: ['candidate', 'needle'], exclude: [] },
-      true,
-    )
+    const prisma = prismaWithKeywordRule({ include: ['candidate', 'needle'], exclude: [] }, true)
     const adapter = {} as SourceAdapter
     const traversal = { ...traversalResult(), newListings: [LISTING_A] }
     const description =
