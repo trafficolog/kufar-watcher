@@ -133,6 +133,22 @@ function errorFor(state: BootState, platform: BootUiPlatform): BootScreenError |
     }
   }
 
+  if (state.errorCode === 'configuration-invalid') {
+    return {
+      heading: 'Не удалось подготовить локальную базу',
+      message:
+        'Параметры локального Postgres недоступны или повреждены. Повторите запуск или откройте журнал для диагностики.',
+    }
+  }
+
+  if (state.errorCode === 'unexpected-failure') {
+    return {
+      heading: 'Непредвиденная ошибка запуска',
+      message:
+        'Инициализация завершилась неожиданной ошибкой. Мониторинг не запущен. Повторите попытку или откройте журнал для диагностики.',
+    }
+  }
+
   return {
     heading: 'Запуск не завершён',
     message: 'Не удалось завершить инициализацию. Повторите попытку или откройте журнал.',

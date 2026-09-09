@@ -1,13 +1,17 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { app, BrowserWindow, ipcMain, protocol, utilityProcess } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol, shell, utilityProcess } from 'electron'
 import { IPC, type BootState } from '../../shared/ipc'
 import workerPath from '../worker/index?modulePath'
 import { APP_HOST, APP_ORIGIN, APP_SCHEME, registerRendererProtocol } from './app-protocol'
 import { createBootstrapRetryController } from './bootstrap-retry'
 import { createDockerClient } from './docker-client'
 import { createDockerodePostgresRuntime } from './dockerode-postgres-adapter'
-import { runInfrastructureBootstrap } from './infrastructure-bootstrap'
+import {
+  installUnhandledRejectionHandler,
+  runInfrastructureBootstrap,
+  runVisibleBootstrap,
+} from './infrastructure-bootstrap'
 import { createInfrastructureBootstrapDependencies } from './infrastructure-runtime'
 import {
   forwardBootState,
@@ -15,9 +19,9 @@ import {
   registerSystemIpcHandlers,
   routeWorkerBootEvent,
 } from './ipc-router'
-import { readPostgresRuntimeConfig } from './postgres-config'
+import { loadOrCreatePostgresCredentials, readPostgresRuntimeConfig } from './postgres-config'
 import { createWorkerSupervisor, type WorkerSupervisor } from './worker-supervisor'
-import { rawResponseJournalArg } from './worker-storage'
+import { openRawResponseJournal, rawResponseJournalArg } from './worker-storage'
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -65,7 +69,16 @@ function broadcastBootState(state: BootState): void {
 
 function publishBootState(state: BootState): void {
   bootState = state
-  broadcastBootState(state)
+  if (app.isReady()) broadcastBootState(state)
+}
+
+function reportUnexpectedFailure(error: unknown): void {
+  console.error('[bootstrap:unexpected]', error)
+  publishBootState({
+    phase: 'error',
+    steps: bootState.steps,
+    errorCode: 'unexpected-failure',
+  })
 }
 
 function createMainWindow(): BrowserWindow {
@@ -94,15 +107,16 @@ function createMainWindow(): BrowserWindow {
   return window
 }
 
+installUnhandledRejectionHandler(process, reportUnexpectedFailure)
+
 app.whenReady().then(async () => {
   if (!devRendererUrl) {
     const publicRoot = resolve(__dirname, '../../.output/public')
     await registerRendererProtocol(publicRoot)
   }
 
-  loadDevelopmentEnvironment()
-  const workerJournalArg = rawResponseJournalArg(app.getPath('userData'))
-
+  const userDataDir = app.getPath('userData')
+  const workerJournalArg = rawResponseJournalArg(userDataDir)
   const supervisor = createWorkerSupervisor({
     spawnWorker: () =>
       utilityProcess.fork(workerPath, [workerJournalArg], {
@@ -122,17 +136,33 @@ app.whenReady().then(async () => {
   })
   workerSupervisor = supervisor
 
-  const config = readPostgresRuntimeConfig()
-  const runtime = createDockerodePostgresRuntime(createDockerClient())
-  const bootstrapDependencies = createInfrastructureBootstrapDependencies({
-    runtime,
-    config,
-    startWorker: () => supervisor.start(),
-    publishBootState,
-  })
   const runBootstrap = async (): Promise<void> => {
+    let config
+    try {
+      const fallbackCredentials = app.isPackaged
+        ? loadOrCreatePostgresCredentials(userDataDir)
+        : undefined
+      config = readPostgresRuntimeConfig(process.env, fallbackCredentials)
+    } catch (error) {
+      console.error('[bootstrap:configuration]', error)
+      publishBootState({
+        phase: 'error',
+        steps: bootState.steps,
+        errorCode: 'configuration-invalid',
+      })
+      return
+    }
+
+    const runtime = createDockerodePostgresRuntime(createDockerClient())
+    const bootstrapDependencies = createInfrastructureBootstrapDependencies({
+      runtime,
+      config,
+      startWorker: () => supervisor.start(),
+      publishBootState,
+    })
     bootState = await runInfrastructureBootstrap(bootstrapDependencies)
   }
+
   const retryController = createBootstrapRetryController({
     getState: () => bootState,
     runBootstrap,
@@ -143,19 +173,25 @@ app.whenReady().then(async () => {
     {
       getBootState: () => bootState,
       retryBoot: () => retryController.retry(),
-      openJournal: () => {
-        throw new Error('Journal is unavailable until the journal service is implemented')
-      },
+      openJournal: () => openRawResponseJournal(shell, userDataDir),
       exit: () => app.quit(),
     },
     devRendererUrl,
   )
 
-  createMainWindow()
-  await runBootstrap()
-
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
+  })
+
+  await runVisibleBootstrap({
+    createWindow: () => {
+      createMainWindow()
+    },
+    initialize: async () => {
+      loadDevelopmentEnvironment()
+      await runBootstrap()
+    },
+    onUnexpectedFailure: reportUnexpectedFailure,
   })
 })
 

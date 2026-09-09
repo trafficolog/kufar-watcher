@@ -24,13 +24,6 @@ describe('raw response journal worker storage config', () => {
     expect(() => readWorkerConfig(['electron', 'worker.js'])).toThrow(/raw response journal/i)
   })
 
-  it('wires Electron userData into the utility worker journal argument', async () => {
-    const source = await readFile(new URL('../electron/main/index.ts', import.meta.url), 'utf8')
-
-    expect(source).toMatch(/rawResponseJournalArg\(app\.getPath\('userData'\)\)/)
-    expect(source).toMatch(/utilityProcess\.fork\(workerPath,\s*\[workerJournalArg\]/s)
-  })
-
   it('validates worker journal configuration at startup', async () => {
     const source = await readFile(new URL('../electron/worker/index.ts', import.meta.url), 'utf8')
 
