@@ -7,6 +7,17 @@ export interface PersistedKeywordRule {
   exclude: readonly string[]
 }
 
+export class PersistedKeywordRuleError extends Error {
+  constructor() {
+    super('Invalid persisted keyword rule')
+    this.name = 'PersistedKeywordRuleError'
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string')
 }
@@ -20,10 +31,13 @@ export function parsePersistedKeywordRule(value: unknown): PersistedKeywordRule 
     return { include: [...value], exclude: [] }
   }
 
-  const record = value as { include?: unknown; exclude?: unknown }
+  if (!isRecord(value) || !isStringArray(value.include) || !isStringArray(value.exclude)) {
+    throw new PersistedKeywordRuleError()
+  }
+
   return {
-    include: isStringArray(record.include) ? [...record.include] : [],
-    exclude: isStringArray(record.exclude) ? [...record.exclude] : [],
+    include: [...value.include],
+    exclude: [...value.exclude],
   }
 }
 
