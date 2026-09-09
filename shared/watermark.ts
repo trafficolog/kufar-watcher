@@ -5,9 +5,31 @@ export interface Watermark {
   boundaryIds: readonly string[]
 }
 
-export interface WatermarkTraversalResult {
+export interface WatermarkCatchUpObservation {
+  page: number
+  index: number
+  listId: string
+  listTime: string
+}
+
+export interface WatermarkCatchUpCheckpoint {
+  resumeCursor: string
+  pendingWatermark: Watermark
+  pagesRead: number
+  lastObservation: WatermarkCatchUpObservation | null
+}
+
+interface WatermarkTraversalResultBase {
   newListings: Listing[]
   nextWatermark: Watermark
   pagesRead: number
-  possibleMiss: boolean
 }
+
+export type WatermarkTraversalResult =
+  | (WatermarkTraversalResultBase & {
+      possibleMiss: false
+    })
+  | (WatermarkTraversalResultBase & {
+      possibleMiss: true
+      checkpoint: WatermarkCatchUpCheckpoint
+    })
