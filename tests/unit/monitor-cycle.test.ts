@@ -39,6 +39,7 @@ beforeEach(() => {
     },
   })
   dependencyMocks.runIncrementalMonitor.mockReset().mockResolvedValue({
+    kind: 'complete',
     newListings: [],
     nextWatermark: {
       boundaryTime: '2026-09-08T12:00:00.000Z',
@@ -46,6 +47,7 @@ beforeEach(() => {
     },
     pagesRead: 1,
     possibleMiss: false,
+    checkpoint: null,
   })
 })
 
@@ -68,7 +70,7 @@ describe('runMonitorCycle', () => {
       now: undefined,
     })
     expect(dependencyMocks.runIncrementalMonitor).not.toHaveBeenCalled()
-    expect(result).toMatchObject({ kind: 'cold-start', baselineCount: 4 })
+    expect(result).toMatchObject({ cycleKind: 'cold-start', baselineCount: 4 })
   })
 
   it('routes an initialized cursor to the existing incremental path', async () => {
@@ -94,7 +96,7 @@ describe('runMonitorCycle', () => {
       now,
     })
     expect(dependencyMocks.runColdStartMonitor).not.toHaveBeenCalled()
-    expect(result).toMatchObject({ kind: 'incremental', pagesRead: 1 })
+    expect(result).toMatchObject({ cycleKind: 'incremental', kind: 'complete', pagesRead: 1 })
   })
 
   it('forwards prefilter and description loader to the incremental path', async () => {
