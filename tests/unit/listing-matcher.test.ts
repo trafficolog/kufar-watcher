@@ -19,7 +19,7 @@ describe('listing matcher', () => {
       matchListing({
         include: [],
         exclude: ['ремонт'],
-        document: { title: 'Телефон без ремонта' },
+        document: { title: 'Телефон, ремонт' },
         fields: ['title'],
       }),
     ).toEqual({
