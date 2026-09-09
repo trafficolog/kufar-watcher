@@ -1,3 +1,5 @@
+import { compileMatchingTerm } from './matching-term'
+
 export type MatchingTermPredicate = (normalizedToken: string) => boolean
 
 export interface MatchingTermCompiler {
@@ -5,7 +7,7 @@ export interface MatchingTermCompiler {
 }
 
 export const matchingTermCompiler: MatchingTermCompiler = {
-  compile() {
-    return () => false
+  compile(term) {
+    return compileMatchingTerm(term)
   },
 }
