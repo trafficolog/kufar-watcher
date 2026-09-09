@@ -9,7 +9,7 @@ import {
   type MonitorRunPersistenceInput,
 } from '../../electron/worker/monitor-run-persistence'
 import type { Listing } from '../../shared/listing'
-import type { Watermark } from '../../shared/watermark'
+import type { Watermark, WatermarkTraversalResult } from '../../shared/watermark'
 
 const integrationDescribe =
   process.env.KUFAR_POSTGRES_INTEGRATION === '1' ? describe : describe.skip
@@ -43,7 +43,38 @@ function listing(id: string, title = `Listing ${id}`): Listing {
   }
 }
 
-function input(nextWatermark: Watermark = NEW_WATERMARK): MonitorRunPersistenceInput {
+function completeTraversal(nextWatermark: Watermark = NEW_WATERMARK): WatermarkTraversalResult {
+  return {
+    kind: 'complete',
+    newListings: [listing('a'), listing('b')],
+    nextWatermark,
+    pagesRead: 2,
+    possibleMiss: false,
+    checkpoint: null,
+  }
+}
+
+function incompleteTraversal(): WatermarkTraversalResult {
+  return {
+    kind: 'incomplete',
+    newListings: [listing('a'), listing('b')],
+    nextWatermark: OLD_WATERMARK,
+    pagesRead: 1,
+    possibleMiss: true,
+    checkpoint: {
+      resumeCursor: 'page-2',
+      pendingWatermark: NEW_WATERMARK,
+      lastObservation: {
+        listId: `${LISTING_PREFIX}b`,
+        listTime: '2026-09-08T10:30:00.000Z',
+      },
+    },
+  }
+}
+
+function input(
+  traversal: WatermarkTraversalResult = completeTraversal(),
+): MonitorRunPersistenceInput {
   const first = listing('a')
   const second = listing('b')
   return {
@@ -58,7 +89,7 @@ function input(nextWatermark: Watermark = NEW_WATERMARK): MonitorRunPersistenceI
         selection: { matchedTerms: [], matchedIn: [], snippet: null },
       },
     ],
-    nextWatermark,
+    traversal,
   }
 }
 
@@ -118,6 +149,11 @@ integrationDescribe('monitor run persistence', () => {
     })
     expect(cursor.boundaryTime?.toISOString()).toBe(NEW_WATERMARK.boundaryTime)
     expect(cursor.boundaryIds).toEqual(NEW_WATERMARK.boundaryIds)
+    expect(cursor.catchupCursor).toBeNull()
+    expect(cursor.catchupBoundaryTime).toBeNull()
+    expect(cursor.catchupBoundaryIds).toEqual([])
+    expect(cursor.catchupLastListTime).toBeNull()
+    expect(cursor.catchupLastListId).toBeNull()
     expect(cursor.lastRunAt?.toISOString()).toBe('2026-09-08T11:02:00.000Z')
 
     const run = await prisma.run.findFirstOrThrow({ where: { monitorId: MONITOR_ID } })
@@ -127,6 +163,51 @@ integrationDescribe('monitor run persistence', () => {
     expect(run.error).toBeNull()
     expect(run.httpStatus).toBeNull()
     expect(run.degradedLevel).toBeNull()
+  })
+
+  it('persists an incomplete catch-up chunk without advancing the confirmed watermark', async () => {
+    await commitMonitorRun(prisma, input(incompleteTraversal()))
+
+    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(
+      2,
+    )
+    expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(1)
+
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
+    expect(cursor.boundaryTime?.toISOString()).toBe(OLD_WATERMARK.boundaryTime)
+    expect(cursor.boundaryIds).toEqual(OLD_WATERMARK.boundaryIds)
+    expect(cursor.catchupCursor).toBe('page-2')
+    expect(cursor.catchupBoundaryTime?.toISOString()).toBe(NEW_WATERMARK.boundaryTime)
+    expect(cursor.catchupBoundaryIds).toEqual(NEW_WATERMARK.boundaryIds)
+    expect(cursor.catchupLastListTime?.toISOString()).toBe('2026-09-08T10:30:00.000Z')
+    expect(cursor.catchupLastListId).toBe(`${LISTING_PREFIX}b`)
+    expect(cursor.lastRunAt?.toISOString()).toBe('2026-09-08T11:02:00.000Z')
+
+    const run = await prisma.run.findFirstOrThrow({ where: { monitorId: MONITOR_ID } })
+    expect(run.outcome).toBe('catchup')
+    expect(run.seen).toBe(2)
+    expect(run.matched).toBe(1)
+    expect(run.degradedLevel).toBe('watermark-catchup')
+  })
+
+  it('promotes the pending watermark and clears checkpoint state on completion', async () => {
+    await commitMonitorRun(prisma, input(incompleteTraversal()))
+    await refreshCursorRevision()
+
+    await commitMonitorRun(prisma, input(completeTraversal(NEW_WATERMARK)))
+
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
+    expect(cursor.boundaryTime?.toISOString()).toBe(NEW_WATERMARK.boundaryTime)
+    expect(cursor.boundaryIds).toEqual(NEW_WATERMARK.boundaryIds)
+    expect(cursor.catchupCursor).toBeNull()
+    expect(cursor.catchupBoundaryTime).toBeNull()
+    expect(cursor.catchupBoundaryIds).toEqual([])
+    expect(cursor.catchupLastListTime).toBeNull()
+    expect(cursor.catchupLastListId).toBeNull()
   })
 
   it('repeating the same result creates no second Match', async () => {
@@ -212,9 +293,9 @@ integrationDescribe('monitor run persistence', () => {
     expect(cursor.boundaryIds).toEqual(OLD_WATERMARK.boundaryIds)
   })
 
-  it('rolls back an advanced cursor and preceding Match before callback return', async () => {
+  it('rolls back confirmed watermark and checkpoint together when the callback throws after cursor write', async () => {
     const sentinel = new Error('rollback-after-cursor')
-    const persistenceInput = input()
+    const persistenceInput = input(incompleteTraversal())
 
     await expect(
       prisma.$transaction(async (tx) => {
@@ -233,6 +314,11 @@ integrationDescribe('monitor run persistence', () => {
     })
     expect(cursor.boundaryTime?.toISOString()).toBe(OLD_WATERMARK.boundaryTime)
     expect(cursor.boundaryIds).toEqual(OLD_WATERMARK.boundaryIds)
+    expect(cursor.catchupCursor).toBeNull()
+    expect(cursor.catchupBoundaryTime).toBeNull()
+    expect(cursor.catchupBoundaryIds).toEqual([])
+    expect(cursor.catchupLastListTime).toBeNull()
+    expect(cursor.catchupLastListId).toBeNull()
     expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(0)
   })
 
@@ -280,18 +366,5 @@ integrationDescribe('monitor run persistence', () => {
     )
     expect(await prisma.match.count({ where: { monitorId: MONITOR_ID } })).toBe(1)
     expect(await prisma.run.count({ where: { monitorId: MONITOR_ID } })).toBe(1)
-  })
-
-  it('stores the unchanged watermark supplied by a possibleMiss traversal', async () => {
-    await commitMonitorRun(prisma, input(OLD_WATERMARK))
-
-    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
-      where: { monitorId: MONITOR_ID },
-    })
-    expect(cursor.boundaryTime?.toISOString()).toBe(OLD_WATERMARK.boundaryTime)
-    expect(cursor.boundaryIds).toEqual(OLD_WATERMARK.boundaryIds)
-    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(
-      2,
-    )
   })
 })

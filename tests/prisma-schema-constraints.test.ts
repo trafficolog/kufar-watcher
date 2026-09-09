@@ -34,4 +34,15 @@ describe('Prisma schema integrity constraints', () => {
     expect(modelBlock(schema, 'Run')).toContain(cascadeRelation)
     expect(modelBlock(schema, 'Match')).toContain(cascadeRelation)
   })
+
+  it('declares persistent watermark catch-up checkpoint fields on MonitorCursor', async () => {
+    const schema = await schemaSource()
+    const cursor = modelBlock(schema, 'MonitorCursor')
+
+    expect(cursor).toMatch(/catchupCursor\s+String\?/)
+    expect(cursor).toMatch(/catchupBoundaryTime\s+DateTime\?/)
+    expect(cursor).toMatch(/catchupBoundaryIds\s+Json\s+@default\("\[\]"\)/)
+    expect(cursor).toMatch(/catchupLastListTime\s+DateTime\?/)
+    expect(cursor).toMatch(/catchupLastListId\s+String\?/)
+  })
 })

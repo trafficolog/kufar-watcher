@@ -3,6 +3,7 @@ import type { Listing } from '../../shared/listing'
 import type { SourceAdapter } from '../../shared/source-adapter'
 import type { Watermark } from '../../shared/watermark'
 import {
+  parseListingObservationEpoch,
   WatermarkOrderingError,
   type WatermarkOrderingObservation,
   WatermarkTraversalConfigError,
@@ -83,13 +84,13 @@ export async function traverseColdStartBaseline({
       seenIds.add(current.listId)
       listings.push(current)
 
-      const epoch = Date.parse(current.listTime)
       const observation: WatermarkOrderingObservation = {
         page: pagesRead,
         index,
         listId: current.listId,
         listTime: current.listTime,
       }
+      const epoch = parseListingObservationEpoch(observation)
 
       if (previousObservation !== null && epoch > previousObservation.epoch) {
         throw new WatermarkOrderingError(previousObservation.observation, observation)

@@ -21,8 +21,8 @@ export interface RunMonitorCycleInput {
 }
 
 export type MonitorCycleResult =
-  | ({ kind: 'cold-start' } & ColdStartMonitorRunResult)
-  | ({ kind: 'incremental' } & WatermarkTraversalResult)
+  | ({ cycleKind: 'cold-start' } & ColdStartMonitorRunResult)
+  | ({ cycleKind: 'incremental' } & WatermarkTraversalResult)
 
 export async function runMonitorCycle({
   prisma,
@@ -51,7 +51,7 @@ export async function runMonitorCycle({
       maxPages,
       now,
     })
-    return { kind: 'cold-start', ...result }
+    return { cycleKind: 'cold-start', ...result }
   }
 
   const result = await runIncrementalMonitor({
@@ -64,5 +64,5 @@ export async function runMonitorCycle({
     ...(descriptionLoader === undefined ? {} : { descriptionLoader }),
     now,
   })
-  return { kind: 'incremental', ...result }
+  return { cycleKind: 'incremental', ...result }
 }

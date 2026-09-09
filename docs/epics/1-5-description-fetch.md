@@ -23,12 +23,12 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.5-tasks -->
-**Задач:** 2 · **done:** 0
+**Задач:** 2 · **done:** 2
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
-| `1.5.1` | [Загрузка полного описания и кеш](../tasks/1-5-1-description-fetch.md) | ⬜ todo | 🟡 drifted |
-| `1.5.2` | [Политика загрузки описания](../tasks/1-5-2-two-stage-match.md) | ⬜ todo | 🟡 drifted |
+| `1.5.1` | [Загрузка полного описания и кеш](../tasks/1-5-1-description-fetch.md) | ✅ done | 🟢 aligned |
+| `1.5.2` | [Политика загрузки описания](../tasks/1-5-2-two-stage-match.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-1.5-tasks -->
 
 ## Критерии приёмки эпика
