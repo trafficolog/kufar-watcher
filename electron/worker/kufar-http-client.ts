@@ -143,8 +143,8 @@ class UndiciKufarTransport implements KufarTransport {
   constructor(options: UndiciKufarTransportOptions) {
     this.agent = new Agent({
       connectTimeout: options.connectTimeoutMs,
-      headersTimeoutMs: options.headersTimeoutMs,
-      bodyTimeoutMs: options.bodyTimeoutMs,
+      headersTimeout: options.headersTimeoutMs,
+      bodyTimeout: options.bodyTimeoutMs,
     })
   }
 
