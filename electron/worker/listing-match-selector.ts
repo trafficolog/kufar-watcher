@@ -1,6 +1,9 @@
 import type { Listing } from '../../shared/listing'
-import { matchListing, type ListingMatchField } from './listing-matcher'
+import { matchListing, type ListingMatchField, type ListingMatchHit } from './listing-matcher'
+import { extractMatchingSnippet } from './matching-snippet'
 import type { MatchSelection } from './monitor-run-persistence'
+
+const MATCH_SNIPPET_MAX_LENGTH = 160
 
 export interface PersistedKeywordRule {
   include: readonly string[]
@@ -41,6 +44,20 @@ export function parsePersistedKeywordRule(value: unknown): PersistedKeywordRule 
   }
 }
 
+function selectSnippetField(
+  listing: Listing,
+  hits: readonly ListingMatchHit[],
+): ListingMatchField | null {
+  if (
+    typeof listing.description === 'string' &&
+    hits.some(({ field }) => field === 'description')
+  ) {
+    return 'description'
+  }
+
+  return hits.some(({ field }) => field === 'title') ? 'title' : null
+}
+
 export function createMatchingCandidateSelector(input: {
   rule: PersistedKeywordRule
   searchInDescription: boolean
@@ -64,10 +81,21 @@ export function createMatchingCandidateSelector(input: {
       if (!result.matched) return null
 
       const includeHits = result.hits.filter(({ kind }) => kind === 'include')
+      const snippetField = selectSnippetField(listing, includeHits)
+      const snippet =
+        snippetField === null
+          ? null
+          : extractMatchingSnippet({
+              text: snippetField === 'description' ? (listing.description ?? '') : listing.title,
+              field: snippetField,
+              hits: includeHits,
+              maxLength: MATCH_SNIPPET_MAX_LENGTH,
+            })
+
       return {
         matchedTerms: unique(includeHits.map(({ term }) => term)),
         matchedIn: unique(includeHits.map(({ field }) => field)),
-        snippet: null,
+        snippet,
       }
     },
   }
