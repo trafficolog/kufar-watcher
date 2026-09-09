@@ -69,7 +69,9 @@ integrationDescribe('matcher pipeline persistence', () => {
 
   beforeEach(async () => {
     await prisma.monitor.deleteMany({ where: { id: MONITOR_ID } })
-    await prisma.listing.deleteMany({ where: { listId: { startsWith: LISTING_PREFIX } } })
+    await prisma.listing.deleteMany({
+      where: { listId: { startsWith: LISTING_PREFIX } },
+    })
 
     await prisma.monitor.create({
       data: {
@@ -116,14 +118,16 @@ integrationDescribe('matcher pipeline persistence', () => {
       now: () => timestamps.shift()!,
     })
 
-    expect(await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } })).toBe(
-      2,
-    )
+    expect(
+      await prisma.listing.count({ where: { listId: { startsWith: LISTING_PREFIX } } }),
+    ).toBe(2)
     expect(
       await prisma.listing.findUnique({ where: { listId: REJECTED_LISTING.listId } }),
     ).not.toBeNull()
 
-    const matches = await prisma.match.findMany({ where: { monitorId: MONITOR_ID } })
+    const matches = await prisma.match.findMany({
+      where: { monitorId: MONITOR_ID },
+    })
     expect(matches).toHaveLength(1)
     expect(matches[0]?.listingId).toBe(MATCHED_LISTING.listId)
     expect(matches[0]?.matchedTerms).toEqual(['candidate'])
@@ -131,11 +135,15 @@ integrationDescribe('matcher pipeline persistence', () => {
     expect(matches[0]?.snippet).toContain('Candidate')
     expect(matches[0]?.snippet?.length).toBeLessThanOrEqual(160)
 
-    const cursor = await prisma.monitorCursor.findUniqueOrThrow({ where: { monitorId: MONITOR_ID } })
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
     expect(cursor.boundaryTime?.toISOString()).toBe(MATCHED_LISTING.listTime)
     expect(cursor.boundaryIds).toEqual([MATCHED_LISTING.listId])
 
-    const run = await prisma.run.findFirstOrThrow({ where: { monitorId: MONITOR_ID } })
+    const run = await prisma.run.findFirstOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
     expect(run.seen).toBe(2)
     expect(run.matched).toBe(1)
   })
