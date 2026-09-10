@@ -1,7 +1,7 @@
 # 2.4.5 — Run-scoped source degradation journal design
 
 Date: 2026-09-10
-Status: approved approach, design pending final review
+Status: ready for human review
 Owner: backend / scheduler / source runtime
 
 ## Problem
@@ -91,7 +91,7 @@ The flag is set only after the database update succeeds. If persistence fails, t
 
 ### Application notification seam
 
-`ScheduledMonitorRunExecutorOptions` adds an optional typed callback such as:
+`ScheduledMonitorRunExecutorOptions` adds this exact optional callback:
 
 ```ts
 onSourceDegradation?: (
@@ -100,7 +100,7 @@ onSourceDegradation?: (
 ) => void | Promise<void>
 ```
 
-`worker-application.ts` wires it to the existing journal event, preserving the current user-visible warning text (`Kufar source degraded to HTML fallback`). The typed source event remains available at the executor boundary for future health/reporting work, but this task does not add new `WorkerEvent` variants or health storage.
+`worker-application.ts` wires `onSourceDegradation` to the existing journal event, preserving the current user-visible warning text (`Kufar source degraded to HTML fallback`). The typed source event remains available at the executor boundary for future health/reporting work, but this task does not add new `WorkerEvent` variants or health storage.
 
 The application does not perform the Run update. Persistence remains owned by the scheduled executor, which is the component that owns the concrete `runId` lifecycle.
 
@@ -173,7 +173,7 @@ Implementation follows TDD with separate RED/GREEN evidence for each behavior bo
 
 3. **Executor binding and idempotency**
    - RED: successful fallback is not tied to the newly created `runId`.
-   - GREEN: fallback updates that exact Run to `html-fallback` and invokes the notification callback once.
+   - GREEN: fallback updates that exact Run to `html-fallback` and invokes `onSourceDegradation` once.
    - Multiple fallback pages in one Run perform one degradation update and one warning.
 
 4. **End-to-end Run lifecycle**
