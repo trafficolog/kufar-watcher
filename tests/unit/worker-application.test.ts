@@ -31,7 +31,9 @@ describe('worker application', () => {
       descriptionLoader,
       close: vi.fn(async () => undefined),
     } as unknown as WorkerSourceRuntime
-    const runMonitor = vi.fn(async () => ({ status: 'completed' })) as unknown as ScheduledMonitorRunExecutor
+    const runMonitor = vi.fn(async () => ({
+      status: 'completed',
+    })) as unknown as ScheduledMonitorRunExecutor
     const scheduler = {
       start: vi.fn(async () => undefined),
       stop: vi.fn(async () => undefined),
@@ -46,14 +48,16 @@ describe('worker application', () => {
       return queue
     })
     const createRepository = vi.fn(() => repository)
-    const createSourceRuntime = vi.fn((options: {
-      prisma: PrismaClient
-      rawResponseJournalDir: string
-      onDegradation(message: string): void | Promise<void>
-    }) => {
-      degradation = options.onDegradation
-      return sourceRuntime
-    })
+    const createSourceRuntime = vi.fn(
+      (options: {
+        prisma: PrismaClient
+        rawResponseJournalDir: string
+        onDegradation(message: string): void | Promise<void>
+      }) => {
+        degradation = options.onDegradation
+        return sourceRuntime
+      },
+    )
     const createRunExecutor = vi.fn(() => runMonitor)
     const createScheduler = vi.fn(() => scheduler)
 
