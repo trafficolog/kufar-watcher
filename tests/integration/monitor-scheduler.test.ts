@@ -128,7 +128,7 @@ integration('PostgreSQL pg-boss monitor scheduler', () => {
       await first.scheduler.start()
 
       const initialSchedules = (await first.boss.getSchedules()).filter((schedule) =>
-        schedule.name.startsWith('monitor-run:'),
+        schedule.name.startsWith('monitor-run/'),
       )
       expect(initialSchedules).toHaveLength(5)
       for (const monitor of MONITORS) {
