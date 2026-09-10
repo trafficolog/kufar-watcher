@@ -10,10 +10,20 @@ import type { MatchSelection } from '../../electron/worker/monitor-run-persisten
 const dependencyMocks = vi.hoisted(() => ({
   traverseWatermark: vi.fn(),
   commitMonitorRun: vi.fn(),
+  WatermarkOrderingError: class WatermarkOrderingError extends Error {
+    constructor(
+      readonly previous: { page: number; index: number; listId: string; listTime: string },
+      readonly current: { page: number; index: number; listId: string; listTime: string },
+    ) {
+      super('Watermark traversal source order is not non-increasing')
+      this.name = 'WatermarkOrderingError'
+    }
+  },
 }))
 
 vi.mock('../../electron/worker/watermark-traversal', () => ({
   traverseWatermark: dependencyMocks.traverseWatermark,
+  WatermarkOrderingError: dependencyMocks.WatermarkOrderingError,
 }))
 
 vi.mock('../../electron/worker/monitor-run-persistence', () => ({
@@ -275,7 +285,10 @@ describe('runIncrementalMonitor', () => {
     const module = await loadModule()
     const { adapter } = makeAdapter()
     const { prisma } = makePrisma(persistedCheckpointMonitor())
-    const resumedError = new Error('resume-cursor-expired')
+    const resumedError = new dependencyMocks.WatermarkOrderingError(
+    { page: 0, index: -1, listId: LISTING_B.listId, listTime: LISTING_B.listTime },
+    { page: 1, index: 0, listId: LISTING_A.listId, listTime: LISTING_A.listTime },
+  )
     const result = traversalResult()
     dependencyMocks.traverseWatermark
       .mockRejectedValueOnce(resumedError)
@@ -301,7 +314,10 @@ describe('runIncrementalMonitor', () => {
     const module = await loadModule()
     const { adapter } = makeAdapter()
     const { prisma } = makePrisma(persistedCheckpointMonitor())
-    const resumedError = new Error('resume-failed')
+    const resumedError = new dependencyMocks.WatermarkOrderingError(
+    { page: 0, index: -1, listId: LISTING_B.listId, listTime: LISTING_B.listTime },
+    { page: 1, index: 0, listId: LISTING_A.listId, listTime: LISTING_A.listTime },
+  )
     const freshError = new Error('fresh-failed')
     dependencyMocks.traverseWatermark
       .mockRejectedValueOnce(resumedError)
