@@ -1,0 +1,99 @@
+name: close-2-4-3-docs
+
+on:
+  push:
+    branches:
+      - feat/2-4-3-run-journal
+    paths:
+      - .github/workflows/close-2-4-3-docs.yml
+
+permissions:
+  contents: write
+
+jobs:
+  close:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/2-4-3-run-journal
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --global npm@11.4.2
+      - run: npm ci --ignore-scripts
+      - name: Update source docs
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          task = Path('docs/tasks/2-4-3-run-journal.md')
+          text = task.read_text()
+          replacements = [
+              ('status: todo', 'status: done'),
+              ('sync_state: drifted', 'sync_state: aligned'),
+              ('last_reviewed: 2026-09-05', 'last_reviewed: 2026-09-10'),
+              (
+                  'tags: [scheduler, journal]\n---',
+                  'tags: [scheduler, journal]\nstatus_note: "Scheduled Run создаётся до обхода и финализируется в той же строке: success/catchup/error имеют duration/counters, overlap остаётся skipped, source/internal errors журналируются без секретов. GREEN: verify #826 на 0c3e5a460dbd9b9f0205c52499631f8cb4dc089a."\n---',
+              ),
+              (
+                  '> Эпик 2.4 · Фаза 2 · ⬜ todo · зависит от: 2.4.2 · оценка: 2-3 ч',
+                  '> Эпик 2.4 · Фаза 2 · ✅ done · зависит от: 2.4.2 · оценка: 2-3 ч',
+              ),
+              (
+                  '- [ ] Успешный обход без новых объявлений виден как success с matched=0',
+                  '- [x] Успешный обход без новых объявлений виден как success с matched=0',
+              ),
+              ('- [ ] Ошибка видна как error с причиной', '- [x] Ошибка видна как error с причиной'),
+              ('- [ ] Overlap виден как skipped', '- [x] Overlap виден как skipped'),
+              ('- [ ] В журнал не попадают токены и секреты', '- [x] В журнал не попадают токены и секреты'),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'task replacement missing: {old!r}')
+              text = text.replace(old, new, 1)
+
+          marker = '\n## Подсказки\n'
+          if marker not in text:
+              raise SystemExit('task TDD insertion marker missing')
+          tdd = '''
+          ## TDD и проверка
+
+          - Lifecycle RED: `verify #809` на `e48896828b4f9c07aaf217e9d2e8a6663092ce50` — scheduled traversal входил в cycle до создания `Run`; остальные тесты оставались зелёными.
+          - Первый GREEN: `verify #810` на `7f60cb16fe4c7ae92d1e548924b3374c807487dc` — running `Run` создаётся до traversal, полный pipeline GREEN.
+          - Cold-start finalization RED: `verify #811` на `31791f32582e0c3e88a937cf49b379707617ec18` — persistence всё ещё создавала новый success row вместо финализации существующего `runId`.
+          - Schema/cold-start GREEN: `verify #812` на `741db60ef081a3895a2459eb6f91483eb2c8e595` — nullable journal fields, migration и same-row cold-start finalization прошли unit/static, PostgreSQL, build и smoke.
+          - Success propagation RED: `verify #813` на `a9c6880cb183fbc95d328209be50a0c4efb63723` — `runId/startedAt` не доходили до cold/incremental paths, incremental persistence ещё делала `create`.
+          - Финальный GREEN: `verify #826` на `0c3e5a460dbd9b9f0205c52499631f8cb4dc089a` — success/catchup/error финализируют одну строку, source/internal ошибки безопасно структурированы, overlap остаётся skipped; unit, docs, typecheck, lint, formatting, PostgreSQL integration, build/output и оба Electron smoke GREEN.
+          '''
+          tdd = '\n'.join(line[10:] if line.startswith('          ') else line for line in tdd.splitlines())
+          text = text.replace(marker, '\n' + tdd.strip() + marker, 1)
+          task.write_text(text)
+
+          epic = Path('docs/epics/2-4-scheduler.md')
+          epic_text = epic.read_text()
+          old_note = 'status_note: "Персональные интервалы и no-overlap закрыты: 2.4.1–2.4.2 done, 2/4 задач; далее Run journal и retries."'
+          new_note = 'status_note: "Персональные интервалы, no-overlap и Run journal закрыты: 2.4.1–2.4.3 done, 3/4 задач; далее retries и деградация."'
+          if old_note not in epic_text:
+              raise SystemExit('epic status_note replacement missing')
+          epic.write_text(epic_text.replace(old_note, new_note, 1))
+          PY
+      - run: npm run docs:ops:refresh
+      - run: npm run docs:ops:check
+      - name: Commit generated docs
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'No docs changes to commit'
+            exit 0
+          fi
+          git commit -m 'docs: close scheduler run journal task'
+          git push origin HEAD:feat/2-4-3-run-journal
