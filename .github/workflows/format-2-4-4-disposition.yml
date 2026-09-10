@@ -1,0 +1,41 @@
+name: format-2-4-4-disposition
+
+on:
+  push:
+    branches:
+      - feat/2-4-4-retries
+    paths:
+      - .github/workflows/format-2-4-4-disposition.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/2-4-4-retries
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --global npm@11.4.2
+      - run: npm ci --ignore-scripts
+      - name: Format retry disposition
+        run: npx --no-install prettier --write electron/worker/scheduled-monitor-run.ts
+      - name: Commit canonical formatting
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add electron/worker/scheduled-monitor-run.ts
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'No formatting changes to commit'
+            exit 0
+          fi
+          git commit -m 'style: apply canonical retry disposition formatting'
+          git push origin HEAD:feat/2-4-4-retries
