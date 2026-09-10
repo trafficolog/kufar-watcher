@@ -145,9 +145,9 @@ integration('scheduled Run journal', () => {
       orderBy: { id: 'asc' },
     })
     expect(runs).toHaveLength(10)
-    expect(runs.every(({ outcome, errorCode }) => outcome === 'error' && errorCode === 'network')).toBe(
-      true,
-    )
+    expect(
+      runs.every(({ outcome, errorCode }) => outcome === 'error' && errorCode === 'network'),
+    ).toBe(true)
   })
 
   it('persists an overlapping trigger as skipped beside the single successful traversal', async () => {
