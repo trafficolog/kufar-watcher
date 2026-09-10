@@ -10,7 +10,7 @@ depends_on: ["1.3.4", "2.4.3"]
 estimated_hours: 3-4
 agent: backend-senior
 tags: [scheduler, journal, degradation, remediation]
-status_note: "Remediation in progress: Task 1 RED tests define catch-up/source-degradation separation and sticky scheduled finalization semantics."
+status_note: "Remediation in progress: Task 1 GREEN candidate preserves scheduled degradation metadata and removes watermark-catchup from degradedLevel."
 ---
 
 # Задача 2.4.5 — Persist source degradation per Run
