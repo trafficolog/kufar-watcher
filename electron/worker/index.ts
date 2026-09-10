@@ -11,6 +11,13 @@ if (!parentPort) {
   throw new Error('Utility worker requires an Electron parent port')
 }
 
-startWorkerRuntime(parentPort, (code) => {
-  setImmediate(() => process.exit(code))
-})
+void startWorkerRuntime(
+  parentPort,
+  {
+    start: async () => undefined,
+    stop: async () => undefined,
+  },
+  (code) => {
+    setImmediate(() => process.exit(code))
+  },
+)
