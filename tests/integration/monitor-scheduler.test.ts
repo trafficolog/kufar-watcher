@@ -2,10 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PgBoss } from 'pg-boss'
 
 import { createPrismaMonitorScheduleRepository } from '../../electron/worker/monitor-schedule-repository'
-import {
-  MonitorScheduler,
-  monitorQueueName,
-} from '../../electron/worker/monitor-scheduler'
+import { MonitorScheduler, monitorQueueName } from '../../electron/worker/monitor-scheduler'
 import {
   createPgBossScheduleQueue,
   type PgBossFactory,
@@ -124,7 +121,10 @@ integration('PostgreSQL pg-boss monitor scheduler', () => {
         })),
       })
 
-      first = createSchedulerStack(async () => undefined, (error) => queueErrors.push(error))
+      first = createSchedulerStack(
+        async () => undefined,
+        (error) => queueErrors.push(error),
+      )
       await first.scheduler.start()
 
       const initialSchedules = (await first.boss.getSchedules()).filter((schedule) =>
