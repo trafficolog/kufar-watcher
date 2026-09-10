@@ -18,10 +18,7 @@ export interface ScheduledMonitorRunExecutorOptions {
   maxPages: number
   descriptionLoader: DescriptionLoader
   runCycle?: typeof runMonitorCycle
-  onSourceDegradation?: (
-    monitorId: number,
-    event: SourceDegradationEvent,
-  ) => void | Promise<void>
+  onSourceDegradation?: (monitorId: number, event: SourceDegradationEvent) => void | Promise<void>
   onPauseRequired?: (monitorId: number, stage: SourceFailureStage) => void | Promise<void>
 }
 
