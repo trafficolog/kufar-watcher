@@ -155,9 +155,7 @@ function normalizeAd(
 }
 
 function nextCursor(pages: unknown[]): string | null {
-  const next = pages.find(
-    (page): page is KufarSearchAd => isRecord(page) && page.label === 'next',
-  )
+  const next = pages.find((page): page is KufarSearchAd => isRecord(page) && page.label === 'next')
   if (next === undefined || next.token === null) return null
 
   if (typeof next.token !== 'string') {
