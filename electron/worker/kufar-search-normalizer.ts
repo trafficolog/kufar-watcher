@@ -157,6 +157,7 @@ function normalizeAd(
 function nextCursor(pages: unknown[]): string | null {
   const next = pages.find((page) => isRecord(page) && page.label === 'next')
   if (next === undefined) return null
+  if (next.token === null) return null
 
   if (!isRecord(next) || typeof next.token !== 'string') {
     invalid('pagination.pages[next].token', 'Expected opaque next cursor string')
