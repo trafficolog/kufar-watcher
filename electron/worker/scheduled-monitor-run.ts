@@ -2,17 +2,23 @@ import type { PrismaClient } from '../../generated/prisma/client'
 import { routeKufarQuery } from '../../shared/kufar-routing'
 import type { SourceAdapterRegistry } from '../../shared/source-adapter-registry'
 import type { DescriptionLoader } from './incremental-monitor-run'
-import { KufarResilientSourceError, type SourceFailureStage } from './kufar-resilient-source'
+import {
+  KufarResilientSourceError,
+  type SourceDegradationEvent,
+  type SourceDegradationSink,
+  type SourceFailureStage,
+} from './kufar-resilient-source'
 import { KufarSourceRequestError } from './kufar-source-request-error'
 import { parsePersistedCanonicalQuery } from './monitor-config-persistence'
 import { runMonitorCycle, type MonitorCycleResult } from './monitor-cycle'
 
 export interface ScheduledMonitorRunExecutorOptions {
   prisma: PrismaClient
-  adapters: SourceAdapterRegistry
+  createRunAdapters(onDegradation: SourceDegradationSink): SourceAdapterRegistry
   maxPages: number
   descriptionLoader: DescriptionLoader
   runCycle?: typeof runMonitorCycle
+  onSourceDegradation?: (monitorId: number, event: SourceDegradationEvent) => void | Promise<void>
   onPauseRequired?: (monitorId: number, stage: SourceFailureStage) => void | Promise<void>
 }
 
@@ -130,6 +136,18 @@ export function createScheduledMonitorRunExecutor(
         },
         select: { id: true },
       })
+      let degradationRecorded = false
+      const onDegradation: SourceDegradationSink = async (event) => {
+        if (degradationRecorded) return
+
+        await options.prisma.run.update({
+          where: { id: journalRun.id },
+          data: { degradedLevel: 'html-fallback' },
+        })
+        degradationRecorded = true
+        await options.onSourceDegradation?.(monitorId, event)
+      }
+      const adapters = options.createRunAdapters(onDegradation)
 
       try {
         const monitor = await options.prisma.monitor.findUniqueOrThrow({
@@ -137,7 +155,7 @@ export function createScheduledMonitorRunExecutor(
           select: { query: true },
         })
         const query = parsePersistedCanonicalQuery(monitor.query)
-        const adapter = options.adapters.get(routeKufarQuery(query))
+        const adapter = adapters.get(routeKufarQuery(query))
 
         return await runCycle({
           prisma: options.prisma,
@@ -160,7 +178,6 @@ export function createScheduledMonitorRunExecutor(
             seen: 0,
             matched: 0,
             ...journal,
-            degradedLevel: null,
           },
         })
 

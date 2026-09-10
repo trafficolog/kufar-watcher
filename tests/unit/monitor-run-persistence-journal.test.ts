@@ -56,9 +56,9 @@ describe('persistSuccessfulRun', () => {
         errorCategory: null,
         errorCode: null,
         httpStatus: null,
-        degradedLevel: null,
       },
     })
+    expect(runUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('degradedLevel')
     expect(runCreate).not.toHaveBeenCalled()
   })
 })

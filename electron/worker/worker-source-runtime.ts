@@ -14,12 +14,12 @@ import {
 } from './kufar-raw-response-journal'
 import { KufarRealEstateAdapter } from './kufar-realestate-adapter'
 import { normalizeRealEstateSearchPage } from './kufar-realestate-normalizer'
-import { KufarResilientSource } from './kufar-resilient-source'
+import { KufarResilientSource, type SourceDegradationSink } from './kufar-resilient-source'
 import { ListingDescriptionCache } from './listing-description-cache'
 import type { DescriptionLoader } from './incremental-monitor-run'
 
 export interface WorkerSourceRuntime {
-  adapters: SourceAdapterRegistry
+  createRunAdapters(onDegradation: SourceDegradationSink): SourceAdapterRegistry
   descriptionLoader: DescriptionLoader
   close(): Promise<void>
 }
@@ -27,7 +27,6 @@ export interface WorkerSourceRuntime {
 export interface WorkerSourceRuntimeOptions {
   prisma: PrismaClient
   rawResponseJournalDir: string
-  onDegradation(message: string): void | Promise<void>
 }
 
 type SharedHttpClient = Pick<KufarHttpClient, 'get' | 'close'>
@@ -50,11 +49,9 @@ const defaultDependencies: WorkerSourceRuntimeDependencies = {
 function resilientAdapter(
   primary: SourceAdapter,
   fallback: SourceAdapter,
-  onDegradation: WorkerSourceRuntimeOptions['onDegradation'],
+  onDegradation: SourceDegradationSink,
 ): SourceAdapter {
-  const resilient = new KufarResilientSource(primary, fallback, async () => {
-    await onDegradation('Kufar source degraded to HTML fallback')
-  })
+  const resilient = new KufarResilientSource(primary, fallback, onDegradation)
 
   return {
     async fetchPage(request) {
@@ -70,27 +67,23 @@ export function createWorkerSourceRuntime(
 ): WorkerSourceRuntime {
   const journal = dependencies.createJournal(options.rawResponseJournalDir)
   const httpClient = dependencies.createHttpClient({ journal })
-
-  const electronics = resilientAdapter(
-    new KufarElectronicsAdapter(httpClient),
-    new KufarHtmlFallbackAdapter(httpClient, normalizeElectronicsSearchPage),
-    options.onDegradation,
+  const electronicsPrimary = new KufarElectronicsAdapter(httpClient)
+  const electronicsFallback = new KufarHtmlFallbackAdapter(
+    httpClient,
+    normalizeElectronicsSearchPage,
   )
-  const realEstate = resilientAdapter(
-    new KufarRealEstateAdapter(httpClient),
-    new KufarHtmlFallbackAdapter(httpClient, normalizeRealEstateSearchPage),
-    options.onDegradation,
-  )
-
-  const adapters = createSourceAdapterRegistry({
-    electronics,
-    'real-estate': realEstate,
-  })
+  const realEstatePrimary = new KufarRealEstateAdapter(httpClient)
+  const realEstateFallback = new KufarHtmlFallbackAdapter(httpClient, normalizeRealEstateSearchPage)
   const descriptionLoader = new ListingDescriptionCache(options.prisma, httpClient)
   let closePromise: Promise<void> | null = null
 
   return {
-    adapters,
+    createRunAdapters(onDegradation) {
+      return createSourceAdapterRegistry({
+        electronics: resilientAdapter(electronicsPrimary, electronicsFallback, onDegradation),
+        'real-estate': resilientAdapter(realEstatePrimary, realEstateFallback, onDegradation),
+      })
+    },
     descriptionLoader,
     close() {
       closePromise ??= httpClient.close()

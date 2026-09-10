@@ -67,15 +67,19 @@ export function createWorkerApplication(
   const sourceRuntime = dependencies.createSourceRuntime({
     prisma,
     rawResponseJournalDir: config.rawResponseJournalDir,
-    onDegradation(message) {
-      publish({ type: 'journal', level: 'warning', message })
-    },
   })
   const runMonitor = dependencies.createRunExecutor({
     prisma,
-    adapters: sourceRuntime.adapters,
+    createRunAdapters: sourceRuntime.createRunAdapters,
     maxPages: config.monitorMaxPages,
     descriptionLoader: sourceRuntime.descriptionLoader,
+    onSourceDegradation() {
+      publish({
+        type: 'journal',
+        level: 'warning',
+        message: 'Kufar source degraded to HTML fallback',
+      })
+    },
     onPauseRequired(monitorId, stage) {
       publish({ type: 'monitor-pause-required', monitorId, stage })
     },

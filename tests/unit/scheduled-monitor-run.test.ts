@@ -47,14 +47,24 @@ function executorDependencies() {
     electronics: electronicsAdapter,
     'real-estate': realEstateAdapter,
   })
+  const createRunAdapters = vi.fn(() => adapters)
   const descriptionLoader = { ensureDescription: vi.fn() }
 
-  return { prisma, runCreate, runUpdate, electronicsAdapter, adapters, descriptionLoader }
+  return {
+    prisma,
+    runCreate,
+    runUpdate,
+    electronicsAdapter,
+    adapters,
+    createRunAdapters,
+    descriptionLoader,
+  }
 }
 
 describe('createScheduledMonitorRunExecutor', () => {
   it('routes the persisted monitor query and runs one existing monitor cycle', async () => {
-    const { prisma, electronicsAdapter, adapters, descriptionLoader } = executorDependencies()
+    const { prisma, electronicsAdapter, createRunAdapters, descriptionLoader } =
+      executorDependencies()
     const runInputs: unknown[] = []
     const runCycle = vi.fn(async (input: unknown) => {
       runInputs.push(input)
@@ -62,7 +72,7 @@ describe('createScheduledMonitorRunExecutor', () => {
     })
     const executor = createScheduledMonitorRunExecutor({
       prisma,
-      adapters,
+      createRunAdapters,
       maxPages: 5,
       descriptionLoader,
       runCycle: runCycle as never,
@@ -87,7 +97,7 @@ describe('createScheduledMonitorRunExecutor', () => {
   })
 
   it('creates a running journal entry before the scheduled cycle starts', async () => {
-    const { prisma, adapters, descriptionLoader } = executorDependencies()
+    const { prisma, createRunAdapters, descriptionLoader } = executorDependencies()
     let releaseCycle!: () => void
     let cycleEntered!: () => void
     const cycleRelease = new Promise<void>((resolve) => {
@@ -103,7 +113,7 @@ describe('createScheduledMonitorRunExecutor', () => {
     })
     const executor = createScheduledMonitorRunExecutor({
       prisma,
-      adapters,
+      createRunAdapters,
       maxPages: 5,
       descriptionLoader,
       runCycle: runCycle as never,
@@ -132,7 +142,7 @@ describe('createScheduledMonitorRunExecutor', () => {
   })
 
   it('skips a concurrent trigger for the same monitor and records the overlap', async () => {
-    const { prisma, adapters, descriptionLoader } = executorDependencies()
+    const { prisma, createRunAdapters, descriptionLoader } = executorDependencies()
     let releaseFirst!: () => void
     let firstEntered!: () => void
     const firstRelease = new Promise<void>((resolve) => {
@@ -152,7 +162,7 @@ describe('createScheduledMonitorRunExecutor', () => {
     })
     const executor = createScheduledMonitorRunExecutor({
       prisma,
-      adapters,
+      createRunAdapters,
       maxPages: 5,
       descriptionLoader,
       runCycle: runCycle as never,
@@ -182,7 +192,7 @@ describe('createScheduledMonitorRunExecutor', () => {
   })
 
   it('releases the monitor lock when a scheduled run fails', async () => {
-    const { prisma, adapters, descriptionLoader } = executorDependencies()
+    const { prisma, createRunAdapters, descriptionLoader } = executorDependencies()
     let cycleCalls = 0
     const runCycle = vi.fn(async () => {
       cycleCalls += 1
@@ -191,7 +201,7 @@ describe('createScheduledMonitorRunExecutor', () => {
     })
     const executor = createScheduledMonitorRunExecutor({
       prisma,
-      adapters,
+      createRunAdapters,
       maxPages: 5,
       descriptionLoader,
       runCycle: runCycle as never,
@@ -204,7 +214,7 @@ describe('createScheduledMonitorRunExecutor', () => {
   })
 
   it('records a structured safe source failure on the running journal row', async () => {
-    const { prisma, runUpdate, adapters, descriptionLoader } = executorDependencies()
+    const { prisma, runUpdate, createRunAdapters, descriptionLoader } = executorDependencies()
     const failure = new KufarSourceRequestError(
       'request https://www.kufar.by/search?token=top-secret failed',
       {
@@ -219,7 +229,7 @@ describe('createScheduledMonitorRunExecutor', () => {
     const runCycle = vi.fn().mockRejectedValue(failure)
     const executor = createScheduledMonitorRunExecutor({
       prisma,
-      adapters,
+      createRunAdapters,
       maxPages: 5,
       descriptionLoader,
       runCycle: runCycle as never,
@@ -239,14 +249,14 @@ describe('createScheduledMonitorRunExecutor', () => {
         errorCategory: 'source',
         errorCode: 'http-4xx',
         httpStatus: 403,
-        degradedLevel: null,
       },
     })
+    expect(runUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('degradedLevel')
     expect(JSON.stringify(runUpdate.mock.calls)).not.toContain('top-secret')
   })
 
   it('records the terminal safe source reason from a resilient fallback failure', async () => {
-    const { prisma, runUpdate, adapters, descriptionLoader } = executorDependencies()
+    const { prisma, runUpdate, createRunAdapters, descriptionLoader } = executorDependencies()
     const primaryFailure = new KufarSourceRequestError('primary token=primary-secret', {
       ok: false,
       kind: 'temporary',
@@ -272,7 +282,7 @@ describe('createScheduledMonitorRunExecutor', () => {
     const runCycle = vi.fn().mockRejectedValue(failure)
     const executor = createScheduledMonitorRunExecutor({
       prisma,
-      adapters,
+      createRunAdapters,
       maxPages: 5,
       descriptionLoader,
       runCycle: runCycle as never,
@@ -292,21 +302,21 @@ describe('createScheduledMonitorRunExecutor', () => {
         errorCategory: 'source',
         errorCode: 'http-5xx',
         httpStatus: 503,
-        degradedLevel: null,
       },
     })
+    expect(runUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('degradedLevel')
     const persisted = JSON.stringify(runUpdate.mock.calls)
     expect(persisted).not.toContain('primary-secret')
     expect(persisted).not.toContain('fallback-secret')
   })
 
   it('sanitizes unexpected failures before writing them to the journal', async () => {
-    const { prisma, runUpdate, adapters, descriptionLoader } = executorDependencies()
+    const { prisma, runUpdate, createRunAdapters, descriptionLoader } = executorDependencies()
     const failure = new Error('DATABASE_URL=postgres://secret-password token=secret-token')
     const runCycle = vi.fn().mockRejectedValue(failure)
     const executor = createScheduledMonitorRunExecutor({
       prisma,
-      adapters,
+      createRunAdapters,
       maxPages: 5,
       descriptionLoader,
       runCycle: runCycle as never,
@@ -326,16 +336,16 @@ describe('createScheduledMonitorRunExecutor', () => {
         errorCategory: 'internal',
         errorCode: 'unexpected',
         httpStatus: null,
-        degradedLevel: null,
       },
     })
+    expect(runUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('degradedLevel')
     const persisted = JSON.stringify(runUpdate.mock.calls)
     expect(persisted).not.toContain('secret-password')
     expect(persisted).not.toContain('secret-token')
   })
 
   it('does not serialize scheduled runs for different monitors', async () => {
-    const { prisma, adapters, descriptionLoader } = executorDependencies()
+    const { prisma, createRunAdapters, descriptionLoader } = executorDependencies()
     let releaseFirst!: () => void
     let firstEntered!: () => void
     const firstRelease = new Promise<void>((resolve) => {
@@ -355,7 +365,7 @@ describe('createScheduledMonitorRunExecutor', () => {
     })
     const executor = createScheduledMonitorRunExecutor({
       prisma,
-      adapters,
+      createRunAdapters,
       maxPages: 5,
       descriptionLoader,
       runCycle: runCycle as never,
@@ -375,12 +385,12 @@ describe('createScheduledMonitorRunExecutor', () => {
   it.each([0, 1.5, Number.POSITIVE_INFINITY])(
     'rejects invalid page cap %s before a scheduled run can start',
     (maxPages) => {
-      const { prisma, adapters, descriptionLoader } = executorDependencies()
+      const { prisma, createRunAdapters, descriptionLoader } = executorDependencies()
 
       expect(() =>
         createScheduledMonitorRunExecutor({
           prisma,
-          adapters,
+          createRunAdapters,
           maxPages,
           descriptionLoader,
         }),

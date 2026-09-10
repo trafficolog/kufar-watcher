@@ -155,7 +155,6 @@ export async function persistSuccessfulRun(
         errorCategory: null,
         errorCode: null,
         httpStatus: null,
-        degradedLevel: isCatchup ? 'watermark-catchup' : null,
       },
     })
     return
@@ -171,7 +170,7 @@ export async function persistSuccessfulRun(
       matched: input.selected.length,
       error: null,
       httpStatus: null,
-      degradedLevel: isCatchup ? 'watermark-catchup' : null,
+      degradedLevel: null,
     },
   })
 }

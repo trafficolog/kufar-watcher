@@ -189,7 +189,26 @@ integrationDescribe('monitor run persistence', () => {
     expect(run.outcome).toBe('catchup')
     expect(run.seen).toBe(2)
     expect(run.matched).toBe(1)
-    expect(run.degradedLevel).toBe('watermark-catchup')
+    expect(run.degradedLevel).toBeNull()
+  })
+
+  it('preserves an existing html-fallback marker when finalizing a scheduled catch-up run', async () => {
+    const running = await prisma.run.create({
+      data: {
+        monitorId: MONITOR_ID,
+        startedAt: new Date('2026-09-08T11:01:00.000Z'),
+        outcome: 'running',
+        degradedLevel: 'html-fallback',
+      },
+    })
+    const persistenceInput = input(incompleteTraversal())
+    persistenceInput.runId = running.id
+
+    await commitMonitorRun(prisma, persistenceInput)
+
+    const run = await prisma.run.findUniqueOrThrow({ where: { id: running.id } })
+    expect(run.outcome).toBe('catchup')
+    expect(run.degradedLevel).toBe('html-fallback')
   })
 
   it('promotes the pending watermark and clears checkpoint state on completion', async () => {

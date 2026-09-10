@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../../generated/prisma/client'
 import type { KufarHttpResult } from '../../electron/worker/kufar-http-client'
 import type { KufarRawResponseSnapshot } from '../../electron/worker/kufar-raw-response-journal'
+import type { SourceDegradationEvent } from '../../electron/worker/kufar-resilient-source'
 import { createWorkerSourceRuntime } from '../../electron/worker/worker-source-runtime'
 import { parseKufarListingUrl } from '../../shared/kufar-url'
 
@@ -39,7 +40,7 @@ function fakeJournal() {
 }
 
 describe('worker source runtime', () => {
-  it('composes both source adapters around one shared HTTP client and closes it once', async () => {
+  it('creates run-scoped resilient adapters around one shared HTTP client and closes it once', async () => {
     const electronicsBody = await fixtureBytes('2026-09-07-electronics-search-page-1.json')
     const realEstateBody = await fixtureBytes('2026-09-07-realestate-search-page-1.json')
     const journal = fakeJournal()
@@ -62,15 +63,18 @@ describe('worker source runtime', () => {
       {
         prisma: {} as PrismaClient,
         rawResponseJournalDir: '/tmp/kufar-journal',
-        onDegradation: vi.fn(),
       },
       { createJournal, createHttpClient },
     )
+    const sinkA = vi.fn()
+    const sinkB = vi.fn()
+    const adaptersA = runtime.createRunAdapters(sinkA)
+    const adaptersB = runtime.createRunAdapters(sinkB)
 
-    const electronicsPage = await runtime.adapters
+    const electronicsPage = await adaptersA
       .get('electronics')
       .fetchPage({ query: electronicsQuery, cursor: null })
-    const realEstatePage = await runtime.adapters
+    const realEstatePage = await adaptersB
       .get('real-estate')
       .fetchPage({ query: realEstateQuery, cursor: null })
 
@@ -88,10 +92,10 @@ describe('worker source runtime', () => {
     expect(http.close).toHaveBeenCalledOnce()
   })
 
-  it('awaits degradation publication before returning an HTML fallback page', async () => {
+  it('awaits a run-scoped typed degradation sink before returning an HTML fallback page', async () => {
     const fallbackBody = await fixtureBytes('2026-09-08-electronics-search-page-1-embedded.html')
     const degradationGate = deferred<undefined>()
-    const onDegradation = vi.fn(async () => degradationGate.promise)
+    const onDegradation = vi.fn(async (_event: SourceDegradationEvent) => degradationGate.promise)
     const http = {
       get: vi.fn(async (input: string | URL): Promise<KufarHttpResult> => {
         const url = new URL(input)
@@ -119,16 +123,16 @@ describe('worker source runtime', () => {
       {
         prisma: {} as PrismaClient,
         rawResponseJournalDir: '/tmp/kufar-journal',
-        onDegradation,
       },
       {
         createJournal: fakeJournal,
         createHttpClient: () => http,
       },
     )
+    const adapters = runtime.createRunAdapters(onDegradation)
 
     let settled = false
-    const pagePromise = runtime.adapters
+    const pagePromise = adapters
       .get('electronics')
       .fetchPage({ query: electronicsQuery, cursor: null })
       .then((page) => {
@@ -137,7 +141,12 @@ describe('worker source runtime', () => {
       })
 
     await vi.waitFor(() => {
-      expect(onDegradation).toHaveBeenCalledWith('Kufar source degraded to HTML fallback')
+      expect(onDegradation).toHaveBeenCalledWith({
+        kind: 'source-degraded',
+        channel: 'html-fallback',
+        primaryFailureCode: 'network',
+        primaryStatus: null,
+      })
     })
     expect(settled).toBe(false)
 

@@ -159,9 +159,9 @@ describe('persistColdStartBaselineTransaction', () => {
         errorCategory: null,
         errorCode: null,
         httpStatus: null,
-        degradedLevel: null,
       },
     })
+    expect(mocks.runUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('degradedLevel')
     expect(mocks.runCreate).not.toHaveBeenCalled()
   })
 
