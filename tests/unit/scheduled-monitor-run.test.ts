@@ -17,10 +17,23 @@ const persistedQuery = {
   extraParams: {},
 }
 
+const coldStartResult = {
+  cycleKind: 'cold-start' as const,
+  baselineCount: 0,
+  pagesRead: 1,
+  nextWatermark: {
+    boundaryTime: '2026-09-10T00:00:00.000Z',
+    boundaryIds: ['listing-1'],
+  },
+}
+
 function executorDependencies() {
   const prisma = {
     monitor: {
       findUniqueOrThrow: vi.fn().mockResolvedValue({ query: persistedQuery }),
+    },
+    run: {
+      create: vi.fn().mockResolvedValue({}),
     },
   } as unknown as PrismaClient
   const electronicsAdapter = { fetchPage: vi.fn() } as unknown as SourceAdapter
@@ -40,15 +53,7 @@ describe('createScheduledMonitorRunExecutor', () => {
     const runInputs: unknown[] = []
     const runCycle = vi.fn(async (input: unknown) => {
       runInputs.push(input)
-      return {
-        cycleKind: 'cold-start' as const,
-        baselineCount: 0,
-        pagesRead: 1,
-        nextWatermark: {
-          boundaryTime: '2026-09-10T00:00:00.000Z',
-          boundaryIds: ['listing-1'],
-        },
-      }
+      return coldStartResult
     })
     const executor = createScheduledMonitorRunExecutor({
       prisma,
@@ -74,6 +79,56 @@ describe('createScheduledMonitorRunExecutor', () => {
       }),
     ])
     expect(runCycle).toHaveBeenCalledTimes(1)
+  })
+
+  it('skips a concurrent trigger for the same monitor and records the overlap', async () => {
+    const { prisma, adapters, descriptionLoader } = executorDependencies()
+    let releaseFirst!: () => void
+    let firstEntered!: () => void
+    const firstRelease = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    const firstStarted = new Promise<void>((resolve) => {
+      firstEntered = resolve
+    })
+    let cycleCalls = 0
+    const runCycle = vi.fn(async () => {
+      cycleCalls += 1
+      if (cycleCalls === 1) {
+        firstEntered()
+        await firstRelease
+      }
+      return coldStartResult
+    })
+    const executor = createScheduledMonitorRunExecutor({
+      prisma,
+      adapters,
+      maxPages: 5,
+      descriptionLoader,
+      runCycle: runCycle as never,
+    })
+
+    const firstRun = executor(17)
+    await firstStarted
+    const secondResult = await executor(17)
+    releaseFirst()
+    await firstRun
+
+    expect(secondResult).toEqual({ cycleKind: 'skipped-overlap' })
+    expect(runCycle).toHaveBeenCalledTimes(1)
+    expect(prisma.run.create).toHaveBeenCalledWith({
+      data: {
+        monitorId: 17,
+        startedAt: expect.any(Date),
+        finishedAt: expect.any(Date),
+        outcome: 'skipped',
+        seen: 0,
+        matched: 0,
+        error: null,
+        httpStatus: null,
+        degradedLevel: null,
+      },
+    })
   })
 
   it.each([0, 1.5, Number.POSITIVE_INFINITY])(
