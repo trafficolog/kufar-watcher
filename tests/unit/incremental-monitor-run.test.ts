@@ -286,9 +286,9 @@ describe('runIncrementalMonitor', () => {
     const { adapter } = makeAdapter()
     const { prisma } = makePrisma(persistedCheckpointMonitor())
     const resumedError = new dependencyMocks.WatermarkOrderingError(
-    { page: 0, index: -1, listId: LISTING_B.listId, listTime: LISTING_B.listTime },
-    { page: 1, index: 0, listId: LISTING_A.listId, listTime: LISTING_A.listTime },
-  )
+      { page: 0, index: -1, listId: LISTING_B.listId, listTime: LISTING_B.listTime },
+      { page: 1, index: 0, listId: LISTING_A.listId, listTime: LISTING_A.listTime },
+    )
     const result = traversalResult()
     dependencyMocks.traverseWatermark
       .mockRejectedValueOnce(resumedError)
@@ -315,9 +315,9 @@ describe('runIncrementalMonitor', () => {
     const { adapter } = makeAdapter()
     const { prisma } = makePrisma(persistedCheckpointMonitor())
     const resumedError = new dependencyMocks.WatermarkOrderingError(
-    { page: 0, index: -1, listId: LISTING_B.listId, listTime: LISTING_B.listTime },
-    { page: 1, index: 0, listId: LISTING_A.listId, listTime: LISTING_A.listTime },
-  )
+      { page: 0, index: -1, listId: LISTING_B.listId, listTime: LISTING_B.listTime },
+      { page: 1, index: 0, listId: LISTING_A.listId, listTime: LISTING_A.listTime },
+    )
     const freshError = new Error('fresh-failed')
     dependencyMocks.traverseWatermark
       .mockRejectedValueOnce(resumedError)

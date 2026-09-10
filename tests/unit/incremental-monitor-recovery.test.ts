@@ -162,12 +162,14 @@ describe('incremental catch-up checkpoint recovery', () => {
   })
 
   it('propagates ordering drift inside a real page without restarting from the top', async () => {
-    const fetchPage = vi.fn().mockResolvedValue(
-      page([
-        listing('older-first', '2026-09-10T10:20:00.000Z'),
-        listing('newer-second', '2026-09-10T10:25:00.000Z'),
-      ]),
-    )
+    const fetchPage = vi
+      .fn()
+      .mockResolvedValue(
+        page([
+          listing('older-first', '2026-09-10T10:20:00.000Z'),
+          listing('newer-second', '2026-09-10T10:25:00.000Z'),
+        ]),
+      )
 
     await expect(
       runIncrementalMonitor({
