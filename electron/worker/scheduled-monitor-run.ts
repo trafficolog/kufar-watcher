@@ -19,7 +19,14 @@ export interface SkippedOverlapMonitorRunResult {
   cycleKind: 'skipped-overlap'
 }
 
-export type ScheduledMonitorRunResult = MonitorCycleResult | SkippedOverlapMonitorRunResult
+export interface FailedNoRetryMonitorRunResult {
+  cycleKind: 'failed-no-retry'
+}
+
+export type ScheduledMonitorRunResult =
+  | MonitorCycleResult
+  | SkippedOverlapMonitorRunResult
+  | FailedNoRetryMonitorRunResult
 export type ScheduledMonitorRunExecutor = (monitorId: number) => Promise<ScheduledMonitorRunResult>
 
 interface RunFailureJournal {
@@ -42,6 +49,14 @@ function sourceRequestFailureJournal(error: KufarSourceRequestError): RunFailure
     errorCode: error.result.code,
     httpStatus: error.result.status,
   }
+}
+
+function isRetryableSourceRequest(error: KufarSourceRequestError): boolean {
+  return (
+    error.result.code === 'network' ||
+    error.result.code === 'timeout' ||
+    error.result.code === 'http-5xx'
+  )
 }
 
 function classifyRunFailure(error: unknown): RunFailureJournal {
@@ -142,6 +157,11 @@ export function createScheduledMonitorRunExecutor(
             degradedLevel: null,
           },
         })
+
+        if (error instanceof KufarSourceRequestError && !isRetryableSourceRequest(error)) {
+          return { cycleKind: 'failed-no-retry' }
+        }
+
         throw error
       }
     } finally {
