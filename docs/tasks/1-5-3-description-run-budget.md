@@ -2,20 +2,20 @@
 id: "1.5.3"
 phase: 1
 epic: "1.5"
-status: in_progress
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-10
 roles: [BACK]
 depends_on: ["1.5.2"]
 estimated_hours: 2-3
 agent: backend-senior
 tags: [network, cache, budget, remediation]
-status_note: "Audit remediation in progress: cap real listing-detail HTTP requests at 10 per incremental Run without charging persistent cache hits."
+status_note: "Done: incremental Run caps real listing-detail HTTP requests at 10; persistent cache hits are free and budget exhaustion is a retryable policy failure. Verify #935 GREEN."
 ---
 
 # Задача 1.5.3 — Run-level budget detail requests
 
-> Эпик 1.5 · Фаза 1 · 🔄 in_progress · зависит от: 1.5.2 · оценка: 2-3 ч
+> Эпик 1.5 · Фаза 1 · ✅ done · зависит от: 1.5.2 · оценка: 2-3 ч
 
 ## Цель
 
@@ -23,14 +23,21 @@ status_note: "Audit remediation in progress: cap real listing-detail HTTP reques
 
 ## Критерии приёмки
 
-- [ ] На один incremental Run допускается не более 10 фактических detail HTTP requests.
-- [ ] Persistent `available`/`unavailable` cache hits не расходуют budget.
-- [ ] Проверка budget выполняется после cache miss и до `httpClient.get`, поэтому одиннадцатый запрос физически не отправляется.
-- [ ] Исчерпание budget выбрасывает typed `DescriptionRequestBudgetExceededError` и не продвигает watermark/cursor.
-- [ ] Scheduled Run журналирует исчерпание как `errorCategory='policy'`, `errorCode='description-budget-exhausted'`; ошибка остаётся retryable существующим scheduler-механизмом.
-- [ ] Новый Run получает новый budget; успешно сохранённые description cache entries переиспользуются следующей попыткой.
-- [ ] Pre-commit запись description cache явно считается staging/cache-семантикой и не означает commit monitor traversal.
-- [ ] Полный verify pipeline GREEN.
+- [x] На один incremental Run допускается не более 10 фактических detail HTTP requests.
+- [x] Persistent `available`/`unavailable` cache hits не расходуют budget.
+- [x] Проверка budget выполняется после cache miss и до `httpClient.get`, поэтому одиннадцатый запрос физически не отправляется.
+- [x] Исчерпание budget выбрасывает typed `DescriptionRequestBudgetExceededError` и не продвигает watermark/cursor.
+- [x] Scheduled Run журналирует исчерпание как `errorCategory='policy'`, `errorCode='description-budget-exhausted'`; ошибка остаётся retryable существующим scheduler-механизмом.
+- [x] Новый Run получает новый budget; успешно сохранённые description cache entries переиспользуются следующей попыткой.
+- [x] Pre-commit запись description cache явно считается staging/cache-семантикой и не означает commit monitor traversal.
+- [x] Полный verify pipeline GREEN.
+
+## Verification
+
+- PR verify #935 GREEN на implementation HEAD `857bf31f399de56c68354d5fe183ca8d516f2027`.
+- Unit suite: 455 passed; отдельно покрыты hard cap 10, отсутствие одиннадцатого HTTP, бесплатные persistent cache hits, fresh budget между Runs и journal classification.
+- PostgreSQL compose integration GREEN: 10 staged descriptions переживают budget exhaustion, следующая попытка читает их из persistent cache без HTTP и расходует свежий budget только на оставшийся cache miss.
+- Documentation consistency, CI failure-mode self-check, typecheck, lint, formatting, build/output verification, development launch smoke и production launch smoke GREEN.
 
 ## Не делать
 

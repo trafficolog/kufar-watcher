@@ -15,7 +15,7 @@ _Сгенерировано 2026-09-10_
 | `1.2` | HTTP-клиент и лимитер | 1 | ✅ done | 🟢 aligned | Вежливый и предсказуемый сетевой слой. |
 | `1.3` | Адаптеры выдачи Kufar | 1 | ✅ done | 🟢 aligned | 5/5: общий SourceAdapter, electronics, real-estate, проверенный HTML fallback и terminal pagination token готовы. |
 | `1.4` | Водяной знак новизны и дедупликация | 1 | ⬜ todo | 🟡 drifted | Ядро логики «что считать новым». |
-| `1.5` | Догрузка описания карточки | 1 | ⬜ todo | 🟡 drifted | Опциональный поиск по описанию без лишних запросов. |
+| `1.5` | Догрузка описания карточки | 1 | ✅ done | 🟢 aligned | 3/3 done: persistent detail cache, two-stage description policy and per-Run 10-request detail budget; verify #935 GREEN. |
 | `2.1` | Нормализация текста и glob-маски | 2 | ✅ done | 🟢 aligned | Нормализация текста и glob-маски — входит в срез MVP-1. |
 | `2.2` | Матчер ключевых слов | 2 | ✅ done | 🟢 aligned | Отбор объявлений по ключевым словам. |
 | `2.3` | Фильтр продавца | 2 | ⬜ todo | 🟡 drifted | Исключение нежелательных продавцов. |
