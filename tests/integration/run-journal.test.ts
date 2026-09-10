@@ -117,6 +117,39 @@ integration('scheduled Run journal', () => {
     expect(JSON.stringify(runs[0])).not.toContain('integration-secret')
   })
 
+  it('keeps the persisted interval unchanged across ten consecutive retryable failures', async () => {
+    const failure = new KufarSourceRequestError('temporary source failure', {
+      ok: false,
+      kind: 'temporary',
+      code: 'network',
+      status: null,
+      attempts: 3,
+      message: 'Kufar network request failed after bounded retries',
+    })
+    const fetchPage = vi.fn().mockRejectedValue(failure)
+    const executor = executorFor(prisma, fetchPage)
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await expect(executor(MONITOR_ID)).rejects.toBe(failure)
+    }
+
+    expect(fetchPage).toHaveBeenCalledTimes(10)
+    const monitor = await prisma.monitor.findUniqueOrThrow({
+      where: { id: MONITOR_ID },
+      select: { intervalSec: true },
+    })
+    expect(monitor.intervalSec).toBe(60)
+
+    const runs = await prisma.run.findMany({
+      where: { monitorId: MONITOR_ID },
+      orderBy: { id: 'asc' },
+    })
+    expect(runs).toHaveLength(10)
+    expect(runs.every(({ outcome, errorCode }) => outcome === 'error' && errorCode === 'network')).toBe(
+      true,
+    )
+  })
+
   it('persists an overlapping trigger as skipped beside the single successful traversal', async () => {
     let releaseFirst!: () => void
     let firstEntered!: () => void
