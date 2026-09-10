@@ -15,6 +15,7 @@ export type ColdStartCursorSnapshot =
 
 export interface ColdStartPersistenceInput {
   monitorId: number
+  runId?: number
   startedAt: Date
   finishedAt: Date
   source: ColdStartSourceSnapshot
@@ -102,6 +103,25 @@ export async function persistColdStartBaselineTransaction(
     create: { monitorId: input.monitorId, ...cursorData },
     update: cursorData,
   })
+
+  if (input.runId !== undefined) {
+    await tx.run.update({
+      where: { id: input.runId },
+      data: {
+        finishedAt: input.finishedAt,
+        durationMs: Math.max(0, input.finishedAt.getTime() - input.startedAt.getTime()),
+        outcome: 'success',
+        seen: input.listings.length,
+        matched: 0,
+        error: null,
+        errorCategory: null,
+        errorCode: null,
+        httpStatus: null,
+        degradedLevel: null,
+      },
+    })
+    return
+  }
 
   await tx.run.create({
     data: {
