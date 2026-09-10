@@ -75,19 +75,24 @@ function makePrisma(): PrismaClient {
   } as unknown as PrismaClient
 }
 
-beforeEach(() => {
-  const newListings = Array.from({ length: 11 }, (_, index) => listing(index))
-  dependencyMocks.traverseWatermark.mockReset().mockResolvedValue({
-    kind: 'complete',
+function completeTraversal(newListings: Listing[]) {
+  return {
+    kind: 'complete' as const,
     newListings,
     nextWatermark: {
       boundaryTime: newListings[0]?.listTime,
       boundaryIds: [newListings[0]?.listId],
     },
     pagesRead: 1,
-    possibleMiss: false,
+    possibleMiss: false as const,
     checkpoint: null,
-  })
+  }
+}
+
+beforeEach(() => {
+  dependencyMocks.traverseWatermark
+    .mockReset()
+    .mockResolvedValue(completeTraversal(Array.from({ length: 11 }, (_, index) => listing(index))))
   dependencyMocks.commitMonitorRun.mockReset().mockResolvedValue(undefined)
 })
 
@@ -121,5 +126,37 @@ describe('incremental description request budget', () => {
     expect(ensureDescription).toHaveBeenCalledTimes(11)
     expect(new Set(budgets.slice(0, 10)).size).toBe(1)
     expect(dependencyMocks.commitMonitorRun).not.toHaveBeenCalled()
+  })
+
+  it('creates a fresh ten-request budget for each incremental run', async () => {
+    const newListings = Array.from({ length: 10 }, (_, index) => listing(index))
+    dependencyMocks.traverseWatermark.mockResolvedValue(completeTraversal(newListings))
+    const budgets: RequestBudget[] = []
+    const ensureDescription = vi.fn(async (_listing: Listing, budget?: RequestBudget) => {
+      expect(budget).toBeDefined()
+      budgets.push(budget as RequestBudget)
+      budget?.consume()
+      return {
+        kind: 'available' as const,
+        description: 'full description',
+        source: 'network' as const,
+      }
+    })
+    const input = {
+      prisma: makePrisma(),
+      monitorId: MONITOR_ID,
+      adapter: { fetchPage: vi.fn() } as unknown as SourceAdapter,
+      maxPages: 3,
+      descriptionLoader: { ensureDescription },
+    }
+
+    await runIncrementalMonitor(input)
+    await runIncrementalMonitor(input)
+
+    expect(ensureDescription).toHaveBeenCalledTimes(20)
+    expect(new Set(budgets.slice(0, 10)).size).toBe(1)
+    expect(new Set(budgets.slice(10)).size).toBe(1)
+    expect(budgets[10]).not.toBe(budgets[0])
+    expect(dependencyMocks.commitMonitorRun).toHaveBeenCalledTimes(2)
   })
 })

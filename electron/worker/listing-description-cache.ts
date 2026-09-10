@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../../generated/prisma/client'
 import type { Listing } from '../../shared/listing'
+import type { DescriptionRequestBudget } from './description-request-budget'
 import type { KufarHttpClient } from './kufar-http-client'
 import { hasKufarListingNotFoundCode, parseKufarListingDescription } from './kufar-listing-detail'
 import { KufarSourceRequestError } from './kufar-source-request-error'
@@ -15,10 +16,6 @@ export type ListingDescriptionResult =
       kind: 'unavailable'
       source: 'cache' | 'network'
     }
-
-export interface DescriptionRequestBudget {
-  consume(): void
-}
 
 export class ListingDescriptionCache {
   private readonly inFlight = new Map<string, Promise<ListingDescriptionResult>>()

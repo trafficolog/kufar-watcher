@@ -84,4 +84,48 @@ describe('listing detail request budget', () => {
     expect(get).toHaveBeenCalledTimes(10)
     expect(consumed).toBe(10)
   })
+
+  it.each([
+    {
+      label: 'available',
+      cached: {
+        availability: 'available',
+        description: 'cached full description',
+        descriptionLoadedAt: new Date('2026-09-10T18:30:00.000Z'),
+      },
+      expected: {
+        kind: 'available',
+        description: 'cached full description',
+        source: 'cache',
+      },
+    },
+    {
+      label: 'unavailable',
+      cached: {
+        availability: 'unavailable',
+        description: null,
+        descriptionLoadedAt: null,
+      },
+      expected: { kind: 'unavailable', source: 'cache' },
+    },
+  ])('does not spend the run budget on a persisted $label cache hit', async ({ cached, expected }) => {
+    const consume = vi.fn(() => {
+      throw new Error('cache hit must not consume the request budget')
+    })
+    const get = vi.fn(() => {
+      throw new Error('cache hit must not perform HTTP')
+    })
+    const cache = new ListingDescriptionCache(
+      {
+        listing: {
+          findUnique: vi.fn().mockResolvedValue(cached),
+        },
+      } as unknown as PrismaClient,
+      { get } as unknown as Pick<KufarHttpClient, 'get'>,
+    )
+
+    await expect(cache.ensureDescription(LISTING, { consume })).resolves.toEqual(expected)
+    expect(consume).not.toHaveBeenCalled()
+    expect(get).not.toHaveBeenCalled()
+  })
 })
