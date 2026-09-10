@@ -53,21 +53,23 @@ export function createScheduledMonitorRunExecutor(
     }
 
     activeMonitorIds.add(monitorId)
-    const monitor = await options.prisma.monitor.findUniqueOrThrow({
-      where: { id: monitorId },
-      select: { query: true },
-    })
-    const query = parsePersistedCanonicalQuery(monitor.query)
-    const adapter = options.adapters.get(routeKufarQuery(query))
+    try {
+      const monitor = await options.prisma.monitor.findUniqueOrThrow({
+        where: { id: monitorId },
+        select: { query: true },
+      })
+      const query = parsePersistedCanonicalQuery(monitor.query)
+      const adapter = options.adapters.get(routeKufarQuery(query))
 
-    const result = await runCycle({
-      prisma: options.prisma,
-      monitorId,
-      adapter,
-      maxPages: options.maxPages,
-      descriptionLoader: options.descriptionLoader,
-    })
-    activeMonitorIds.delete(monitorId)
-    return result
+      return await runCycle({
+        prisma: options.prisma,
+        monitorId,
+        adapter,
+        maxPages: options.maxPages,
+        descriptionLoader: options.descriptionLoader,
+      })
+    } finally {
+      activeMonitorIds.delete(monitorId)
+    }
   }
 }
