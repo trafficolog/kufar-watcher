@@ -14,7 +14,7 @@
 
 - Pin `pg-boss` to exactly `12.30.0`; do not change package version `0.2.0` in this task.
 - Raise the repository Node engine floor to `>=22.12 <23` in the same dependency commit.
-- Stable queue name is exactly `monitor-run:<monitorId>`.
+- Stable queue name is exactly `monitor-run/<monitorId>`.
 - Supported persisted intervals are exactly `60`, `120`, `300`, `600`, `900`, `3600` seconds.
 - Use 5-field cron expressions only.
 - Database state is authoritative; scheduler side effects happen only after a successful monitor-config commit.
@@ -76,7 +76,7 @@ import { monitorIntervalCron, monitorQueueName } from '../../electron/worker/mon
 
 describe('monitor scheduler contract', () => {
   it('derives a stable queue name from monitor id', () => {
-    expect(monitorQueueName(42)).toBe('monitor-run:42')
+    expect(monitorQueueName(42)).toBe('monitor-run/42')
   })
 
   it.each([
@@ -132,7 +132,7 @@ const MONITOR_INTERVAL_CRON = new Map<number, string>([
 
 export function monitorQueueName(monitorId: number): string {
   if (!Number.isInteger(monitorId) || monitorId < 1) throw new Error('Invalid monitor id')
-  return `monitor-run:${monitorId}`
+  return `monitor-run/${monitorId}`
 }
 
 export function monitorIntervalCron(intervalSec: number): string {
@@ -185,11 +185,11 @@ Use in-memory fakes that record durable schedule state and local worker registra
 await scheduler.start()
 
 expect(queue.schedules).toEqual(
-  new Map([['monitor-run:1', { cron: '* * * * *', data: { monitorId: 1 } }]]),
+  new Map([['monitor-run/1', { cron: '* * * * *', data: { monitorId: 1 } }]]),
 )
-expect(queue.workersFor('monitor-run:1')).toHaveLength(1)
-expect(queue.schedules.has('monitor-run:2')).toBe(false)
-expect(queue.schedules.has('monitor-run:3')).toBe(false)
+expect(queue.workersFor('monitor-run/1')).toHaveLength(1)
+expect(queue.schedules.has('monitor-run/2')).toBe(false)
+expect(queue.schedules.has('monitor-run/3')).toBe(false)
 ```
 
 - [ ] **Step 2: Verify RED**
@@ -234,21 +234,21 @@ Cover all of these assertions in separate tests:
 ```ts
 await scheduler.syncMonitor(1)
 await scheduler.syncMonitor(1)
-expect(queue.workersFor('monitor-run:1')).toHaveLength(1)
+expect(queue.workersFor('monitor-run/1')).toHaveLength(1)
 
 repository.set({ id: 1, intervalSec: 300, state: 'active' })
 await scheduler.syncMonitor(1)
-expect(queue.schedules.get('monitor-run:1')?.cron).toBe('*/5 * * * *')
-expect(queue.scheduleNames()).toEqual(['monitor-run:1'])
+expect(queue.schedules.get('monitor-run/1')?.cron).toBe('*/5 * * * *')
+expect(queue.scheduleNames()).toEqual(['monitor-run/1'])
 
 repository.set({ id: 1, intervalSec: 300, state: 'paused' })
 await scheduler.syncMonitor(1)
-expect(queue.schedules.has('monitor-run:1')).toBe(false)
-expect(queue.workersFor('monitor-run:1')).toHaveLength(0)
+expect(queue.schedules.has('monitor-run/1')).toBe(false)
+expect(queue.workersFor('monitor-run/1')).toHaveLength(0)
 
 repository.set({ id: 1, intervalSec: 300, state: 'active' })
 await scheduler.syncMonitor(1)
-expect(queue.workersFor('monitor-run:1')).toHaveLength(1)
+expect(queue.workersFor('monitor-run/1')).toHaveLength(1)
 ```
 
 Also verify an already-existing durable queue is reused rather than recreated.
@@ -284,7 +284,7 @@ Accepted payload is exactly an object whose `monitorId` is an integer equal to t
 await scheduler.start()
 await scheduler.stop()
 expect(queue.events.slice(-2)).toEqual([
-  'offWork:monitor-run:1',
+  'offWork:monitor-run/1',
   'stop',
 ])
 ```
@@ -744,7 +744,7 @@ After `scheduler.start()`:
 
 ```ts
 const schedules = await boss.getSchedules()
-const owned = schedules.filter((schedule) => schedule.name.startsWith('monitor-run:'))
+const owned = schedules.filter((schedule) => schedule.name.startsWith('monitor-run/'))
 expect(owned).toHaveLength(5)
 ```
 

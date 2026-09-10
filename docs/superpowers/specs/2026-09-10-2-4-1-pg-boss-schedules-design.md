@@ -40,7 +40,7 @@ Add a focused worker-owned service in `electron/worker/monitor-scheduler.ts`.
 Responsibilities:
 
 - own the pg-boss lifecycle;
-- map a monitor id to a stable queue name: `monitor-run:<id>`;
+- map a monitor id to a stable queue name: `monitor-run/<id>`;
 - map supported `intervalSec` values to a 5-field cron expression;
 - reconcile all persisted monitors on startup;
 - reconcile one persisted monitor after a successful configuration commit;
@@ -106,7 +106,7 @@ The worker receives the already-resolved PostgreSQL connection string from the E
 
 Each monitor gets a distinct pg-boss queue name:
 
-`monitor-run:<monitorId>`
+`monitor-run/<monitorId>`
 
 The same name is used for queue creation, schedule registration, worker registration, and unscheduling.
 
