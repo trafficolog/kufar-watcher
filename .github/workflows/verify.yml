@@ -42,11 +42,8 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint
-      - name: Formatting diagnostic
-        run: |
-          npx --no-install prettier --write electron/worker/incremental-monitor-run.ts
-          git diff -- electron/worker/incremental-monitor-run.ts
-          exit 1
+      - name: Formatting
+        run: npm run format:check
       - name: Postgres compose integration
         run: bash scripts/verify-postgres-compose.sh
       - name: Prepare Electron Linux sandbox
