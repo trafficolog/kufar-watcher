@@ -6,7 +6,8 @@ import { createScheduledMonitorRunExecutor } from '../../electron/worker/schedul
 import type { SourceAdapter } from '../../shared/source-adapter'
 import { createSourceAdapterRegistry } from '../../shared/source-adapter-registry'
 
-const integration = process.env.KUFAR_POSTGRES_INTEGRATION === '1' ? describe : describe.skip
+const integration =
+  process.env.KUFAR_POSTGRES_INTEGRATION === '1' ? describe : describe.skip
 const MONITOR_ID = 916_001
 const QUERY = {
   host: 'www.kufar.by',
