@@ -239,9 +239,9 @@ describe('createScheduledMonitorRunExecutor', () => {
         errorCategory: 'source',
         errorCode: 'http-4xx',
         httpStatus: 403,
-        degradedLevel: null,
       },
     })
+    expect(runUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('degradedLevel')
     expect(JSON.stringify(runUpdate.mock.calls)).not.toContain('top-secret')
   })
 
