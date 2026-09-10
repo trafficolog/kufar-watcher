@@ -130,4 +130,59 @@ describe('runMonitorCycle', () => {
       now: undefined,
     })
   })
+
+  it('forwards scheduled run identity and start time to cold start', async () => {
+    const prisma = prismaWithCursor('missing')
+    const startedAt = new Date('2026-09-10T11:00:00.000Z')
+    const scheduledRunMonitorCycle = runMonitorCycle as unknown as (
+      input: Parameters<typeof runMonitorCycle>[0] & { startedAt: Date },
+    ) => ReturnType<typeof runMonitorCycle>
+
+    await scheduledRunMonitorCycle({
+      prisma,
+      monitorId: MONITOR_ID,
+      runId: 9001,
+      startedAt,
+      adapter,
+      maxPages: 3,
+    })
+
+    expect(dependencyMocks.runColdStartMonitor).toHaveBeenCalledWith({
+      prisma,
+      monitorId: MONITOR_ID,
+      runId: 9001,
+      startedAt,
+      adapter,
+      maxPages: 3,
+      now: undefined,
+    })
+  })
+
+  it('forwards scheduled run identity and start time to incremental traversal', async () => {
+    const prisma = prismaWithCursor(new Date('2026-09-08T11:59:00.000Z'))
+    const startedAt = new Date('2026-09-10T11:00:00.000Z')
+    const scheduledRunMonitorCycle = runMonitorCycle as unknown as (
+      input: Parameters<typeof runMonitorCycle>[0] & { startedAt: Date },
+    ) => ReturnType<typeof runMonitorCycle>
+
+    await scheduledRunMonitorCycle({
+      prisma,
+      monitorId: MONITOR_ID,
+      runId: 9001,
+      startedAt,
+      adapter,
+      maxPages: 3,
+    })
+
+    expect(dependencyMocks.runIncrementalMonitor).toHaveBeenCalledWith({
+      prisma,
+      monitorId: MONITOR_ID,
+      runId: 9001,
+      startedAt,
+      adapter,
+      maxPages: 3,
+      selector: undefined,
+      now: undefined,
+    })
+  })
 })
