@@ -47,6 +47,7 @@ status_note: "Scheduled Run создаётся до обхода и финали
 - Schema/cold-start GREEN: `verify #812` на `741db60ef081a3895a2459eb6f91483eb2c8e595` — nullable journal fields, migration и same-row cold-start finalization прошли unit/static, PostgreSQL, build и smoke.
 - Success propagation RED: `verify #813` на `a9c6880cb183fbc95d328209be50a0c4efb63723` — `runId/startedAt` не доходили до cold/incremental paths, incremental persistence ещё делала `create`.
 - Финальный GREEN: `verify #826` на `0c3e5a460dbd9b9f0205c52499631f8cb4dc089a` — success/catchup/error финализируют одну строку, source/internal ошибки безопасно структурированы, overlap остаётся skipped; unit, docs, typecheck, lint, formatting, PostgreSQL integration, build/output и оба Electron smoke GREEN.
+
 ## Подсказки
 
 - Общий контекст — в карточке эпика и в `docs/AGENTS.md`
