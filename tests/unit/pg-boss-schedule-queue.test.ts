@@ -124,10 +124,6 @@ describe('pg-boss schedule queue adapter', () => {
     expect(handler).toHaveBeenCalledWith(job)
 
     await queue.offWork('monitor-run:7', workerId)
-    expect(boss.calls.at(-1)).toEqual([
-      'offWork',
-      'monitor-run:7',
-      { id: 'worker-1', wait: true },
-    ])
+    expect(boss.calls.at(-1)).toEqual(['offWork', 'monitor-run:7', { id: 'worker-1', wait: true }])
   })
 })
