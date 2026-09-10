@@ -24,9 +24,7 @@ export interface FailedNoRetryMonitorRunResult {
 }
 
 export type ScheduledMonitorRunResult =
-  | MonitorCycleResult
-  | SkippedOverlapMonitorRunResult
-  | FailedNoRetryMonitorRunResult
+  MonitorCycleResult | SkippedOverlapMonitorRunResult | FailedNoRetryMonitorRunResult
 export type ScheduledMonitorRunExecutor = (monitorId: number) => Promise<ScheduledMonitorRunResult>
 
 interface RunFailureJournal {
