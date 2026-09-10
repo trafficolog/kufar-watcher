@@ -13,9 +13,7 @@ import {
   type ScheduledMonitorRunExecutorOptions,
 } from '../../electron/worker/scheduled-monitor-run'
 
-const query = parseKufarListingUrl(
-  'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5',
-)
+const query = parseKufarListingUrl('https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5')
 const event: SourceDegradationEvent = {
   kind: 'source-degraded',
   channel: 'html-fallback',
@@ -126,10 +124,7 @@ describe('scheduled monitor degradation journal', () => {
     const runUpdate = vi.fn().mockResolvedValue(undefined)
     const prisma = {
       run: {
-        create: vi
-          .fn()
-          .mockResolvedValueOnce({ id: 9001 })
-          .mockResolvedValueOnce({ id: 9002 }),
+        create: vi.fn().mockResolvedValueOnce({ id: 9001 }).mockResolvedValueOnce({ id: 9002 }),
         update: runUpdate,
       },
       monitor: {
