@@ -2,8 +2,8 @@
 id: "2"
 status: todo
 sync_state: drifted
-last_reviewed: 2026-09-05
-status_note: "Фаза 2: нормализация и маски, матчер, фильтр продавца, pg-boss, догоняющий обход, морфология. Карточки написаны для 2.1, 2.2 и 2.4."
+last_reviewed: 2026-09-10
+status_note: "Фаза 2: 2.1 и 2.2 закрыты; работа по scheduler начата — 2.4.1 done, эпик 2.4 остаётся открытым 1/4; далее seller filter, scheduler, power/catch-up и morphology."
 ---
 
 # Фаза 2 — Правила, матчинг, планировщик
@@ -26,7 +26,7 @@ status_note: "Фаза 2: нормализация и маски, матчер, 
 | `2.1` | [Нормализация текста и glob-маски](../epics/2-1-morphology-globs.md) | ✅ done | 🟢 aligned | Нормализация текста и glob-маски — входит в срез MVP-1. |
 | `2.2` | [Матчер ключевых слов](../epics/2-2-matcher.md) | ✅ done | 🟢 aligned | Отбор объявлений по ключевым словам. |
 | `2.3` | [Фильтр продавца](../epics/2-3-seller-filter.md) | ⬜ todo | 🟡 drifted | Исключение нежелательных продавцов. |
-| `2.4` | [Планировщик на pg-boss](../epics/2-4-scheduler.md) | ⬜ todo | 🟡 drifted | Персональные интервалы обхода. |
+| `2.4` | [Планировщик на pg-boss](../epics/2-4-scheduler.md) | ⬜ todo | 🟡 drifted | Персональные интервалы: 2.4.1 закрыта, 1/4 задач done; далее no-overlap, Run journal и retries. |
 | `2.5` | [Питание и догоняющий обход](../epics/2-5-power-catchup.md) | ⬜ todo | 🟡 drifted | Корректная работа на машине, которая уходит в сон. |
 | `2.6` | [Морфология русского языка](../epics/2-6-morphology.md) | ⬜ todo | 🟡 drifted | Русский стеммер и правило выбора между маской и морфологией — срез 0.4.0. |
 <!-- docs:ops:end phase-2-epics -->
