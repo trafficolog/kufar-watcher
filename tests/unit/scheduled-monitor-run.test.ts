@@ -33,7 +33,7 @@ function executorDependencies() {
       findUniqueOrThrow: vi.fn().mockResolvedValue({ query: persistedQuery }),
     },
     run: {
-      create: vi.fn().mockResolvedValue({}),
+      create: vi.fn().mockResolvedValue({ id: 9001 }),
     },
   } as unknown as PrismaClient
   const electronicsAdapter = { fetchPage: vi.fn() } as unknown as SourceAdapter
@@ -79,6 +79,51 @@ describe('createScheduledMonitorRunExecutor', () => {
       }),
     ])
     expect(runCycle).toHaveBeenCalledTimes(1)
+  })
+
+  it('creates a running journal entry before the scheduled cycle starts', async () => {
+    const { prisma, adapters, descriptionLoader } = executorDependencies()
+    let releaseCycle!: () => void
+    let cycleEntered!: () => void
+    const cycleRelease = new Promise<void>((resolve) => {
+      releaseCycle = resolve
+    })
+    const cycleStarted = new Promise<void>((resolve) => {
+      cycleEntered = resolve
+    })
+    const runCycle = vi.fn(async (input: unknown) => {
+      cycleEntered()
+      await cycleRelease
+      return coldStartResult
+    })
+    const executor = createScheduledMonitorRunExecutor({
+      prisma,
+      adapters,
+      maxPages: 5,
+      descriptionLoader,
+      runCycle: runCycle as never,
+    })
+
+    const execution = executor(17)
+    await cycleStarted
+
+    expect(prisma.run.create).toHaveBeenCalledWith({
+      data: {
+        monitorId: 17,
+        startedAt: expect.any(Date),
+        outcome: 'running',
+      },
+      select: { id: true },
+    })
+    expect(runCycle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        monitorId: 17,
+        runId: 9001,
+      }),
+    )
+
+    releaseCycle()
+    await execution
   })
 
   it('skips a concurrent trigger for the same monitor and records the overlap', async () => {
