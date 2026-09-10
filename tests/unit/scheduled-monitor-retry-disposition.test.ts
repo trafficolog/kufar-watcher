@@ -45,7 +45,7 @@ function createExecutor(
   return {
     executor: createScheduledMonitorRunExecutor({
       prisma,
-      adapters,
+      createRunAdapters: () => adapters,
       maxPages: 5,
       descriptionLoader: { ensureDescription: vi.fn() },
       runCycle: runCycle as never,
