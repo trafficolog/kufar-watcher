@@ -13,7 +13,12 @@ export interface ScheduledMonitorRunExecutorOptions {
   runCycle?: typeof runMonitorCycle
 }
 
-export type ScheduledMonitorRunExecutor = (monitorId: number) => Promise<MonitorCycleResult>
+export interface SkippedOverlapMonitorRunResult {
+  cycleKind: 'skipped-overlap'
+}
+
+export type ScheduledMonitorRunResult = MonitorCycleResult | SkippedOverlapMonitorRunResult
+export type ScheduledMonitorRunExecutor = (monitorId: number) => Promise<ScheduledMonitorRunResult>
 
 function assertMonitorPageCap(maxPages: number): void {
   if (!Number.isInteger(maxPages) || maxPages < 1) {
@@ -26,8 +31,28 @@ export function createScheduledMonitorRunExecutor(
 ): ScheduledMonitorRunExecutor {
   assertMonitorPageCap(options.maxPages)
   const runCycle = options.runCycle ?? runMonitorCycle
+  const activeMonitorIds = new Set<number>()
 
   return async (monitorId) => {
+    if (activeMonitorIds.has(monitorId)) {
+      const recordedAt = new Date()
+      await options.prisma.run.create({
+        data: {
+          monitorId,
+          startedAt: recordedAt,
+          finishedAt: recordedAt,
+          outcome: 'skipped',
+          seen: 0,
+          matched: 0,
+          error: null,
+          httpStatus: null,
+          degradedLevel: null,
+        },
+      })
+      return { cycleKind: 'skipped-overlap' }
+    }
+
+    activeMonitorIds.add(monitorId)
     const monitor = await options.prisma.monitor.findUniqueOrThrow({
       where: { id: monitorId },
       select: { query: true },
@@ -35,12 +60,14 @@ export function createScheduledMonitorRunExecutor(
     const query = parsePersistedCanonicalQuery(monitor.query)
     const adapter = options.adapters.get(routeKufarQuery(query))
 
-    return runCycle({
+    const result = await runCycle({
       prisma: options.prisma,
       monitorId,
       adapter,
       maxPages: options.maxPages,
       descriptionLoader: options.descriptionLoader,
     })
+    activeMonitorIds.delete(monitorId)
+    return result
   }
 }
