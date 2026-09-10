@@ -1,0 +1,44 @@
+name: docs-refresh-2-4-4
+
+on:
+  push:
+    branches:
+      - feat/2-4-4-retries
+    paths:
+      - .github/workflows/docs-refresh-2-4-4.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/2-4-4-retries
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --global npm@11.4.2
+      - run: npm ci --ignore-scripts
+      - name: Refresh docs rollups
+        run: |
+          npm run docs:ops:refresh
+          npx --no-install prettier --write docs
+          npm run docs:ops:check
+      - name: Commit refreshed docs
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'No docs refresh changes to commit'
+            exit 0
+          fi
+          git commit -m 'docs: refresh scheduler completion rollups'
+          git push origin HEAD:feat/2-4-4-retries
