@@ -25,12 +25,13 @@ function executorFor(
   fetchPage: SourceAdapter['fetchPage'],
 ) {
   const adapter = { fetchPage } as SourceAdapter
+  const adapters = createSourceAdapterRegistry({
+    electronics: adapter,
+    'real-estate': adapter,
+  })
   return createScheduledMonitorRunExecutor({
     prisma,
-    adapters: createSourceAdapterRegistry({
-      electronics: adapter,
-      'real-estate': adapter,
-    }),
+    createRunAdapters: () => adapters,
     maxPages: 2,
     descriptionLoader: { ensureDescription: vi.fn() },
   })
