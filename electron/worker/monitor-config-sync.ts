@@ -1,8 +1,5 @@
 import type { PrismaClient } from '../../generated/prisma/client'
-import {
-  updateMonitorConfig,
-  type MonitorConfigPatch,
-} from './monitor-config-persistence'
+import { updateMonitorConfig, type MonitorConfigPatch } from './monitor-config-persistence'
 
 export interface MonitorSchedulerSync {
   syncMonitor(monitorId: number): Promise<void>
