@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { PrismaClient } from '../../generated/prisma/client'
 import type { KufarHttpResult } from '../../electron/worker/kufar-http-client'
+import type { KufarRawResponseSnapshot } from '../../electron/worker/kufar-raw-response-journal'
 import { createWorkerSourceRuntime } from '../../electron/worker/worker-source-runtime'
 import { parseKufarListingUrl } from '../../shared/kufar-url'
 
@@ -11,6 +12,15 @@ const electronicsQuery = parseKufarListingUrl(
   'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5',
 )
 const realEstateQuery = parseKufarListingUrl('https://re.kufar.by/l/minsk/kupit/kvartiru?cur=USD')
+const fakeSnapshot: KufarRawResponseSnapshot = {
+  version: 1,
+  id: 'snapshot-1',
+  endpoint: 'api.kufar.by/search-api/v2/search/rendered-paginated',
+  requestUrl: 'https://api.kufar.by/search-api/v2/search/rendered-paginated',
+  status: 200,
+  capturedAt: '2026-09-10T00:00:00.000Z',
+  bodyBase64: '',
+}
 
 async function fixtureBytes(name: string): Promise<Uint8Array> {
   return new Uint8Array(await readFile(new URL(`../fixtures/kufar/${name}`, import.meta.url)))
@@ -24,11 +34,15 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
+function fakeJournal() {
+  return { record: vi.fn(async () => fakeSnapshot) }
+}
+
 describe('worker source runtime', () => {
   it('composes both source adapters around one shared HTTP client and closes it once', async () => {
     const electronicsBody = await fixtureBytes('2026-09-07-electronics-search-page-1.json')
     const realEstateBody = await fixtureBytes('2026-09-07-realestate-search-page-1.json')
-    const journal = { record: vi.fn(async () => undefined) }
+    const journal = fakeJournal()
     const http = {
       get: vi.fn(async (input: string | URL): Promise<KufarHttpResult> => {
         const url = new URL(input)
@@ -108,7 +122,7 @@ describe('worker source runtime', () => {
         onDegradation,
       },
       {
-        createJournal: () => ({ record: vi.fn(async () => undefined) }),
+        createJournal: fakeJournal,
         createHttpClient: () => http,
       },
     )
