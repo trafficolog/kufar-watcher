@@ -161,6 +161,11 @@ describe('MonitorScheduler', () => {
     await scheduler.start()
 
     expect(queue.createCalls).toEqual([])
+    expect(queue.schedules.get('monitor-run:1')).toEqual({
+      cron: '* * * * *',
+      data: { monitorId: 1 },
+    })
+    expect(queue.workersFor('monitor-run:1')).toHaveLength(1)
   })
 
   it('does not duplicate local workers on repeated reconciliation', async () => {
@@ -215,6 +220,8 @@ describe('MonitorScheduler', () => {
     const queue = new FakeScheduleQueue()
     const scheduler = new MonitorScheduler({ repository, queue, runMonitor: async () => undefined })
     await scheduler.start()
+    expect(queue.schedules.has('monitor-run:1')).toBe(true)
+    expect(queue.workersFor('monitor-run:1')).toHaveLength(1)
 
     repository.delete(1)
     await scheduler.syncMonitor(1)
