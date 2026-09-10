@@ -5,6 +5,10 @@ import type { SourceAdapter } from '../../shared/source-adapter'
 import type { WatermarkCatchupCheckpoint, WatermarkTraversalResult } from '../../shared/watermark'
 import type { ListingDescriptionResult } from './listing-description-cache'
 import {
+  createMatchingCandidateSelector,
+  parsePersistedKeywordRule,
+} from './listing-match-selector'
+import {
   commitMonitorRun,
   type MatchSelection,
   type SelectedListing,
@@ -201,7 +205,7 @@ export async function runIncrementalMonitor({
   monitorId,
   adapter,
   maxPages,
-  selector = acceptAllCandidateSelector,
+  selector,
   prefilter = acceptAllCandidatePrefilter,
   descriptionLoader,
   now = () => new Date(),
@@ -210,6 +214,7 @@ export async function runIncrementalMonitor({
     where: { id: monitorId },
     select: {
       query: true,
+      keywords: true,
       searchInDescription: true,
       cursor: {
         select: {
@@ -231,6 +236,14 @@ export async function runIncrementalMonitor({
   }
 
   const query = parseCanonicalQuery(monitor.query)
+  const persistedSelector =
+    monitor.keywords === undefined
+      ? acceptAllCandidateSelector
+      : createMatchingCandidateSelector({
+          rule: parsePersistedKeywordRule(monitor.keywords),
+          searchInDescription: monitor.searchInDescription,
+        })
+  const candidateSelector = selector ?? persistedSelector
   const previousWatermark = {
     boundaryTime: monitor.cursor.boundaryTime.toISOString(),
     boundaryIds: parseBoundaryIds(monitor.cursor.boundaryIds),
@@ -266,7 +279,7 @@ export async function runIncrementalMonitor({
       }
     }
 
-    const selection = await selector.select(candidate)
+    const selection = await candidateSelector.select(candidate)
     if (selection !== null) {
       selected.push({ listing: candidate, selection })
     }
