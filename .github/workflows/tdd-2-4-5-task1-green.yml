@@ -22,12 +22,16 @@ jobs:
 
           p = Path('electron/worker/monitor-run-persistence.ts')
           s = p.read_text()
-          target = "        httpStatus: null,\n        degradedLevel: isCatchup ? 'watermark-catchup' : null,\n"
-          if s.count(target) != 2:
-              raise SystemExit(f'expected two catchup degradedLevel writes, found {s.count(target)}')
-          s = s.replace(target, "        httpStatus: null,\n", 1)
-          s = s.replace(target, "        httpStatus: null,\n        degradedLevel: null,\n", 1)
-          p.write_text(s)
+          scheduled = "        errorCode: null,\n        httpStatus: null,\n        degradedLevel: isCatchup ? 'watermark-catchup' : null,\n      },\n    })\n    return\n"
+          scheduled_replacement = "        errorCode: null,\n        httpStatus: null,\n      },\n    })\n    return\n"
+          if scheduled not in s:
+              raise SystemExit('scheduled catchup finalization anchor not found')
+          s = s.replace(scheduled, scheduled_replacement, 1)
+          legacy = "      error: null,\n      httpStatus: null,\n      degradedLevel: isCatchup ? 'watermark-catchup' : null,\n    },\n  })\n"
+          legacy_replacement = "      error: null,\n      httpStatus: null,\n      degradedLevel: null,\n    },\n  })\n"
+          if legacy not in s:
+              raise SystemExit('legacy catchup create anchor not found')
+          p.write_text(s.replace(legacy, legacy_replacement, 1))
 
           p = Path('electron/worker/cold-start-persistence.ts')
           s = p.read_text()
