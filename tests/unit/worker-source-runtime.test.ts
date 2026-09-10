@@ -90,7 +90,7 @@ describe('worker source runtime', () => {
 
   it('awaits degradation publication before returning an HTML fallback page', async () => {
     const fallbackBody = await fixtureBytes('2026-09-08-electronics-search-page-1-embedded.html')
-    const degradationGate = deferred<void>()
+    const degradationGate = deferred<undefined>()
     const onDegradation = vi.fn(async () => degradationGate.promise)
     const http = {
       get: vi.fn(async (input: string | URL): Promise<KufarHttpResult> => {
@@ -141,7 +141,7 @@ describe('worker source runtime', () => {
     })
     expect(settled).toBe(false)
 
-    degradationGate.resolve()
+    degradationGate.resolve(undefined)
     const page = await pagePromise
 
     expect(page.listings[0]?.listId).toBe('1084343116')
