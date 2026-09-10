@@ -31,7 +31,12 @@ export interface WorkerSupervisor {
 function isWorkerEvent(message: unknown): message is WorkerEvent {
   if (!message || typeof message !== 'object' || !('type' in message)) return false
   const type = Reflect.get(message, 'type')
-  return type === 'ready' || type === 'shutdown-complete' || type === 'journal'
+  return (
+    type === 'ready' ||
+    type === 'shutdown-complete' ||
+    type === 'journal' ||
+    type === 'monitor-pause-required'
+  )
 }
 
 export function createRestartPolicy(maxRestarts: number): RestartPolicy {

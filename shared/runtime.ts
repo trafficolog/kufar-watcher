@@ -4,6 +4,11 @@ export type WorkerEvent =
   | { type: 'ready' }
   | { type: 'shutdown-complete' }
   | { type: 'journal'; level: 'info' | 'warning' | 'error'; message: string }
+  | {
+      type: 'monitor-pause-required'
+      monitorId: number
+      stage: 'primary' | 'html-fallback' | 'degradation-event'
+    }
 
 export interface WorkerProcessHandle {
   postMessage(message: WorkerControlMessage): void

@@ -76,6 +76,9 @@ export function createWorkerApplication(
     adapters: sourceRuntime.adapters,
     maxPages: config.monitorMaxPages,
     descriptionLoader: sourceRuntime.descriptionLoader,
+    onPauseRequired(monitorId, stage) {
+      publish({ type: 'monitor-pause-required', monitorId, stage })
+    },
   })
   const scheduler = dependencies.createScheduler({ repository, queue, runMonitor })
 

@@ -244,6 +244,32 @@ describe('MonitorScheduler', () => {
     expect(runs).toEqual([1])
   })
 
+  it('keeps the schedule and local worker after a failed job so a later slot can still run', async () => {
+    const repository = new FakeMonitorRepository([{ id: 1, intervalSec: 60, state: 'active' }])
+    const queue = new FakeScheduleQueue()
+    let attempts = 0
+    const scheduler = new MonitorScheduler({
+      repository,
+      queue,
+      runMonitor: async () => {
+        attempts += 1
+        if (attempts === 1) throw new Error('temporary network failure')
+      },
+    })
+    await scheduler.start()
+    const handler = queue.handlerFor('monitor-run/1')
+
+    await expect(handler({ data: { monitorId: 1 } })).rejects.toThrow(/temporary network failure/i)
+    expect(queue.schedules.get('monitor-run/1')).toEqual({
+      cron: '* * * * *',
+      data: { monitorId: 1 },
+    })
+    expect(queue.workersFor('monitor-run/1')).toHaveLength(1)
+
+    await expect(handler({ data: { monitorId: 1 } })).resolves.toBeUndefined()
+    expect(attempts).toBe(2)
+  })
+
   it('stops local workers before stopping the queue client', async () => {
     const repository = new FakeMonitorRepository([{ id: 1, intervalSec: 60, state: 'active' }])
     const queue = new FakeScheduleQueue()

@@ -1,10 +1,10 @@
 ---
 id: "2.4"
 phase: 2
-status: todo
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-10
-status_note: "Персональные интервалы, no-overlap и Run journal закрыты: 2.4.1–2.4.3 done, 3/4 задач; далее retries и деградация."
+status_note: "Эпик закрыт: персональные pg-boss schedules, no-overlap, Run journal и bounded retry/degradation policy реализованы; 2.4.1–2.4.4 done, финальный acceptance 2.4.4 GREEN в verify #854."
 roles:
   - BACK
   - DB
@@ -26,21 +26,21 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.4-tasks -->
-**Задач:** 4 · **done:** 3
+**Задач:** 4 · **done:** 4
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `2.4.1` | [Регистрация расписаний pg-boss](../tasks/2-4-1-schedules.md) | ✅ done | 🟢 aligned |
 | `2.4.2` | [Запрет пересечения обходов одного монитора](../tasks/2-4-2-no-overlap.md) | ✅ done | 🟢 aligned |
 | `2.4.3` | [Журнал одного обхода](../tasks/2-4-3-run-journal.md) | ✅ done | 🟢 aligned |
-| `2.4.4` | [Ретраи расписания и деградация при ошибках](../tasks/2-4-4-retries.md) | ⬜ todo | 🟡 drifted |
+| `2.4.4` | [Ретраи расписания и деградация при ошибках](../tasks/2-4-4-retries.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-2.4-tasks -->
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
-- [ ] `sync_state: aligned` (код соответствует карточкам)
-- [ ] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+- [x] Все дочерние задачи в статусе `done`
+- [x] `sync_state: aligned` (код соответствует карточкам)
+- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
 
 ## Связанные документы
 
