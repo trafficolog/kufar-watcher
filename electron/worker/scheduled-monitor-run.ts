@@ -2,7 +2,10 @@ import type { PrismaClient } from '../../generated/prisma/client'
 import { routeKufarQuery } from '../../shared/kufar-routing'
 import type { SourceAdapterRegistry } from '../../shared/source-adapter-registry'
 import type { DescriptionLoader } from './incremental-monitor-run'
-import { KufarResilientSourceError } from './kufar-resilient-source'
+import {
+  KufarResilientSourceError,
+  type SourceFailureStage,
+} from './kufar-resilient-source'
 import { KufarSourceRequestError } from './kufar-source-request-error'
 import { parsePersistedCanonicalQuery } from './monitor-config-persistence'
 import { runMonitorCycle, type MonitorCycleResult } from './monitor-cycle'
@@ -13,6 +16,10 @@ export interface ScheduledMonitorRunExecutorOptions {
   maxPages: number
   descriptionLoader: DescriptionLoader
   runCycle?: typeof runMonitorCycle
+  onPauseRequired?: (
+    monitorId: number,
+    stage: SourceFailureStage,
+  ) => void | Promise<void>
 }
 
 export interface SkippedOverlapMonitorRunResult {
@@ -23,8 +30,15 @@ export interface FailedNoRetryMonitorRunResult {
   cycleKind: 'failed-no-retry'
 }
 
+export interface PauseRequiredMonitorRunResult {
+  cycleKind: 'pause-required'
+}
+
 export type ScheduledMonitorRunResult =
-  MonitorCycleResult | SkippedOverlapMonitorRunResult | FailedNoRetryMonitorRunResult
+  | MonitorCycleResult
+  | SkippedOverlapMonitorRunResult
+  | FailedNoRetryMonitorRunResult
+  | PauseRequiredMonitorRunResult
 export type ScheduledMonitorRunExecutor = (monitorId: number) => Promise<ScheduledMonitorRunResult>
 
 interface RunFailureJournal {
@@ -155,6 +169,11 @@ export function createScheduledMonitorRunExecutor(
             degradedLevel: null,
           },
         })
+
+        if (error instanceof KufarResilientSourceError && error.action === 'pause-required') {
+          await options.onPauseRequired?.(monitorId, error.stage)
+          return { cycleKind: 'pause-required' }
+        }
 
         if (error instanceof KufarSourceRequestError && !isRetryableSourceRequest(error)) {
           return { cycleKind: 'failed-no-retry' }
