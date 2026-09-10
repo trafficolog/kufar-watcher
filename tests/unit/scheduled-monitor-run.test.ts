@@ -225,7 +225,7 @@ describe('createScheduledMonitorRunExecutor', () => {
       runCycle: runCycle as never,
     })
 
-    await expect(executor(17)).rejects.toBe(failure)
+    await expect(executor(17)).resolves.toEqual({ cycleKind: 'failed-no-retry' })
 
     expect(runUpdate).toHaveBeenCalledWith({
       where: { id: 9001 },
