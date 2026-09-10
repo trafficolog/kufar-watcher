@@ -45,7 +45,7 @@ export function monitorQueueName(monitorId: number): string {
   if (!Number.isInteger(monitorId) || monitorId < 1) {
     throw new Error(`Invalid monitor id: ${monitorId}`)
   }
-  return `monitor-run:${monitorId}`
+  return `monitor-run/${monitorId}`
 }
 
 export function monitorIntervalCron(intervalSec: number): string {
