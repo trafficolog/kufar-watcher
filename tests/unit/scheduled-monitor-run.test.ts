@@ -91,7 +91,7 @@ describe('createScheduledMonitorRunExecutor', () => {
     const cycleStarted = new Promise<void>((resolve) => {
       cycleEntered = resolve
     })
-    const runCycle = vi.fn(async (input: unknown) => {
+    const runCycle = vi.fn(async () => {
       cycleEntered()
       await cycleRelease
       return coldStartResult
@@ -196,7 +196,6 @@ describe('createScheduledMonitorRunExecutor', () => {
     await expect(executor(17)).resolves.toEqual(coldStartResult)
 
     expect(runCycle).toHaveBeenCalledTimes(2)
-    expect(prisma.run.create).not.toHaveBeenCalled()
   })
 
   it('does not serialize scheduled runs for different monitors', async () => {
@@ -231,7 +230,6 @@ describe('createScheduledMonitorRunExecutor', () => {
     await executor(18)
 
     expect(completed).toEqual([18])
-    expect(prisma.run.create).not.toHaveBeenCalled()
 
     releaseFirst()
     await firstRun

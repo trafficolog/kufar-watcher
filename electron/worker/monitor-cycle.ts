@@ -12,6 +12,7 @@ import {
 export interface RunMonitorCycleInput {
   prisma: PrismaClient
   monitorId: number
+  runId?: number
   adapter: SourceAdapter
   maxPages: number
   selector?: CandidateSelector

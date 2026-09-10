@@ -54,6 +54,15 @@ export function createScheduledMonitorRunExecutor(
 
     activeMonitorIds.add(monitorId)
     try {
+      const startedAt = new Date()
+      const journalRun = await options.prisma.run.create({
+        data: {
+          monitorId,
+          startedAt,
+          outcome: 'running',
+        },
+        select: { id: true },
+      })
       const monitor = await options.prisma.monitor.findUniqueOrThrow({
         where: { id: monitorId },
         select: { query: true },
@@ -64,6 +73,7 @@ export function createScheduledMonitorRunExecutor(
       return await runCycle({
         prisma: options.prisma,
         monitorId,
+        runId: journalRun.id,
         adapter,
         maxPages: options.maxPages,
         descriptionLoader: options.descriptionLoader,
