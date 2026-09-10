@@ -6,6 +6,7 @@ import type {
   MonitorScheduleRepository,
   MonitorScheduler,
 } from '../../electron/worker/monitor-scheduler'
+import type { SourceDegradationEvent } from '../../electron/worker/kufar-resilient-source'
 import type {
   ScheduledMonitorRunExecutor,
   ScheduledMonitorRunExecutorOptions,
@@ -21,6 +22,13 @@ const config = {
   monitorMaxPages: 5,
 }
 
+const degradationEvent: SourceDegradationEvent = {
+  kind: 'source-degraded',
+  channel: 'html-fallback',
+  primaryFailureCode: 'network',
+  primaryStatus: null,
+}
+
 describe('worker application', () => {
   it('composes one scheduler stack from the worker config and publishes dependency events', async () => {
     const publish = vi.fn<(event: WorkerEvent) => void>()
@@ -28,12 +36,13 @@ describe('worker application', () => {
     const queue = {} as MonitorScheduleQueue
     const repository = {} as MonitorScheduleRepository
     const adapters = {} as SourceAdapterRegistry
+    const createRunAdapters = vi.fn(() => adapters)
     const descriptionLoader = { ensureDescription: vi.fn() }
     const sourceRuntime = {
-      adapters,
+      createRunAdapters,
       descriptionLoader,
       close: vi.fn(async () => undefined),
-    } as unknown as WorkerSourceRuntime
+    } as WorkerSourceRuntime
     const runMonitor = vi.fn(async () => ({
       status: 'completed',
     })) as unknown as ScheduledMonitorRunExecutor
@@ -43,7 +52,7 @@ describe('worker application', () => {
     } as unknown as MonitorScheduler
 
     let queueError: ((error: unknown) => void) | undefined
-    let degradation: ((message: string) => void | Promise<void>) | undefined
+    let sourceDegradation: ScheduledMonitorRunExecutorOptions['onSourceDegradation']
     let pauseRequired: ScheduledMonitorRunExecutorOptions['onPauseRequired']
     const createPrismaClient = vi.fn(() => prisma)
     const createQueue = vi.fn((databaseUrl: string, onError: (error: unknown) => void) => {
@@ -52,17 +61,9 @@ describe('worker application', () => {
       return queue
     })
     const createRepository = vi.fn(() => repository)
-    const createSourceRuntime = vi.fn(
-      (options: {
-        prisma: PrismaClient
-        rawResponseJournalDir: string
-        onDegradation(message: string): void | Promise<void>
-      }) => {
-        degradation = options.onDegradation
-        return sourceRuntime
-      },
-    )
+    const createSourceRuntime = vi.fn(() => sourceRuntime)
     const createRunExecutor = vi.fn((options: ScheduledMonitorRunExecutorOptions) => {
+      sourceDegradation = options.onSourceDegradation
       pauseRequired = options.onPauseRequired
       return runMonitor
     })
@@ -82,25 +83,23 @@ describe('worker application', () => {
     expect(createQueue).toHaveBeenCalledOnce()
     expect(createQueue).toHaveBeenCalledWith(config.databaseUrl, expect.any(Function))
     expect(createRepository).toHaveBeenCalledWith(prisma)
-    expect(createSourceRuntime).toHaveBeenCalledWith(
-      expect.objectContaining({
-        prisma,
-        rawResponseJournalDir: config.rawResponseJournalDir,
-        onDegradation: expect.any(Function),
-      }),
-    )
+    expect(createSourceRuntime).toHaveBeenCalledWith({
+      prisma,
+      rawResponseJournalDir: config.rawResponseJournalDir,
+    })
     expect(createRunExecutor).toHaveBeenCalledWith({
       prisma,
-      adapters,
+      createRunAdapters,
       maxPages: config.monitorMaxPages,
       descriptionLoader,
+      onSourceDegradation: expect.any(Function),
       onPauseRequired: expect.any(Function),
     })
     expect(createScheduler).toHaveBeenCalledWith({ repository, queue, runMonitor })
     expect(app.scheduler).toBe(scheduler)
 
     queueError?.(new Error('pg-boss failed'))
-    await degradation?.('Kufar source degraded to HTML fallback')
+    await sourceDegradation?.(17, degradationEvent)
     await pauseRequired?.(17, 'primary')
 
     expect(publish).toHaveBeenNthCalledWith(1, {
@@ -128,12 +127,12 @@ describe('worker application', () => {
       }),
     } as unknown as PrismaClient
     const sourceRuntime = {
-      adapters: {} as SourceAdapterRegistry,
+      createRunAdapters: vi.fn(() => ({} as SourceAdapterRegistry)),
       descriptionLoader: { ensureDescription: vi.fn() },
       close: vi.fn(async () => {
         order.push('source')
       }),
-    } as unknown as WorkerSourceRuntime
+    } as WorkerSourceRuntime
     const scheduler = {
       start: vi.fn(async () => {
         order.push('scheduler:start')
