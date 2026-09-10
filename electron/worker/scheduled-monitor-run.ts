@@ -15,9 +15,16 @@ export interface ScheduledMonitorRunExecutorOptions {
 
 export type ScheduledMonitorRunExecutor = (monitorId: number) => Promise<MonitorCycleResult>
 
+function assertMonitorPageCap(maxPages: number): void {
+  if (!Number.isInteger(maxPages) || maxPages < 1) {
+    throw new Error(`Invalid monitor page cap: ${maxPages}`)
+  }
+}
+
 export function createScheduledMonitorRunExecutor(
   options: ScheduledMonitorRunExecutorOptions,
 ): ScheduledMonitorRunExecutor {
+  assertMonitorPageCap(options.maxPages)
   const runCycle = options.runCycle ?? runMonitorCycle
 
   return async (monitorId) => {
