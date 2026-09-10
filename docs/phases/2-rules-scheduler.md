@@ -19,14 +19,14 @@ status_note: "Фаза 2: 2.1 и 2.2 закрыты; scheduler продвину�
 ## Эпики фазы
 
 <!-- docs:ops:begin phase-2-epics -->
-**Эпиков:** 6 · **done:** 2 · **в работе/план:** 4
+**Эпиков:** 6 · **done:** 3 · **в работе/план:** 3
 
 | ID | Эпик | Статус | Sync | Ист. |
 |----|------|--------|------|------|
 | `2.1` | [Нормализация текста и glob-маски](../epics/2-1-morphology-globs.md) | ✅ done | 🟢 aligned | Нормализация текста и glob-маски — входит в срез MVP-1. |
 | `2.2` | [Матчер ключевых слов](../epics/2-2-matcher.md) | ✅ done | 🟢 aligned | Отбор объявлений по ключевым словам. |
 | `2.3` | [Фильтр продавца](../epics/2-3-seller-filter.md) | ⬜ todo | 🟡 drifted | Исключение нежелательных продавцов. |
-| `2.4` | [Планировщик на pg-boss](../epics/2-4-scheduler.md) | ⬜ todo | 🟡 drifted | Персональные интервалы, no-overlap и Run journal закрыты: 2.4.1–2.4.3 done, 3/4 задач; далее retries и деградация. |
+| `2.4` | [Планировщик на pg-boss](../epics/2-4-scheduler.md) | ✅ done | 🟢 aligned | Эпик закрыт: персональные pg-boss schedules, no-overlap, Run journal и bounded retry/degradation policy реализованы; 2.4.1–2.4.4 done, финальный acceptance 2.4.4 GREEN в verify #854. |
 | `2.5` | [Питание и догоняющий обход](../epics/2-5-power-catchup.md) | ⬜ todo | 🟡 drifted | Корректная работа на машине, которая уходит в сон. |
 | `2.6` | [Морфология русского языка](../epics/2-6-morphology.md) | ⬜ todo | 🟡 drifted | Русский стеммер и правило выбора между маской и морфологией — срез 0.4.0. |
 <!-- docs:ops:end phase-2-epics -->
