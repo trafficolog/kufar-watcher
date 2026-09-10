@@ -1,0 +1,69 @@
+name: tdd-2-4-5-task1-green
+
+on:
+  push:
+    branches:
+      - feat/2-4-5-run-degradation-journal
+    paths:
+      - .github/workflows/tdd-2-4-5-task1-green.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Implement Task 1 sticky degradation semantics
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('electron/worker/monitor-run-persistence.ts')
+          s = p.read_text()
+          target = "        httpStatus: null,\n        degradedLevel: isCatchup ? 'watermark-catchup' : null,\n"
+          if s.count(target) != 2:
+              raise SystemExit(f'expected two catchup degradedLevel writes, found {s.count(target)}')
+          s = s.replace(target, "        httpStatus: null,\n", 1)
+          s = s.replace(target, "        httpStatus: null,\n        degradedLevel: null,\n", 1)
+          p.write_text(s)
+
+          p = Path('electron/worker/cold-start-persistence.ts')
+          s = p.read_text()
+          target = "        errorCode: null,\n        httpStatus: null,\n        degradedLevel: null,\n      },\n    })\n    return\n"
+          replacement = "        errorCode: null,\n        httpStatus: null,\n      },\n    })\n    return\n"
+          if target not in s:
+              raise SystemExit('scheduled cold-start finalization anchor not found')
+          p.write_text(s.replace(target, replacement, 1))
+
+          p = Path('electron/worker/scheduled-monitor-run.ts')
+          s = p.read_text()
+          target = "            ...journal,\n            degradedLevel: null,\n          },\n"
+          replacement = "            ...journal,\n          },\n"
+          if target not in s:
+              raise SystemExit('scheduled error finalization anchor not found')
+          p.write_text(s.replace(target, replacement, 1))
+
+          p = Path('tests/unit/scheduled-monitor-run.test.ts')
+          s = p.read_text()
+          targets = [
+              "        errorCode: 'http-5xx',\n        httpStatus: 503,\n        degradedLevel: null,\n      },\n    })",
+              "        errorCode: 'unexpected',\n        httpStatus: null,\n        degradedLevel: null,\n      },\n    })",
+          ]
+          replacements = [
+              "        errorCode: 'http-5xx',\n        httpStatus: 503,\n      },\n    })\n    expect(runUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('degradedLevel')",
+              "        errorCode: 'unexpected',\n        httpStatus: null,\n      },\n    })\n    expect(runUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('degradedLevel')",
+          ]
+          for target, replacement in zip(targets, replacements):
+              if target not in s:
+                  raise SystemExit(f'stale scheduled expectation anchor not found: {target[:40]}')
+              s = s.replace(target, replacement, 1)
+          p.write_text(s)
+          PY
+          git rm .github/workflows/tdd-2-4-5-task1-green.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add electron/worker/monitor-run-persistence.ts electron/worker/cold-start-persistence.ts electron/worker/scheduled-monitor-run.ts tests/unit/scheduled-monitor-run.test.ts
+          git commit -m "fix: preserve run source degradation metadata"
+          git push
