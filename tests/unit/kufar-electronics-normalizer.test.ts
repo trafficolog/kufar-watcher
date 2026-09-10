@@ -99,6 +99,14 @@ describe('normalizeElectronicsSearchPage', () => {
     expect(normalizeElectronicsSearchPage(encodeJson(payload)).nextCursor).toBeNull()
   })
 
+  it('returns null cursor when the next pagination token is explicitly null', async () => {
+    const payload = await fixturePage()
+    const next = payload.pagination.pages.find((page) => page.label === 'next')
+    if (next) next.token = null
+
+    expect(normalizeElectronicsSearchPage(encodeJson(payload)).nextCursor).toBeNull()
+  })
+
   it('falls back to the canonical item URL when ad_link is absent', async () => {
     const payload = await fixturePage()
     delete payload.ads[0]?.ad_link
