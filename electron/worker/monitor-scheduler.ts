@@ -26,10 +26,26 @@ export interface MonitorScheduleQueue {
   offWork(name: string, workerId: string): Promise<void>
 }
 
-export function monitorQueueName(_monitorId: number): string {
-  return ''
+const MONITOR_INTERVAL_CRON = new Map<number, string>([
+  [60, '* * * * *'],
+  [120, '*/2 * * * *'],
+  [300, '*/5 * * * *'],
+  [600, '*/10 * * * *'],
+  [900, '*/15 * * * *'],
+  [3600, '0 * * * *'],
+])
+
+export function monitorQueueName(monitorId: number): string {
+  if (!Number.isInteger(monitorId) || monitorId < 1) {
+    throw new Error(`Invalid monitor id: ${monitorId}`)
+  }
+  return `monitor-run:${monitorId}`
 }
 
-export function monitorIntervalCron(_intervalSec: number): string {
-  return ''
+export function monitorIntervalCron(intervalSec: number): string {
+  const cron = MONITOR_INTERVAL_CRON.get(intervalSec)
+  if (cron === undefined) {
+    throw new Error(`Unsupported monitor interval: ${intervalSec}`)
+  }
+  return cron
 }
