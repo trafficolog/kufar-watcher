@@ -20,6 +20,7 @@ import {
   routeWorkerBootEvent,
 } from './ipc-router'
 import { loadOrCreatePostgresCredentials, readPostgresRuntimeConfig } from './postgres-config'
+import { workerProcessEnvironment } from './worker-process-env'
 import { createWorkerSupervisor, type WorkerSupervisor } from './worker-supervisor'
 import { openRawResponseJournal, rawResponseJournalArg } from './worker-storage'
 
@@ -38,6 +39,7 @@ protocol.registerSchemesAsPrivileged([
 const devRendererUrl = process.env.KUFAR_RENDERER_URL
 const productionOrigin = `${APP_ORIGIN}/`
 let workerSupervisor: WorkerSupervisor | undefined
+let resolvedDatabaseUrl: string | undefined
 let quitAfterWorkerShutdown = false
 let bootState: BootState = {
   phase: 'starting',
@@ -118,10 +120,16 @@ app.whenReady().then(async () => {
   const userDataDir = app.getPath('userData')
   const workerJournalArg = rawResponseJournalArg(userDataDir)
   const supervisor = createWorkerSupervisor({
-    spawnWorker: () =>
-      utilityProcess.fork(workerPath, [workerJournalArg], {
+    spawnWorker: () => {
+      if (!resolvedDatabaseUrl) {
+        throw new Error('Worker database URL is unavailable before bootstrap')
+      }
+
+      return utilityProcess.fork(workerPath, [workerJournalArg], {
         serviceName: 'Kufar Monitor Worker',
-      }),
+        env: workerProcessEnvironment(process.env, resolvedDatabaseUrl),
+      })
+    },
     onEvent: (event) => {
       bootState = routeWorkerBootEvent(event, bootState, broadcastBootState)
       if (event.type === 'ready') console.info('[worker] ready')
@@ -137,12 +145,14 @@ app.whenReady().then(async () => {
   workerSupervisor = supervisor
 
   const runBootstrap = async (): Promise<void> => {
+    resolvedDatabaseUrl = undefined
     let config
     try {
       const fallbackCredentials = app.isPackaged
         ? loadOrCreatePostgresCredentials(userDataDir)
         : undefined
       config = readPostgresRuntimeConfig(process.env, fallbackCredentials)
+      resolvedDatabaseUrl = config.databaseUrl
     } catch (error) {
       console.error('[bootstrap:configuration]', error)
       publishBootState({
