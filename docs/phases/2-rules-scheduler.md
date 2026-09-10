@@ -3,7 +3,7 @@ id: "2"
 status: todo
 sync_state: drifted
 last_reviewed: 2026-09-10
-status_note: "Фаза 2: 2.1 и 2.2 закрыты; scheduler продвинут до 2.4.1–2.4.2 done, эпик 2.4 остаётся открытым 2/4; далее seller filter, Run journal/retries, power/catch-up и morphology."
+status_note: "Фаза 2: эпики 2.1, 2.2 и 2.4 закрыты; scheduler 2.4.1–2.4.4 done, remediation 2.4.5 aligned; далее seller filter 2.3, power/catch-up 2.5 и morphology 2.6."
 ---
 
 # Фаза 2 — Правила, матчинг, планировщик
@@ -26,7 +26,7 @@ status_note: "Фаза 2: 2.1 и 2.2 закрыты; scheduler продвину�
 | `2.1` | [Нормализация текста и glob-маски](../epics/2-1-morphology-globs.md) | ✅ done | 🟢 aligned | Нормализация текста и glob-маски — входит в срез MVP-1. |
 | `2.2` | [Матчер ключевых слов](../epics/2-2-matcher.md) | ✅ done | 🟢 aligned | Отбор объявлений по ключевым словам. |
 | `2.3` | [Фильтр продавца](../epics/2-3-seller-filter.md) | ⬜ todo | 🟡 drifted | Исключение нежелательных продавцов. |
-| `2.4` | [Планировщик на pg-boss](../epics/2-4-scheduler.md) | ✅ done | 🟢 aligned | Эпик закрыт: персональные pg-boss schedules, no-overlap, Run journal и bounded retry/degradation policy реализованы; 2.4.1–2.4.4 done, финальный acceptance 2.4.4 GREEN в verify #854. |
+| `2.4` | [Планировщик на pg-boss](../epics/2-4-scheduler.md) | ✅ done | 🟢 aligned | Эпик закрыт: 2.4.1–2.4.4 delivery scope done; remediation 2.4.5 закрепляет per-Run source degradation без изменения retry/watermark policy, verify #915 GREEN. |
 | `2.5` | [Питание и догоняющий обход](../epics/2-5-power-catchup.md) | ⬜ todo | 🟡 drifted | Корректная работа на машине, которая уходит в сон. |
 | `2.6` | [Морфология русского языка](../epics/2-6-morphology.md) | ⬜ todo | 🟡 drifted | Русский стеммер и правило выбора между маской и морфологией — срез 0.4.0. |
 <!-- docs:ops:end phase-2-epics -->
