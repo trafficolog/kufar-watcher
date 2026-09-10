@@ -4,7 +4,7 @@ phase: 2
 status: todo
 sync_state: drifted
 last_reviewed: 2026-09-10
-status_note: "Персональные интервалы и no-overlap закрыты: 2.4.1–2.4.2 done, 2/4 задач; далее Run journal и retries."
+status_note: "Персональные интервалы, no-overlap и Run journal закрыты: 2.4.1–2.4.3 done, 3/4 задач; далее retries и деградация."
 roles:
   - BACK
   - DB
@@ -26,13 +26,13 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.4-tasks -->
-**Задач:** 4 · **done:** 2
+**Задач:** 4 · **done:** 3
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `2.4.1` | [Регистрация расписаний pg-boss](../tasks/2-4-1-schedules.md) | ✅ done | 🟢 aligned |
 | `2.4.2` | [Запрет пересечения обходов одного монитора](../tasks/2-4-2-no-overlap.md) | ✅ done | 🟢 aligned |
-| `2.4.3` | [Журнал одного обхода](../tasks/2-4-3-run-journal.md) | ⬜ todo | 🟡 drifted |
+| `2.4.3` | [Журнал одного обхода](../tasks/2-4-3-run-journal.md) | ✅ done | 🟢 aligned |
 | `2.4.4` | [Ретраи расписания и деградация при ошибках](../tasks/2-4-4-retries.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-2.4-tasks -->
 
