@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { SourceDegradationEvent } from '../../electron/worker/kufar-resilient-source'
 import { KufarSourceRequestError } from '../../electron/worker/kufar-source-request-error'
 import { createPrismaClient } from '../../electron/worker/prisma-client'
 import { createScheduledMonitorRunExecutor } from '../../electron/worker/scheduled-monitor-run'
@@ -18,6 +19,12 @@ const QUERY = {
   operation: null,
   pathFilters: [],
   extraParams: {},
+}
+const degradationEvent: SourceDegradationEvent = {
+  kind: 'source-degraded',
+  channel: 'html-fallback',
+  primaryFailureCode: 'network',
+  primaryStatus: null,
 }
 
 function executorFor(
@@ -88,6 +95,45 @@ integration('scheduled Run journal', () => {
     expect(runs[0]?.finishedAt).not.toBeNull()
     expect(runs[0]?.durationMs).not.toBeNull()
     expect(runs[0]?.durationMs ?? -1).toBeGreaterThanOrEqual(0)
+  })
+
+  it('persists html-fallback on the same successful scheduled Run', async () => {
+    const onSourceDegradation = vi.fn()
+    const executor = createScheduledMonitorRunExecutor({
+      prisma,
+      createRunAdapters(sink) {
+        const adapter = {
+          async fetchPage() {
+            await sink(degradationEvent)
+            await sink(degradationEvent)
+            return { listings: [], nextCursor: null }
+          },
+        } as SourceAdapter
+        return createSourceAdapterRegistry({
+          electronics: adapter,
+          'real-estate': adapter,
+        })
+      },
+      maxPages: 2,
+      descriptionLoader: { ensureDescription: vi.fn() },
+      onSourceDegradation,
+    })
+
+    const result = await executor(MONITOR_ID)
+
+    expect(result).toMatchObject({ cycleKind: 'cold-start', baselineCount: 0, pagesRead: 1 })
+    const runs = await prisma.run.findMany({ where: { monitorId: MONITOR_ID } })
+    expect(runs).toHaveLength(1)
+    expect(runs[0]).toMatchObject({
+      outcome: 'success',
+      seen: 0,
+      matched: 0,
+      degradedLevel: 'html-fallback',
+    })
+    expect(runs[0]?.finishedAt).not.toBeNull()
+    expect(runs[0]?.durationMs ?? -1).toBeGreaterThanOrEqual(0)
+    expect(onSourceDegradation).toHaveBeenCalledOnce()
+    expect(onSourceDegradation).toHaveBeenCalledWith(MONITOR_ID, degradationEvent)
   })
 
   it('finalizes a source failure on the same row without persisting secret text', async () => {
