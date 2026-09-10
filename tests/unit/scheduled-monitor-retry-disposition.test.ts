@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { DescriptionRequestBudgetExceededError } from '../../electron/worker/description-request-budget'
 import type { PrismaClient } from '../../generated/prisma/client'
 import { KufarResilientSourceError } from '../../electron/worker/kufar-resilient-source'
 import { KufarSourceRequestError } from '../../electron/worker/kufar-source-request-error'
@@ -82,6 +83,26 @@ describe('scheduled monitor retry disposition', () => {
           errorCategory: 'source',
           errorCode: code,
           httpStatus: status,
+        }),
+      }),
+    )
+  })
+
+  it('journals description budget exhaustion as a retryable policy failure', async () => {
+    const failure = new DescriptionRequestBudgetExceededError()
+    const runCycle = vi.fn().mockRejectedValue(failure)
+    const { executor, runUpdate } = createExecutor(runCycle)
+
+    await expect(executor(17)).rejects.toBe(failure)
+    expect(runCycle).toHaveBeenCalledOnce()
+    expect(runUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 9001 },
+        data: expect.objectContaining({
+          outcome: 'error',
+          errorCategory: 'policy',
+          errorCode: 'description-budget-exhausted',
+          httpStatus: null,
         }),
       }),
     )
