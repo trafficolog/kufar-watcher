@@ -75,13 +75,14 @@ function makeTx(
   const listingUpsert = vi.fn().mockResolvedValue(undefined)
   const cursorUpsert = vi.fn().mockResolvedValue(undefined)
   const runCreate = vi.fn().mockResolvedValue(undefined)
+  const runUpdate = vi.fn().mockResolvedValue(undefined)
 
   const tx = {
     $queryRaw: queryRaw,
     monitor: { findUnique: monitorFindUnique },
     monitorCursor: { findUnique: cursorFindUnique, upsert: cursorUpsert },
     listing: { upsert: listingUpsert },
-    run: { create: runCreate },
+    run: { create: runCreate, update: runUpdate },
   } as unknown as Prisma.TransactionClient
 
   return {
@@ -92,6 +93,7 @@ function makeTx(
     listingUpsert,
     cursorUpsert,
     runCreate,
+    runUpdate,
   }
 }
 
@@ -99,6 +101,7 @@ async function expectNoWrites(mocks: ReturnType<typeof makeTx>): Promise<void> {
   expect(mocks.listingUpsert).not.toHaveBeenCalled()
   expect(mocks.cursorUpsert).not.toHaveBeenCalled()
   expect(mocks.runCreate).not.toHaveBeenCalled()
+  expect(mocks.runUpdate).not.toHaveBeenCalled()
 }
 
 describe('persistColdStartBaselineTransaction', () => {
@@ -136,6 +139,30 @@ describe('persistColdStartBaselineTransaction', () => {
         degradedLevel: null,
       },
     })
+  })
+
+  it('finalizes the existing scheduled run instead of creating a second success row', async () => {
+    const mocks = makeTx()
+    const scheduledInput = { ...input(), runId: 9001 }
+
+    await persistColdStartBaselineTransaction(mocks.tx, scheduledInput)
+
+    expect(mocks.runUpdate).toHaveBeenCalledWith({
+      where: { id: 9001 },
+      data: {
+        finishedAt: FINISHED_AT,
+        durationMs: 2_000,
+        outcome: 'success',
+        seen: 1,
+        matched: 0,
+        error: null,
+        errorCategory: null,
+        errorCode: null,
+        httpStatus: null,
+        degradedLevel: null,
+      },
+    })
+    expect(mocks.runCreate).not.toHaveBeenCalled()
   })
 
   it('accepts the same existing uninitialized cursor revision', async () => {
