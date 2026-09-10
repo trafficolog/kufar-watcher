@@ -26,7 +26,7 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.3-tasks -->
-**Задач:** 4 · **done:** 4
+**Задач:** 5 · **done:** 5
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
@@ -34,6 +34,7 @@ roles:
 | `1.3.2` | [Адаптер «Электроника»](../tasks/1-3-2-adapter-electronics.md) | ✅ done | 🟢 aligned |
 | `1.3.3` | [Адаптер «Недвижимость»](../tasks/1-3-3-adapter-realestate.md) | ✅ done | 🟢 aligned |
 | `1.3.4` | [Фолбэк на встроенные данные HTML-страницы](../tasks/1-3-4-html-fallback.md) | ✅ done | 🟢 aligned |
+| `1.3.5` | [Terminal pagination token](../tasks/1-3-5-terminal-pagination-token.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-1.3-tasks -->
 
 ## Критерии приёмки эпика
