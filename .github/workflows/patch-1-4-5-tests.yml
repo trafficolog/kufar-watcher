@@ -1,0 +1,86 @@
+name: patch-1-4-5-tests
+
+on:
+  push:
+    branches:
+      - feat/1-4-5-checkpoint-recovery
+    paths:
+      - .github/workflows/patch-1-4-5-tests.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/1-4-5-checkpoint-recovery
+          fetch-depth: 0
+      - name: Align legacy recovery tests
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/unit/incremental-monitor-run.test.ts')
+          text = path.read_text()
+
+          old = """const dependencyMocks = vi.hoisted(() => ({
+            traverseWatermark: vi.fn(),
+            commitMonitorRun: vi.fn(),
+          }))
+
+          vi.mock('../../electron/worker/watermark-traversal', () => ({
+            traverseWatermark: dependencyMocks.traverseWatermark,
+          }))"""
+          new = """const dependencyMocks = vi.hoisted(() => ({
+            traverseWatermark: vi.fn(),
+            commitMonitorRun: vi.fn(),
+            WatermarkOrderingError: class WatermarkOrderingError extends Error {
+              constructor(
+                readonly previous: { page: number; index: number; listId: string; listTime: string },
+                readonly current: { page: number; index: number; listId: string; listTime: string },
+              ) {
+                super('Watermark traversal source order is not non-increasing')
+                this.name = 'WatermarkOrderingError'
+              }
+            },
+          }))
+
+          vi.mock('../../electron/worker/watermark-traversal', () => ({
+            traverseWatermark: dependencyMocks.traverseWatermark,
+            WatermarkOrderingError: dependencyMocks.WatermarkOrderingError,
+          }))"""
+          if old not in text:
+              raise SystemExit('dependency mock block not found')
+          text = text.replace(old, new, 1)
+
+          old = "const resumedError = new Error('resume-cursor-expired')"
+          new = """const resumedError = new dependencyMocks.WatermarkOrderingError(
+              { page: 0, index: -1, listId: LISTING_B.listId, listTime: LISTING_B.listTime },
+              { page: 1, index: 0, listId: LISTING_A.listId, listTime: LISTING_A.listTime },
+            )"""
+          if old not in text:
+              raise SystemExit('resume-cursor-expired fixture not found')
+          text = text.replace(old, new, 1)
+
+          old = "const resumedError = new Error('resume-failed')"
+          new = """const resumedError = new dependencyMocks.WatermarkOrderingError(
+              { page: 0, index: -1, listId: LISTING_B.listId, listTime: LISTING_B.listTime },
+              { page: 1, index: 0, listId: LISTING_A.listId, listTime: LISTING_A.listTime },
+            )"""
+          if old not in text:
+              raise SystemExit('resume-failed fixture not found')
+          text = text.replace(old, new, 1)
+
+          path.write_text(text)
+          PY
+      - name: Commit aligned tests
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/unit/incremental-monitor-run.test.ts
+          git diff --cached --exit-code && exit 0
+          git commit -m "test: align legacy checkpoint recovery cases"
+          git push origin HEAD:feat/1-4-5-checkpoint-recovery
