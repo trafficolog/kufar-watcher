@@ -16,6 +16,10 @@ export type ListingDescriptionResult =
       source: 'cache' | 'network'
     }
 
+export interface DescriptionRequestBudget {
+  consume(): void
+}
+
 export class ListingDescriptionCache {
   private readonly inFlight = new Map<string, Promise<ListingDescriptionResult>>()
 
@@ -25,11 +29,14 @@ export class ListingDescriptionCache {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async ensureDescription(listing: Listing): Promise<ListingDescriptionResult> {
+  async ensureDescription(
+    listing: Listing,
+    requestBudget?: DescriptionRequestBudget,
+  ): Promise<ListingDescriptionResult> {
     const pending = this.inFlight.get(listing.listId)
     if (pending) return pending
 
-    const operation = this.ensureDescriptionOnce(listing)
+    const operation = this.ensureDescriptionOnce(listing, requestBudget)
     this.inFlight.set(listing.listId, operation)
 
     try {
@@ -41,7 +48,10 @@ export class ListingDescriptionCache {
     }
   }
 
-  private async ensureDescriptionOnce(listing: Listing): Promise<ListingDescriptionResult> {
+  private async ensureDescriptionOnce(
+    listing: Listing,
+    requestBudget?: DescriptionRequestBudget,
+  ): Promise<ListingDescriptionResult> {
     const cached = await this.prisma.listing.findUnique({
       where: { listId: listing.listId },
       select: {
@@ -62,6 +72,8 @@ export class ListingDescriptionCache {
         source: 'cache',
       }
     }
+
+    requestBudget?.consume()
 
     const detailUrl = new URL(
       `https://api.kufar.by/search-api/v2/item/${encodeURIComponent(listing.listId)}/rendered?lang=ru`,
