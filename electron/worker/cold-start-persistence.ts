@@ -117,7 +117,6 @@ export async function persistColdStartBaselineTransaction(
         errorCategory: null,
         errorCode: null,
         httpStatus: null,
-        degradedLevel: null,
       },
     })
     return

@@ -160,7 +160,6 @@ export function createScheduledMonitorRunExecutor(
             seen: 0,
             matched: 0,
             ...journal,
-            degradedLevel: null,
           },
         })
 

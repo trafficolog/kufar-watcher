@@ -292,9 +292,9 @@ describe('createScheduledMonitorRunExecutor', () => {
         errorCategory: 'source',
         errorCode: 'http-5xx',
         httpStatus: 503,
-        degradedLevel: null,
       },
     })
+    expect(runUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('degradedLevel')
     const persisted = JSON.stringify(runUpdate.mock.calls)
     expect(persisted).not.toContain('primary-secret')
     expect(persisted).not.toContain('fallback-secret')
@@ -326,9 +326,9 @@ describe('createScheduledMonitorRunExecutor', () => {
         errorCategory: 'internal',
         errorCode: 'unexpected',
         httpStatus: null,
-        degradedLevel: null,
       },
     })
+    expect(runUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('degradedLevel')
     const persisted = JSON.stringify(runUpdate.mock.calls)
     expect(persisted).not.toContain('secret-password')
     expect(persisted).not.toContain('secret-token')
