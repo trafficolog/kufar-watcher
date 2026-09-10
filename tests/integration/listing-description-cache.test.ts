@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { DescriptionRequestBudget, DescriptionRequestBudgetExceededError } from '../../electron/worker/description-request-budget'
+import {
+  DescriptionRequestBudget,
+  DescriptionRequestBudgetExceededError,
+} from '../../electron/worker/description-request-budget'
 import type { KufarHttpClient, KufarHttpResult } from '../../electron/worker/kufar-http-client'
 import { ListingDescriptionCache } from '../../electron/worker/listing-description-cache'
 import { persistListings } from '../../electron/worker/monitor-run-persistence'
@@ -227,9 +230,9 @@ integrationDescribe('ListingDescriptionCache PostgreSQL persistence', () => {
       })
     }
 
-    await expect(firstCache.ensureDescription(candidates[10] as Listing, firstBudget)).rejects.toBeInstanceOf(
-      DescriptionRequestBudgetExceededError,
-    )
+    await expect(
+      firstCache.ensureDescription(candidates[10] as Listing, firstBudget),
+    ).rejects.toBeInstanceOf(DescriptionRequestBudgetExceededError)
     expect(firstHttp.get).toHaveBeenCalledTimes(10)
 
     const retryHttp = httpClient(success(detail))
@@ -244,7 +247,9 @@ integrationDescribe('ListingDescriptionCache PostgreSQL persistence', () => {
     }
     expect(retryHttp.get).not.toHaveBeenCalled()
 
-    await expect(retryCache.ensureDescription(candidates[10] as Listing, retryBudget)).resolves.toMatchObject({
+    await expect(
+      retryCache.ensureDescription(candidates[10] as Listing, retryBudget),
+    ).resolves.toMatchObject({
       kind: 'available',
       source: 'network',
     })

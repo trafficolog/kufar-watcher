@@ -108,24 +108,27 @@ describe('listing detail request budget', () => {
       },
       expected: { kind: 'unavailable', source: 'cache' },
     },
-  ])('does not spend the run budget on a persisted $label cache hit', async ({ cached, expected }) => {
-    const consume = vi.fn(() => {
-      throw new Error('cache hit must not consume the request budget')
-    })
-    const get = vi.fn(() => {
-      throw new Error('cache hit must not perform HTTP')
-    })
-    const cache = new ListingDescriptionCache(
-      {
-        listing: {
-          findUnique: vi.fn().mockResolvedValue(cached),
-        },
-      } as unknown as PrismaClient,
-      { get } as unknown as Pick<KufarHttpClient, 'get'>,
-    )
+  ])(
+    'does not spend the run budget on a persisted $label cache hit',
+    async ({ cached, expected }) => {
+      const consume = vi.fn(() => {
+        throw new Error('cache hit must not consume the request budget')
+      })
+      const get = vi.fn(() => {
+        throw new Error('cache hit must not perform HTTP')
+      })
+      const cache = new ListingDescriptionCache(
+        {
+          listing: {
+            findUnique: vi.fn().mockResolvedValue(cached),
+          },
+        } as unknown as PrismaClient,
+        { get } as unknown as Pick<KufarHttpClient, 'get'>,
+      )
 
-    await expect(cache.ensureDescription(LISTING, { consume })).resolves.toEqual(expected)
-    expect(consume).not.toHaveBeenCalled()
-    expect(get).not.toHaveBeenCalled()
-  })
+      await expect(cache.ensureDescription(LISTING, { consume })).resolves.toEqual(expected)
+      expect(consume).not.toHaveBeenCalled()
+      expect(get).not.toHaveBeenCalled()
+    },
+  )
 })
