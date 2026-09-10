@@ -108,14 +108,14 @@ Current pg-boss `schedule(name, cron, data, options)` updates an existing schedu
 
 On every reconcile of an active monitor:
 
-1. ensure the queue exists;
+1. call `getQueue(name)` and create the queue only when it does not exist; repeated `createQueue()` calls are not used as an idempotency mechanism;
 2. register/update the schedule with payload `{ monitorId }`;
 3. register the local worker only when that queue is not already present in the in-memory worker map.
 
 On pause/archive:
 
 1. remove the schedule;
-2. if a local worker is registered, stop it with `offWork()` and remove it from the map.
+2. if a local worker is registered, stop it with `offWork()` using its recorded worker id and remove it from the map.
 
 Reactivation uses the same queue identity and registers one fresh local worker.
 
@@ -185,6 +185,7 @@ Unit coverage:
 - stable queue name from monitor id;
 - supported interval-to-cron mappings and explicit rejection of unsupported intervals;
 - startup reconciliation schedules active monitors and removes inactive ones;
+- existing pg-boss queues are reused instead of recreated;
 - repeated reconciliation does not duplicate local `work()` registration;
 - interval changes update the existing schedule instead of introducing a second identity;
 - pause/archive removes the schedule and local worker, and reactivation registers one worker again;
