@@ -11,6 +11,7 @@ KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/listing-descriptio
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-run-persistence.test.ts
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-config-persistence.test.ts
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-run-stale-config.test.ts
+KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-scheduler.test.ts
 
 test "$(docker inspect --format='{{.State.Health.Status}}' kufar-watcher-postgres)" = "healthy"
 test "$(docker inspect --format='{{(index (index .NetworkSettings.Ports "5432/tcp") 0).HostIp}}' kufar-watcher-postgres)" = "127.0.0.1"

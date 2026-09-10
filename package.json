@@ -6,7 +6,7 @@
   "main": "out/main/index.cjs",
   "packageManager": "npm@11.4.2",
   "engines": {
-    "node": ">=22 <23"
+    "node": ">=22.12 <23"
   },
   "scripts": {
     "dev": "concurrently -k -s first \"npm:dev:renderer\" \"npm:dev:electron\"",
@@ -40,6 +40,7 @@
     "dockerode": "5.0.1",
     "nuxt": "4.5.2",
     "pg": "^8.23.0",
+    "pg-boss": "12.30.0",
     "pinia": "4.0.3",
     "prisma": "7.10.0",
     "undici": "7.29.1",
