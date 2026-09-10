@@ -56,6 +56,37 @@ function createExecutor(
 }
 
 describe('scheduled monitor retry disposition', () => {
+  it.each([
+    { label: 'network', code: 'network' as const, status: null },
+    { label: 'timeout', code: 'timeout' as const, status: null },
+    { label: '5xx', code: 'http-5xx' as const, status: 503 },
+  ])('rejects a retryable $label source failure for pg-boss', async ({ code, status }) => {
+    const failure = new KufarSourceRequestError('request failed', {
+      ok: false,
+      kind: 'temporary',
+      code,
+      status,
+      attempts: 3,
+      message: `Kufar temporary failure: ${code}`,
+    })
+    const runCycle = vi.fn().mockRejectedValue(failure)
+    const { executor, runUpdate } = createExecutor(runCycle)
+
+    await expect(executor(17)).rejects.toBe(failure)
+    expect(runCycle).toHaveBeenCalledOnce()
+    expect(runUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 9001 },
+        data: expect.objectContaining({
+          outcome: 'error',
+          errorCategory: 'source',
+          errorCode: code,
+          httpStatus: status,
+        }),
+      }),
+    )
+  })
+
   it('records a permanent source failure but completes the job without retrying it', async () => {
     const failure = new KufarSourceRequestError('request failed', {
       ok: false,
@@ -78,6 +109,34 @@ describe('scheduled monitor retry disposition', () => {
           errorCategory: 'source',
           errorCode: 'http-4xx',
           httpStatus: 403,
+        }),
+      }),
+    )
+  })
+
+  it('records a 429 after limiter cooldown but completes the job without pg-boss retry', async () => {
+    const failure = new KufarSourceRequestError('rate limited', {
+      ok: false,
+      kind: 'rate-limited',
+      code: 'rate-limited',
+      status: 429,
+      attempts: 1,
+      message: 'Kufar rate limited the request',
+      retryAfterMs: 60_000,
+    })
+    const runCycle = vi.fn().mockRejectedValue(failure)
+    const { executor, runUpdate } = createExecutor(runCycle)
+
+    await expect(executor(17)).resolves.toEqual({ cycleKind: 'failed-no-retry' })
+    expect(runCycle).toHaveBeenCalledOnce()
+    expect(runUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 9001 },
+        data: expect.objectContaining({
+          outcome: 'error',
+          errorCategory: 'source',
+          errorCode: 'rate-limited',
+          httpStatus: 429,
         }),
       }),
     )
