@@ -17,6 +17,8 @@ export type ListingDescriptionResult =
       source: 'cache' | 'network'
     }
 
+type DescriptionRequestPermit = Pick<DescriptionRequestBudget, 'consume'>
+
 export class ListingDescriptionCache {
   private readonly inFlight = new Map<string, Promise<ListingDescriptionResult>>()
 
@@ -28,7 +30,7 @@ export class ListingDescriptionCache {
 
   async ensureDescription(
     listing: Listing,
-    requestBudget?: DescriptionRequestBudget,
+    requestBudget?: DescriptionRequestPermit,
   ): Promise<ListingDescriptionResult> {
     const pending = this.inFlight.get(listing.listId)
     if (pending) return pending
@@ -47,7 +49,7 @@ export class ListingDescriptionCache {
 
   private async ensureDescriptionOnce(
     listing: Listing,
-    requestBudget?: DescriptionRequestBudget,
+    requestBudget?: DescriptionRequestPermit,
   ): Promise<ListingDescriptionResult> {
     const cached = await this.prisma.listing.findUnique({
       where: { listId: listing.listId },
