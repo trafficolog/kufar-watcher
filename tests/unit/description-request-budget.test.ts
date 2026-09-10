@@ -23,7 +23,9 @@ const LISTING: Listing = {
 }
 
 async function detailBody(): Promise<Uint8Array> {
-  return readFile(new URL('../fixtures/kufar/2026-09-07-electronics-negotiable-detail.json', import.meta.url))
+  return readFile(
+    new URL('../fixtures/kufar/2026-09-07-electronics-negotiable-detail.json', import.meta.url),
+  )
 }
 
 function success(body: Uint8Array): KufarHttpResult {
