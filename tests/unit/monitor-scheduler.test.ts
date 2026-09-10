@@ -62,11 +62,7 @@ class FakeScheduleQueue implements MonitorScheduleQueue {
     this.queues.add(name)
   }
 
-  async upsertSchedule(
-    name: string,
-    cron: string,
-    data: { monitorId: number },
-  ): Promise<void> {
+  async upsertSchedule(name: string, cron: string, data: { monitorId: number }): Promise<void> {
     this.schedules.set(name, { cron, data })
   }
 
@@ -74,10 +70,7 @@ class FakeScheduleQueue implements MonitorScheduleQueue {
     this.schedules.delete(name)
   }
 
-  async work(
-    name: string,
-    handler: (job: ScheduledJobEnvelope) => Promise<void>,
-  ): Promise<string> {
+  async work(name: string, handler: (job: ScheduledJobEnvelope) => Promise<void>): Promise<string> {
     this.workerSequence += 1
     const workerId = `worker-${this.workerSequence}`
     const queueWorkers = this.workers.get(name) ?? new Map()
