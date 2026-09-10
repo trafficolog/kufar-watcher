@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { DescriptionRequestBudget, DescriptionRequestBudgetExceededError } from '../../electron/worker/description-request-budget'
 import type { KufarHttpClient, KufarHttpResult } from '../../electron/worker/kufar-http-client'
 import { ListingDescriptionCache } from '../../electron/worker/listing-description-cache'
 import { persistListings } from '../../electron/worker/monitor-run-persistence'
@@ -210,5 +211,43 @@ integrationDescribe('ListingDescriptionCache PostgreSQL persistence', () => {
     expect(stored.availability).toBe('unknown')
     expect(stored.descriptionLoadedAt).toBeNull()
     expect(stored.description).toBe(candidate.description)
+  })
+
+  it('reuses staged detail cache entries after budget exhaustion with a fresh run budget', async () => {
+    const detail = await fixture('2026-09-07-electronics-negotiable-detail.json')
+    const candidates = Array.from({ length: 11 }, (_, index) => listing(`budget-${index}`))
+    const firstHttp = httpClient(success(detail))
+    const firstCache = new ListingDescriptionCache(prisma, firstHttp.client, () => LOADED_AT)
+    const firstBudget = new DescriptionRequestBudget()
+
+    for (const candidate of candidates.slice(0, 10)) {
+      await expect(firstCache.ensureDescription(candidate, firstBudget)).resolves.toMatchObject({
+        kind: 'available',
+        source: 'network',
+      })
+    }
+
+    await expect(firstCache.ensureDescription(candidates[10] as Listing, firstBudget)).rejects.toBeInstanceOf(
+      DescriptionRequestBudgetExceededError,
+    )
+    expect(firstHttp.get).toHaveBeenCalledTimes(10)
+
+    const retryHttp = httpClient(success(detail))
+    const retryCache = new ListingDescriptionCache(prisma, retryHttp.client, () => LOADED_AT)
+    const retryBudget = new DescriptionRequestBudget()
+
+    for (const candidate of candidates.slice(0, 10)) {
+      await expect(retryCache.ensureDescription(candidate, retryBudget)).resolves.toMatchObject({
+        kind: 'available',
+        source: 'cache',
+      })
+    }
+    expect(retryHttp.get).not.toHaveBeenCalled()
+
+    await expect(retryCache.ensureDescription(candidates[10] as Listing, retryBudget)).resolves.toMatchObject({
+      kind: 'available',
+      source: 'network',
+    })
+    expect(retryHttp.get).toHaveBeenCalledTimes(1)
   })
 })
