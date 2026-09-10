@@ -10,6 +10,12 @@ Introduce the first long-lived scheduler service inside the utility worker so ev
 
 The design intentionally stops at scheduling. No-overlap, retry policy, expanded run-journal behavior, adaptive intervals, and UI belong to later cards.
 
+## Runtime compatibility
+
+Use `pg-boss` `12.30.0`, the current verified release for this implementation. Its published runtime requirement is Node.js `22.12` or newer, so the repository engine contract must move from `>=22 <23` to `>=22.12 <23` in the same dependency change. The package version remains `0.2.0`; this task is not the release bump.
+
+Official API references used for implementation are the upstream `timgit/pg-boss` constructor, queue, scheduling, and worker docs. Context7 does not currently index the official pg-boss package and therefore must not be used as a substitute through the unrelated `pg-bossman` wrapper.
+
 ## Source-of-truth reconciliation
 
 The current repository card `docs/tasks/2-4-1-schedules.md` requires startup registration for enabled monitors, schedule updates on interval/state changes, a stable task name derived from monitor id, one traversal per job, no duplicate schedules after restart, and no execution for disabled monitors.
@@ -58,7 +64,7 @@ This keeps scheduler unit tests independent of PostgreSQL while allowing a real 
 
 The `runMonitor(monitorId)` callback is not a placeholder. Worker composition must provide a concrete executor, kept outside `MonitorScheduler`, which reuses the already implemented run pipeline.
 
-A focused `ScheduledMonitorRunExecutor` (name may vary without changing the boundary) performs these steps:
+A focused `ScheduledMonitorRunExecutor` performs these steps:
 
 1. read the persisted monitor query needed to select its source adapter;
 2. parse the existing persisted canonical-query contract;
@@ -94,6 +100,8 @@ The worker runtime becomes asynchronous:
 
 A scheduler startup failure therefore prevents a false-ready state.
 
+The worker receives the already-resolved PostgreSQL connection string from the Electron main process through its environment. When `utilityProcess.fork()` is given a custom `env`, Electron replaces rather than augments the inherited environment, so main must pass `{ ...process.env, DATABASE_URL: resolvedDatabaseUrl }` instead of a one-key environment object. The database URL is not added to argv or logs.
+
 ## Schedule identity and idempotency
 
 Each monitor gets a distinct pg-boss queue name:
@@ -115,7 +123,7 @@ On every reconcile of an active monitor:
 On pause/archive:
 
 1. remove the schedule;
-2. if a local worker is registered, stop it with `offWork()` using its recorded worker id and remove it from the map.
+2. if a local worker is registered, stop it with `offWork(name, { id: workerId, wait: true })` and remove it from the map.
 
 Reactivation uses the same queue identity and registers one fresh local worker.
 
@@ -193,7 +201,8 @@ Unit coverage:
 - valid job handler invokes one monitor traversal with the persisted monitor id;
 - scheduled monitor-run executor selects the existing source adapter from persisted canonical query and calls `runMonitorCycle()` once with configured `maxPages` and description loader;
 - invalid page-cap configuration fails before runtime readiness;
-- worker runtime sends `ready` only after scheduler startup/reconciliation and sends shutdown-complete only after scheduler/resources shutdown.
+- worker runtime sends `ready` only after scheduler startup/reconciliation and sends shutdown-complete only after scheduler/resources shutdown;
+- packaged/dev worker spawn preserves the inherited environment while replacing `DATABASE_URL` with the resolved bootstrap value.
 
 PostgreSQL integration coverage:
 
