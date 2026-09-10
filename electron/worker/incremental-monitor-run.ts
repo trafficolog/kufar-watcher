@@ -13,7 +13,7 @@ import {
   type MatchSelection,
   type SelectedListing,
 } from './monitor-run-persistence'
-import { traverseWatermark } from './watermark-traversal'
+import { traverseWatermark, WatermarkOrderingError } from './watermark-traversal'
 
 export class ColdStartRequiredError extends Error {
   constructor(readonly monitorId: number) {
@@ -177,6 +177,14 @@ function parseCatchupCheckpoint(
   }
 }
 
+function isStaleCatchupCheckpointError(error: unknown): error is WatermarkOrderingError {
+  return (
+    error instanceof WatermarkOrderingError &&
+    error.previous.page === 0 &&
+    error.previous.index === -1
+  )
+}
+
 async function traverseWithRecovery(input: {
   adapter: SourceAdapter
   query: CanonicalQuery
@@ -197,7 +205,8 @@ async function traverseWithRecovery(input: {
 
   try {
     return await traverseWatermark({ ...common, checkpoint: input.checkpoint })
-  } catch {
+  } catch (error) {
+    if (!isStaleCatchupCheckpointError(error)) throw error
     return traverseWatermark(common)
   }
 }
