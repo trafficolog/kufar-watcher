@@ -127,7 +127,7 @@ describe('worker application', () => {
       }),
     } as unknown as PrismaClient
     const sourceRuntime = {
-      createRunAdapters: vi.fn(() => ({} as SourceAdapterRegistry)),
+      createRunAdapters: vi.fn(() => ({}) as SourceAdapterRegistry),
       descriptionLoader: { ensureDescription: vi.fn() },
       close: vi.fn(async () => {
         order.push('source')
