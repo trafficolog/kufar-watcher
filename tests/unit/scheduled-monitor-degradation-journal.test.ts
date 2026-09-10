@@ -126,10 +126,7 @@ describe('scheduled monitor degradation journal', () => {
     const runUpdate = vi.fn().mockResolvedValue(undefined)
     const prisma = {
       run: {
-        create: vi
-          .fn()
-          .mockResolvedValueOnce({ id: 9001 })
-          .mockResolvedValueOnce({ id: 9002 }),
+        create: vi.fn().mockResolvedValueOnce({ id: 9001 }).mockResolvedValueOnce({ id: 9002 }),
         update: runUpdate,
       },
       monitor: {
