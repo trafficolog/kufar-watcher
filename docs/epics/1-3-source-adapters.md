@@ -3,8 +3,8 @@ id: "1.3"
 phase: 1
 status: done
 sync_state: aligned
-last_reviewed: 2026-09-08
-status_note: "4/4: общий SourceAdapter, electronics, real-estate и проверенный HTML fallback готовы."
+last_reviewed: 2026-09-10
+status_note: "5/5: общий SourceAdapter, electronics, real-estate, проверенный HTML fallback и terminal pagination token готовы."
 roles:
   - BACK
 ---
@@ -21,6 +21,7 @@ roles:
 - `1.3.2` — Адаптер «Электроника»
 - `1.3.3` — Адаптер «Недвижимость»
 - `1.3.4` — Фолбэк на встроенные данные HTML-страницы
+- `1.3.5` — Terminal pagination token
 
 ## Дочерние карточки (rollup)
 
