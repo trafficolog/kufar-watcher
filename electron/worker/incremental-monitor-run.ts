@@ -53,6 +53,8 @@ export interface DescriptionLoader {
 export interface RunIncrementalMonitorInput {
   prisma: PrismaClient
   monitorId: number
+  runId?: number
+  startedAt?: Date
   adapter: SourceAdapter
   maxPages: number
   selector?: CandidateSelector
@@ -203,6 +205,8 @@ async function traverseWithRecovery(input: {
 export async function runIncrementalMonitor({
   prisma,
   monitorId,
+  runId,
+  startedAt: scheduledStartedAt,
   adapter,
   maxPages,
   selector,
@@ -250,7 +254,7 @@ export async function runIncrementalMonitor({
   }
   const checkpoint = parseCatchupCheckpoint(monitor.cursor)
   const expectedCursorUpdatedAt = monitor.cursor.updatedAt
-  const startedAt = now()
+  const startedAt = scheduledStartedAt ?? now()
 
   const traversal = await traverseWithRecovery({
     adapter,
@@ -288,6 +292,7 @@ export async function runIncrementalMonitor({
   const finishedAt = now()
   await commitMonitorRun(prisma, {
     monitorId,
+    ...(runId === undefined ? {} : { runId }),
     startedAt,
     finishedAt,
     expectedCursorUpdatedAt,

@@ -16,6 +16,7 @@ export interface SelectedListing {
 
 export interface MonitorRunPersistenceInput {
   monitorId: number
+  runId?: number
   startedAt: Date
   finishedAt: Date
   expectedCursorUpdatedAt: Date
@@ -140,6 +141,25 @@ export async function persistSuccessfulRun(
   input: MonitorRunPersistenceInput,
 ): Promise<void> {
   const isCatchup = input.traversal.kind === 'incomplete'
+
+  if (input.runId !== undefined) {
+    await tx.run.update({
+      where: { id: input.runId },
+      data: {
+        finishedAt: input.finishedAt,
+        durationMs: Math.max(0, input.finishedAt.getTime() - input.startedAt.getTime()),
+        outcome: isCatchup ? 'catchup' : 'success',
+        seen: input.candidates.length,
+        matched: input.selected.length,
+        error: null,
+        errorCategory: null,
+        errorCode: null,
+        httpStatus: null,
+        degradedLevel: isCatchup ? 'watermark-catchup' : null,
+      },
+    })
+    return
+  }
 
   await tx.run.create({
     data: {

@@ -74,6 +74,7 @@ export function createScheduledMonitorRunExecutor(
         prisma: options.prisma,
         monitorId,
         runId: journalRun.id,
+        startedAt,
         adapter,
         maxPages: options.maxPages,
         descriptionLoader: options.descriptionLoader,

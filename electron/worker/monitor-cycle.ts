@@ -13,6 +13,7 @@ export interface RunMonitorCycleInput {
   prisma: PrismaClient
   monitorId: number
   runId?: number
+  startedAt?: Date
   adapter: SourceAdapter
   maxPages: number
   selector?: CandidateSelector
@@ -28,6 +29,8 @@ export type MonitorCycleResult =
 export async function runMonitorCycle({
   prisma,
   monitorId,
+  runId,
+  startedAt,
   adapter,
   maxPages,
   selector,
@@ -48,6 +51,8 @@ export async function runMonitorCycle({
     const result = await runColdStartMonitor({
       prisma,
       monitorId,
+      ...(runId === undefined ? {} : { runId }),
+      ...(startedAt === undefined ? {} : { startedAt }),
       adapter,
       maxPages,
       now,
@@ -58,6 +63,8 @@ export async function runMonitorCycle({
   const result = await runIncrementalMonitor({
     prisma,
     monitorId,
+    ...(runId === undefined ? {} : { runId }),
+    ...(startedAt === undefined ? {} : { startedAt }),
     adapter,
     maxPages,
     selector,

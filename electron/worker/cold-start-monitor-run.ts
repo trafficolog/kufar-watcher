@@ -8,6 +8,8 @@ import { parsePersistedCanonicalQuery } from './monitor-config-persistence'
 export interface RunColdStartMonitorInput {
   prisma: PrismaClient
   monitorId: number
+  runId?: number
+  startedAt?: Date
   adapter: SourceAdapter
   maxPages: number
   now?: () => Date
@@ -29,6 +31,8 @@ export class ColdStartNotRequiredError extends Error {
 export async function runColdStartMonitor({
   prisma,
   monitorId,
+  runId,
+  startedAt: scheduledStartedAt,
   adapter,
   maxPages,
   now = () => new Date(),
@@ -57,7 +61,7 @@ export async function runColdStartMonitor({
     monitor.cursor === null
       ? { kind: 'missing' }
       : { kind: 'uninitialized', updatedAt: monitor.cursor.updatedAt }
-  const startedAt = now()
+  const startedAt = scheduledStartedAt ?? now()
 
   const traversal = await traverseColdStartBaseline({
     adapter,
@@ -69,6 +73,7 @@ export async function runColdStartMonitor({
   const finishedAt = now()
   await commitColdStartBaseline(prisma, {
     monitorId,
+    ...(runId === undefined ? {} : { runId }),
     startedAt,
     finishedAt,
     source: {
