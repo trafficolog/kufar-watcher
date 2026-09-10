@@ -100,7 +100,7 @@ integration('scheduled Run journal', () => {
     })
     const executor = executorFor(prisma, vi.fn().mockRejectedValue(failure))
 
-    await expect(executor(MONITOR_ID)).rejects.toBe(failure)
+    await expect(executor(MONITOR_ID)).resolves.toEqual({ cycleKind: 'failed-no-retry' })
 
     const runs = await prisma.run.findMany({ where: { monitorId: MONITOR_ID } })
     expect(runs).toHaveLength(1)
