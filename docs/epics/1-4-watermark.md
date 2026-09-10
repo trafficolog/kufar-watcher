@@ -26,7 +26,7 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.4-tasks -->
-**Задач:** 4 · **done:** 4
+**Задач:** 5 · **done:** 5
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
@@ -34,6 +34,7 @@ roles:
 | `1.4.2` | [Персистентность водяного знака и граница транзакции](../tasks/1-4-2-cursor-persistence.md) | ✅ done | 🟢 aligned |
 | `1.4.3` | [Холодный старт монитора](../tasks/1-4-3-cold-start.md) | ✅ done | 🟢 aligned |
 | `1.4.4` | [Персистентный catch-up checkpoint водяного знака](../tasks/1-4-4-watermark-catchup-checkpoint.md) | ✅ done | 🟢 aligned |
+| `1.4.5` | [Узкое восстановление catch-up checkpoint](../tasks/1-4-5-checkpoint-recovery.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-1.4-tasks -->
 
 ## Критерии приёмки эпика
