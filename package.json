@@ -18,7 +18,7 @@
     "start": "electron-vite preview --skipBuild",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --write tests/integration/matcher-pipeline.test.ts && git diff -- tests/integration/matcher-pipeline.test.ts && false",
+    "format:check": "prettier --check .",
     "typecheck": "npm run typecheck:renderer && npm run typecheck:electron",
     "typecheck:renderer": "nuxt typecheck",
     "typecheck:electron": "tsc -p tsconfig.electron.json --noEmit",
