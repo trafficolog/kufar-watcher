@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { PrismaClient } from '../../generated/prisma/client'
-import type { MonitorScheduleQueue, MonitorScheduleRepository } from '../../electron/worker/monitor-scheduler'
+import type {
+  MonitorScheduleQueue,
+  MonitorScheduleRepository,
+  MonitorScheduler,
+} from '../../electron/worker/monitor-scheduler'
 import type { ScheduledMonitorRunExecutor } from '../../electron/worker/scheduled-monitor-run'
 import type { WorkerSourceRuntime } from '../../electron/worker/worker-source-runtime'
 import { createWorkerApplication } from '../../electron/worker/worker-application'
@@ -31,7 +35,7 @@ describe('worker application', () => {
     const scheduler = {
       start: vi.fn(async () => undefined),
       stop: vi.fn(async () => undefined),
-    }
+    } as unknown as MonitorScheduler
 
     let queueError: ((error: unknown) => void) | undefined
     let degradation: ((message: string) => void | Promise<void>) | undefined
@@ -119,14 +123,15 @@ describe('worker application', () => {
       stop: vi.fn(async () => {
         order.push('scheduler:stop')
       }),
-    }
+    } as unknown as MonitorScheduler
 
     const app = createWorkerApplication(config, vi.fn(), {
       createPrismaClient: () => prisma,
       createQueue: () => ({}) as MonitorScheduleQueue,
       createRepository: () => ({}) as MonitorScheduleRepository,
       createSourceRuntime: () => sourceRuntime,
-      createRunExecutor: () => vi.fn(async () => ({ status: 'completed' })) as unknown as ScheduledMonitorRunExecutor,
+      createRunExecutor: () =>
+        vi.fn(async () => ({ status: 'completed' })) as unknown as ScheduledMonitorRunExecutor,
       createScheduler: () => scheduler,
     })
 
