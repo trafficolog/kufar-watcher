@@ -26,6 +26,12 @@ export interface MonitorScheduleQueue {
   offWork(name: string, workerId: string): Promise<void>
 }
 
+export interface MonitorSchedulerOptions {
+  repository: MonitorScheduleRepository
+  queue: MonitorScheduleQueue
+  runMonitor(monitorId: number): Promise<unknown>
+}
+
 const MONITOR_INTERVAL_CRON = new Map<number, string>([
   [60, '* * * * *'],
   [120, '*/2 * * * *'],
@@ -48,4 +54,14 @@ export function monitorIntervalCron(intervalSec: number): string {
     throw new Error(`Unsupported monitor interval: ${intervalSec}`)
   }
   return cron
+}
+
+export class MonitorScheduler {
+  constructor(_options: MonitorSchedulerOptions) {}
+
+  async start(): Promise<void> {}
+
+  async syncMonitor(_monitorId: number): Promise<void> {}
+
+  async stop(): Promise<void> {}
 }
