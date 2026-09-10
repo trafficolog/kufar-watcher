@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { PrismaClient } from '../../generated/prisma/client'
 import { createScheduledMonitorRunExecutor } from '../../electron/worker/scheduled-monitor-run'
+import { KufarSourceRequestError } from '../../electron/worker/kufar-source-request-error'
 import { createSourceAdapterRegistry } from '../../shared/source-adapter-registry'
 import type { SourceAdapter } from '../../shared/source-adapter'
 
@@ -28,12 +29,15 @@ const coldStartResult = {
 }
 
 function executorDependencies() {
+  const runCreate = vi.fn().mockResolvedValue({ id: 9001 })
+  const runUpdate = vi.fn().mockResolvedValue(undefined)
   const prisma = {
     monitor: {
       findUniqueOrThrow: vi.fn().mockResolvedValue({ query: persistedQuery }),
     },
     run: {
-      create: vi.fn().mockResolvedValue({ id: 9001 }),
+      create: runCreate,
+      update: runUpdate,
     },
   } as unknown as PrismaClient
   const electronicsAdapter = { fetchPage: vi.fn() } as unknown as SourceAdapter
@@ -44,7 +48,7 @@ function executorDependencies() {
   })
   const descriptionLoader = { ensureDescription: vi.fn() }
 
-  return { prisma, electronicsAdapter, adapters, descriptionLoader }
+  return { prisma, runCreate, runUpdate, electronicsAdapter, adapters, descriptionLoader }
 }
 
 describe('createScheduledMonitorRunExecutor', () => {
@@ -196,6 +200,82 @@ describe('createScheduledMonitorRunExecutor', () => {
     await expect(executor(17)).resolves.toEqual(coldStartResult)
 
     expect(runCycle).toHaveBeenCalledTimes(2)
+  })
+
+  it('records a structured safe source failure on the running journal row', async () => {
+    const { prisma, runUpdate, adapters, descriptionLoader } = executorDependencies()
+    const failure = new KufarSourceRequestError(
+      'request https://www.kufar.by/search?token=top-secret failed',
+      {
+        ok: false,
+        kind: 'permanent',
+        code: 'http-4xx',
+        status: 403,
+        attempts: 1,
+        message: 'Kufar returned permanent HTTP 403',
+      },
+    )
+    const runCycle = vi.fn().mockRejectedValue(failure)
+    const executor = createScheduledMonitorRunExecutor({
+      prisma,
+      adapters,
+      maxPages: 5,
+      descriptionLoader,
+      runCycle: runCycle as never,
+    })
+
+    await expect(executor(17)).rejects.toBe(failure)
+
+    expect(runUpdate).toHaveBeenCalledWith({
+      where: { id: 9001 },
+      data: {
+        finishedAt: expect.any(Date),
+        durationMs: expect.any(Number),
+        outcome: 'error',
+        seen: 0,
+        matched: 0,
+        error: 'Kufar returned permanent HTTP 403',
+        errorCategory: 'source',
+        errorCode: 'http-4xx',
+        httpStatus: 403,
+        degradedLevel: null,
+      },
+    })
+    expect(JSON.stringify(runUpdate.mock.calls)).not.toContain('top-secret')
+  })
+
+  it('sanitizes unexpected failures before writing them to the journal', async () => {
+    const { prisma, runUpdate, adapters, descriptionLoader } = executorDependencies()
+    const failure = new Error('DATABASE_URL=postgres://secret-password token=secret-token')
+    const runCycle = vi.fn().mockRejectedValue(failure)
+    const executor = createScheduledMonitorRunExecutor({
+      prisma,
+      adapters,
+      maxPages: 5,
+      descriptionLoader,
+      runCycle: runCycle as never,
+    })
+
+    await expect(executor(17)).rejects.toBe(failure)
+
+    expect(runUpdate).toHaveBeenCalledWith({
+      where: { id: 9001 },
+      data: {
+        finishedAt: expect.any(Date),
+        durationMs: expect.any(Number),
+        outcome: 'error',
+        seen: 0,
+        matched: 0,
+        error: 'Unexpected monitor run failure',
+        errorCategory: 'internal',
+        errorCode: 'unexpected',
+        httpStatus: null,
+        degradedLevel: null,
+      },
+    })
+    const persisted = JSON.stringify(runUpdate.mock.calls)
+    expect(persisted).not.toContain('secret-password')
+    expect(persisted).not.toContain('secret-token')
   })
 
   it('does not serialize scheduled runs for different monitors', async () => {
