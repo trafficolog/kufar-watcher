@@ -131,6 +131,68 @@ describe('createScheduledMonitorRunExecutor', () => {
     })
   })
 
+  it('releases the monitor lock when a scheduled run fails', async () => {
+    const { prisma, adapters, descriptionLoader } = executorDependencies()
+    let cycleCalls = 0
+    const runCycle = vi.fn(async () => {
+      cycleCalls += 1
+      if (cycleCalls === 1) throw new Error('cycle failed')
+      return coldStartResult
+    })
+    const executor = createScheduledMonitorRunExecutor({
+      prisma,
+      adapters,
+      maxPages: 5,
+      descriptionLoader,
+      runCycle: runCycle as never,
+    })
+
+    await expect(executor(17)).rejects.toThrow('cycle failed')
+    await expect(executor(17)).resolves.toEqual(coldStartResult)
+
+    expect(runCycle).toHaveBeenCalledTimes(2)
+    expect(prisma.run.create).not.toHaveBeenCalled()
+  })
+
+  it('does not serialize scheduled runs for different monitors', async () => {
+    const { prisma, adapters, descriptionLoader } = executorDependencies()
+    let releaseFirst!: () => void
+    let firstEntered!: () => void
+    const firstRelease = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    const firstStarted = new Promise<void>((resolve) => {
+      firstEntered = resolve
+    })
+    const completed: number[] = []
+    const runCycle = vi.fn(async (input: { monitorId: number }) => {
+      if (input.monitorId === 17) {
+        firstEntered()
+        await firstRelease
+      }
+      completed.push(input.monitorId)
+      return coldStartResult
+    })
+    const executor = createScheduledMonitorRunExecutor({
+      prisma,
+      adapters,
+      maxPages: 5,
+      descriptionLoader,
+      runCycle: runCycle as never,
+    })
+
+    const firstRun = executor(17)
+    await firstStarted
+    await executor(18)
+
+    expect(completed).toEqual([18])
+    expect(prisma.run.create).not.toHaveBeenCalled()
+
+    releaseFirst()
+    await firstRun
+    expect(completed).toEqual([18, 17])
+  })
+
   it.each([0, 1.5, Number.POSITIVE_INFINITY])(
     'rejects invalid page cap %s before a scheduled run can start',
     (maxPages) => {
