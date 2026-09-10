@@ -43,12 +43,7 @@ class FakePgBoss {
     this.calls.push(['createQueue', name])
   }
 
-  async schedule(
-    name: string,
-    cron: string,
-    data: object,
-    options?: RetryOptions,
-  ): Promise<void> {
+  async schedule(name: string, cron: string, data: object, options?: RetryOptions): Promise<void> {
     this.calls.push(['schedule', name, cron, data, options])
   }
 
