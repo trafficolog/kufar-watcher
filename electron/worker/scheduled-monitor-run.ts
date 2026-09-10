@@ -2,10 +2,7 @@ import type { PrismaClient } from '../../generated/prisma/client'
 import { routeKufarQuery } from '../../shared/kufar-routing'
 import type { SourceAdapterRegistry } from '../../shared/source-adapter-registry'
 import type { DescriptionLoader } from './incremental-monitor-run'
-import {
-  KufarResilientSourceError,
-  type SourceFailureStage,
-} from './kufar-resilient-source'
+import { KufarResilientSourceError, type SourceFailureStage } from './kufar-resilient-source'
 import { KufarSourceRequestError } from './kufar-source-request-error'
 import { parsePersistedCanonicalQuery } from './monitor-config-persistence'
 import { runMonitorCycle, type MonitorCycleResult } from './monitor-cycle'
@@ -16,10 +13,7 @@ export interface ScheduledMonitorRunExecutorOptions {
   maxPages: number
   descriptionLoader: DescriptionLoader
   runCycle?: typeof runMonitorCycle
-  onPauseRequired?: (
-    monitorId: number,
-    stage: SourceFailureStage,
-  ) => void | Promise<void>
+  onPauseRequired?: (monitorId: number, stage: SourceFailureStage) => void | Promise<void>
 }
 
 export interface SkippedOverlapMonitorRunResult {

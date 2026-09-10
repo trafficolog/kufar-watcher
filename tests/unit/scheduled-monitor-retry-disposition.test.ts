@@ -21,7 +21,10 @@ const persistedQuery = {
 
 function createExecutor(
   runCycle: ReturnType<typeof vi.fn>,
-  onPauseRequired?: (monitorId: number, stage: 'primary' | 'html-fallback' | 'degradation-event') => void,
+  onPauseRequired?: (
+    monitorId: number,
+    stage: 'primary' | 'html-fallback' | 'degradation-event',
+  ) => void,
 ) {
   const runUpdate = vi.fn().mockResolvedValue(undefined)
   const prisma = {
