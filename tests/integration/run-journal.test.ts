@@ -6,8 +6,7 @@ import { createScheduledMonitorRunExecutor } from '../../electron/worker/schedul
 import type { SourceAdapter } from '../../shared/source-adapter'
 import { createSourceAdapterRegistry } from '../../shared/source-adapter-registry'
 
-const integration =
-  process.env.KUFAR_POSTGRES_INTEGRATION === '1' ? describe : describe.skip
+const integration = process.env.KUFAR_POSTGRES_INTEGRATION === '1' ? describe : describe.skip
 const MONITOR_ID = 916_001
 const QUERY = {
   host: 'www.kufar.by',
@@ -91,17 +90,14 @@ integration('scheduled Run journal', () => {
   })
 
   it('finalizes a source failure on the same row without persisting secret text', async () => {
-    const failure = new KufarSourceRequestError(
-      'request failed with token=integration-secret',
-      {
-        ok: false,
-        kind: 'permanent',
-        code: 'http-4xx',
-        status: 403,
-        attempts: 1,
-        message: 'Kufar returned permanent HTTP 403',
-      },
-    )
+    const failure = new KufarSourceRequestError('request failed with token=integration-secret', {
+      ok: false,
+      kind: 'permanent',
+      code: 'http-4xx',
+      status: 403,
+      attempts: 1,
+      message: 'Kufar returned permanent HTTP 403',
+    })
     const executor = executorFor(prisma, vi.fn().mockRejectedValue(failure))
 
     await expect(executor(MONITOR_ID)).rejects.toBe(failure)
