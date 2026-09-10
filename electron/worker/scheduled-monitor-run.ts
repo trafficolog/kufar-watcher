@@ -2,6 +2,7 @@ import type { PrismaClient } from '../../generated/prisma/client'
 import { routeKufarQuery } from '../../shared/kufar-routing'
 import type { SourceAdapterRegistry } from '../../shared/source-adapter-registry'
 import type { DescriptionLoader } from './incremental-monitor-run'
+import { KufarResilientSourceError } from './kufar-resilient-source'
 import { KufarSourceRequestError } from './kufar-source-request-error'
 import { parsePersistedCanonicalQuery } from './monitor-config-persistence'
 import { runMonitorCycle, type MonitorCycleResult } from './monitor-cycle'
@@ -34,13 +35,32 @@ function assertMonitorPageCap(maxPages: number): void {
   }
 }
 
+function sourceRequestFailureJournal(error: KufarSourceRequestError): RunFailureJournal {
+  return {
+    error: error.result.message,
+    errorCategory: 'source',
+    errorCode: error.result.code,
+    httpStatus: error.result.status,
+  }
+}
+
 function classifyRunFailure(error: unknown): RunFailureJournal {
   if (error instanceof KufarSourceRequestError) {
+    return sourceRequestFailureJournal(error)
+  }
+
+  if (error instanceof KufarResilientSourceError) {
+    if (error.fallbackCause instanceof KufarSourceRequestError) {
+      return sourceRequestFailureJournal(error.fallbackCause)
+    }
+    if (error.primaryCause instanceof KufarSourceRequestError) {
+      return sourceRequestFailureJournal(error.primaryCause)
+    }
     return {
-      error: error.result.message,
+      error: `Kufar source failed at ${error.stage}`,
       errorCategory: 'source',
-      errorCode: error.result.code,
-      httpStatus: error.result.status,
+      errorCode: `resilient-${error.stage}`,
+      httpStatus: null,
     }
   }
 
