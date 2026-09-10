@@ -28,7 +28,9 @@ describe('persistSuccessfulRun', () => {
   it('finalizes an existing scheduled incremental run with matched=0 and duration', async () => {
     const runCreate = vi.fn().mockResolvedValue(undefined)
     const runUpdate = vi.fn().mockResolvedValue(undefined)
-    const tx = { run: { create: runCreate, update: runUpdate } } as unknown as Prisma.TransactionClient
+    const tx = {
+      run: { create: runCreate, update: runUpdate },
+    } as unknown as Prisma.TransactionClient
     const input: MonitorRunPersistenceInput & { runId: number } = {
       monitorId: 17,
       runId: 9001,
