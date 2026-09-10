@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { PrismaClient } from '../../generated/prisma/client'
+import { KufarResilientSourceError } from '../../electron/worker/kufar-resilient-source'
 import { KufarSourceRequestError } from '../../electron/worker/kufar-source-request-error'
 import { createScheduledMonitorRunExecutor } from '../../electron/worker/scheduled-monitor-run'
 import type { SourceAdapter } from '../../shared/source-adapter'
@@ -18,7 +19,10 @@ const persistedQuery = {
   extraParams: {},
 }
 
-function createExecutor(runCycle: ReturnType<typeof vi.fn>) {
+function createExecutor(
+  runCycle: ReturnType<typeof vi.fn>,
+  onPauseRequired?: (monitorId: number, stage: 'primary' | 'html-fallback' | 'degradation-event') => void,
+) {
   const runUpdate = vi.fn().mockResolvedValue(undefined)
   const prisma = {
     monitor: {
@@ -42,6 +46,7 @@ function createExecutor(runCycle: ReturnType<typeof vi.fn>) {
       maxPages: 5,
       descriptionLoader: { ensureDescription: vi.fn() },
       runCycle: runCycle as never,
+      onPauseRequired,
     }),
     runUpdate,
   }
@@ -73,5 +78,31 @@ describe('scheduled monitor retry disposition', () => {
         }),
       }),
     )
+  })
+
+  it('signals pause-required schema drift without retrying the job', async () => {
+    const failure = new KufarResilientSourceError(
+      'pause-required',
+      'primary',
+      new Error('schema payload token=do-not-persist'),
+    )
+    const runCycle = vi.fn().mockRejectedValue(failure)
+    const onPauseRequired = vi.fn()
+    const { executor, runUpdate } = createExecutor(runCycle, onPauseRequired)
+
+    await expect(executor(17)).resolves.toEqual({ cycleKind: 'pause-required' })
+    expect(onPauseRequired).toHaveBeenCalledWith(17, 'primary')
+    expect(runUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 9001 },
+        data: expect.objectContaining({
+          outcome: 'error',
+          errorCategory: 'source',
+          errorCode: 'resilient-primary',
+          httpStatus: null,
+        }),
+      }),
+    )
+    expect(JSON.stringify(runUpdate.mock.calls)).not.toContain('do-not-persist')
   })
 })
