@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { PrismaClient } from '../../generated/prisma/client'
+import { KufarResilientSourceError } from '../../electron/worker/kufar-resilient-source'
 import { createScheduledMonitorRunExecutor } from '../../electron/worker/scheduled-monitor-run'
 import { KufarSourceRequestError } from '../../electron/worker/kufar-source-request-error'
 import { createSourceAdapterRegistry } from '../../shared/source-adapter-registry'
@@ -242,6 +243,61 @@ describe('createScheduledMonitorRunExecutor', () => {
       },
     })
     expect(JSON.stringify(runUpdate.mock.calls)).not.toContain('top-secret')
+  })
+
+  it('records the terminal safe source reason from a resilient fallback failure', async () => {
+    const { prisma, runUpdate, adapters, descriptionLoader } = executorDependencies()
+    const primaryFailure = new KufarSourceRequestError('primary token=primary-secret', {
+      ok: false,
+      kind: 'temporary',
+      code: 'network',
+      status: null,
+      attempts: 3,
+      message: 'Kufar request failed due to a temporary network error',
+    })
+    const fallbackFailure = new KufarSourceRequestError('fallback token=fallback-secret', {
+      ok: false,
+      kind: 'temporary',
+      code: 'http-5xx',
+      status: 503,
+      attempts: 3,
+      message: 'Kufar returned HTTP 503 after bounded retries',
+    })
+    const failure = new KufarResilientSourceError(
+      'fail-run',
+      'html-fallback',
+      primaryFailure,
+      fallbackFailure,
+    )
+    const runCycle = vi.fn().mockRejectedValue(failure)
+    const executor = createScheduledMonitorRunExecutor({
+      prisma,
+      adapters,
+      maxPages: 5,
+      descriptionLoader,
+      runCycle: runCycle as never,
+    })
+
+    await expect(executor(17)).rejects.toBe(failure)
+
+    expect(runUpdate).toHaveBeenCalledWith({
+      where: { id: 9001 },
+      data: {
+        finishedAt: expect.any(Date),
+        durationMs: expect.any(Number),
+        outcome: 'error',
+        seen: 0,
+        matched: 0,
+        error: 'Kufar returned HTTP 503 after bounded retries',
+        errorCategory: 'source',
+        errorCode: 'http-5xx',
+        httpStatus: 503,
+        degradedLevel: null,
+      },
+    })
+    const persisted = JSON.stringify(runUpdate.mock.calls)
+    expect(persisted).not.toContain('primary-secret')
+    expect(persisted).not.toContain('fallback-secret')
   })
 
   it('sanitizes unexpected failures before writing them to the journal', async () => {
