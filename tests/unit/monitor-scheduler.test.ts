@@ -103,8 +103,8 @@ class FakeScheduleQueue implements MonitorScheduleQueue {
 }
 
 describe('monitor scheduler contract', () => {
-  it('derives a stable queue name from monitor id', () => {
-    expect(monitorQueueName(42)).toBe('monitor-run:42')
+  it('derives a stable pg-boss-safe queue name from monitor id', () => {
+    expect(monitorQueueName(42)).toBe('monitor-run/42')
   })
 
   it.each([
@@ -131,34 +131,34 @@ describe('MonitorScheduler', () => {
       { id: 3, intervalSec: 900, state: 'archived' },
     ])
     const queue = new FakeScheduleQueue()
-    queue.schedules.set('monitor-run:2', { cron: '*/5 * * * *', data: { monitorId: 2 } })
-    queue.schedules.set('monitor-run:3', { cron: '*/15 * * * *', data: { monitorId: 3 } })
+    queue.schedules.set('monitor-run/2', { cron: '*/5 * * * *', data: { monitorId: 2 } })
+    queue.schedules.set('monitor-run/3', { cron: '*/15 * * * *', data: { monitorId: 3 } })
     const scheduler = new MonitorScheduler({ repository, queue, runMonitor: async () => undefined })
 
     await scheduler.start()
 
     expect(queue.schedules).toEqual(
-      new Map([['monitor-run:1', { cron: '* * * * *', data: { monitorId: 1 } }]]),
+      new Map([['monitor-run/1', { cron: '* * * * *', data: { monitorId: 1 } }]]),
     )
-    expect(queue.workersFor('monitor-run:1')).toHaveLength(1)
-    expect(queue.workersFor('monitor-run:2')).toHaveLength(0)
-    expect(queue.workersFor('monitor-run:3')).toHaveLength(0)
+    expect(queue.workersFor('monitor-run/1')).toHaveLength(1)
+    expect(queue.workersFor('monitor-run/2')).toHaveLength(0)
+    expect(queue.workersFor('monitor-run/3')).toHaveLength(0)
   })
 
   it('reuses an existing durable queue instead of recreating it', async () => {
     const repository = new FakeMonitorRepository([{ id: 1, intervalSec: 60, state: 'active' }])
     const queue = new FakeScheduleQueue()
-    queue.queues.add('monitor-run:1')
+    queue.queues.add('monitor-run/1')
     const scheduler = new MonitorScheduler({ repository, queue, runMonitor: async () => undefined })
 
     await scheduler.start()
 
     expect(queue.createCalls).toEqual([])
-    expect(queue.schedules.get('monitor-run:1')).toEqual({
+    expect(queue.schedules.get('monitor-run/1')).toEqual({
       cron: '* * * * *',
       data: { monitorId: 1 },
     })
-    expect(queue.workersFor('monitor-run:1')).toHaveLength(1)
+    expect(queue.workersFor('monitor-run/1')).toHaveLength(1)
   })
 
   it('does not duplicate local workers on repeated reconciliation', async () => {
@@ -170,7 +170,7 @@ describe('MonitorScheduler', () => {
     await scheduler.syncMonitor(1)
     await scheduler.syncMonitor(1)
 
-    expect(queue.workersFor('monitor-run:1')).toHaveLength(1)
+    expect(queue.workersFor('monitor-run/1')).toHaveLength(1)
   })
 
   it('updates interval on the same schedule identity', async () => {
@@ -182,9 +182,9 @@ describe('MonitorScheduler', () => {
     repository.set({ id: 1, intervalSec: 300, state: 'active' })
     await scheduler.syncMonitor(1)
 
-    expect(queue.schedules.get('monitor-run:1')?.cron).toBe('*/5 * * * *')
-    expect(queue.scheduleNames()).toEqual(['monitor-run:1'])
-    expect(queue.workersFor('monitor-run:1')).toHaveLength(1)
+    expect(queue.schedules.get('monitor-run/1')?.cron).toBe('*/5 * * * *')
+    expect(queue.scheduleNames()).toEqual(['monitor-run/1'])
+    expect(queue.workersFor('monitor-run/1')).toHaveLength(1)
   })
 
   it('removes paused or archived monitors and reactivates with one local worker', async () => {
@@ -195,17 +195,17 @@ describe('MonitorScheduler', () => {
 
     repository.set({ id: 1, intervalSec: 300, state: 'paused' })
     await scheduler.syncMonitor(1)
-    expect(queue.schedules.has('monitor-run:1')).toBe(false)
-    expect(queue.workersFor('monitor-run:1')).toHaveLength(0)
+    expect(queue.schedules.has('monitor-run/1')).toBe(false)
+    expect(queue.workersFor('monitor-run/1')).toHaveLength(0)
 
     repository.set({ id: 1, intervalSec: 300, state: 'archived' })
     await scheduler.syncMonitor(1)
-    expect(queue.schedules.has('monitor-run:1')).toBe(false)
+    expect(queue.schedules.has('monitor-run/1')).toBe(false)
 
     repository.set({ id: 1, intervalSec: 300, state: 'active' })
     await scheduler.syncMonitor(1)
-    expect(queue.schedules.get('monitor-run:1')?.cron).toBe('*/5 * * * *')
-    expect(queue.workersFor('monitor-run:1')).toHaveLength(1)
+    expect(queue.schedules.get('monitor-run/1')?.cron).toBe('*/5 * * * *')
+    expect(queue.workersFor('monitor-run/1')).toHaveLength(1)
   })
 
   it('removes the schedule and local worker when a monitor no longer exists', async () => {
@@ -213,14 +213,14 @@ describe('MonitorScheduler', () => {
     const queue = new FakeScheduleQueue()
     const scheduler = new MonitorScheduler({ repository, queue, runMonitor: async () => undefined })
     await scheduler.start()
-    expect(queue.schedules.has('monitor-run:1')).toBe(true)
-    expect(queue.workersFor('monitor-run:1')).toHaveLength(1)
+    expect(queue.schedules.has('monitor-run/1')).toBe(true)
+    expect(queue.workersFor('monitor-run/1')).toHaveLength(1)
 
     repository.delete(1)
     await scheduler.syncMonitor(1)
 
-    expect(queue.schedules.has('monitor-run:1')).toBe(false)
-    expect(queue.workersFor('monitor-run:1')).toHaveLength(0)
+    expect(queue.schedules.has('monitor-run/1')).toBe(false)
+    expect(queue.workersFor('monitor-run/1')).toHaveLength(0)
   })
 
   it('dispatches one valid job and rejects malformed or mismatched monitor ids', async () => {
@@ -235,7 +235,7 @@ describe('MonitorScheduler', () => {
       },
     })
     await scheduler.start()
-    const handler = queue.handlerFor('monitor-run:1')
+    const handler = queue.handlerFor('monitor-run/1')
 
     await handler({ data: { monitorId: 1 } })
     await expect(handler({ data: { monitorId: 2 } })).rejects.toThrow(/monitor id/i)
@@ -252,7 +252,7 @@ describe('MonitorScheduler', () => {
 
     await scheduler.stop()
 
-    expect(queue.events.slice(-2)).toEqual(['offWork:monitor-run:1', 'stop'])
-    expect(queue.workersFor('monitor-run:1')).toHaveLength(0)
+    expect(queue.events.slice(-2)).toEqual(['offWork:monitor-run/1', 'stop'])
+    expect(queue.workersFor('monitor-run/1')).toHaveLength(0)
   })
 })
