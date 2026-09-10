@@ -24,67 +24,62 @@ jobs:
           cache: npm
       - run: npm install --global npm@11.4.2
       - run: npm ci --ignore-scripts
-      - name: Update source docs
+      - name: Update release source docs
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          task = Path('docs/tasks/2-4-3-run-journal.md')
-          text = task.read_text()
-          replacements = [
-              ('status: todo', 'status: done'),
-              ('sync_state: drifted', 'sync_state: aligned'),
-              ('last_reviewed: 2026-09-05', 'last_reviewed: 2026-09-10'),
+          def replace_exact(path: str, replacements: list[tuple[str, str]]) -> None:
+              file = Path(path)
+              text = file.read_text()
+              for old, new in replacements:
+                  if old not in text:
+                      raise SystemExit(f'{path} replacement missing: {old!r}')
+                  text = text.replace(old, new, 1)
+              file.write_text(text)
+
+          replace_exact('docs/ROADMAP.MD', [
               (
-                  'tags: [scheduler, journal]\n---',
-                  'tags: [scheduler, journal]\nstatus_note: "Scheduled Run создаётся до обхода и финализируется в той же строке: success/catchup/error имеют duration/counters, overlap остаётся skipped, source/internal errors журналируются без секретов. GREEN: verify #826 на 0c3e5a460dbd9b9f0205c52499631f8cb4dc089a."\n---',
+                  'increments `2.4.1–2.4.2` реализованы и прошли verification.',
+                  'increments `2.4.1–2.4.3` реализованы и прошли verification.',
               ),
               (
-                  '> Эпик 2.4 · Фаза 2 · ⬜ todo · зависит от: 2.4.2 · оценка: 2-3 ч',
-                  '> Эпик 2.4 · Фаза 2 · ✅ done · зависит от: 2.4.2 · оценка: 2-3 ч',
+                  'Обязательный scope `0.3.0` содержит 34 task-карточки. Из них 21 закрыта и 13\nостаётся.',
+                  'Обязательный scope `0.3.0` содержит 34 task-карточки. Из них 22 закрыты и 12\nостаётся.',
+              ),
+              ('| Планировщик | `2.4.1–2.4.4` | **2/4 done** |', '| Планировщик | `2.4.1–2.4.4` | **3/4 done** |'),
+              ('| **Итого** | **34 задачи** | **21 done / 13 todo** |', '| **Итого** | **34 задачи** | **22 done / 12 todo** |'),
+              (
+                  '`2.4.1–2.4.2` уже закрыты; актуальный релизный путь продолжается с `2.4.3`:',
+                  '`2.4.1–2.4.3` уже закрыты; актуальный релизный путь продолжается с `2.4.4`:',
               ),
               (
-                  '- [ ] Успешный обход без новых объявлений виден как success с matched=0',
-                  '- [x] Успешный обход без новых объявлений виден как success с matched=0',
+                  'NEXT:                                                                 └→ 2.4.3–2.4.4 → 3.1 → 3.2.1–3.2.3',
+                  'NEXT:                                                                 └→ 2.4.4 → 3.1 → 3.2.1–3.2.3',
               ),
-              ('- [ ] Ошибка видна как error с причиной', '- [x] Ошибка видна как error с причиной'),
-              ('- [ ] Overlap виден как skipped', '- [x] Overlap виден как skipped'),
-              ('- [ ] В журнал не попадают токены и секреты', '- [x] В журнал не попадают токены и секреты'),
-          ]
-          for old, new in replacements:
-              if old not in text:
-                  raise SystemExit(f'task replacement missing: {old!r}')
-              text = text.replace(old, new, 1)
+              (
+                  '1. `2.4.1–2.4.2` закрыты; завершить `2.4.3–2.4.4`. Зависимость для старта `5.0.1` уже\n   снята, а после `2.4.3` можно доводить `5.0.3`.',
+                  '1. `2.4.1–2.4.3` закрыты; завершить `2.4.4`. Зависимость для старта `5.0.1` уже\n   снята, а `5.0.3` теперь также разблокирована завершённым `2.4.3`.',
+              ),
+          ])
 
-          marker = '\n## Подсказки\n'
-          if marker not in text:
-              raise SystemExit('task TDD insertion marker missing')
-          tdd = '''
-          ## TDD и проверка
-
-          - Lifecycle RED: `verify #809` на `e48896828b4f9c07aaf217e9d2e8a6663092ce50` — scheduled traversal входил в cycle до создания `Run`; остальные тесты оставались зелёными.
-          - Первый GREEN: `verify #810` на `7f60cb16fe4c7ae92d1e548924b3374c807487dc` — running `Run` создаётся до traversal, полный pipeline GREEN.
-          - Cold-start finalization RED: `verify #811` на `31791f32582e0c3e88a937cf49b379707617ec18` — persistence всё ещё создавала новый success row вместо финализации существующего `runId`.
-          - Schema/cold-start GREEN: `verify #812` на `741db60ef081a3895a2459eb6f91483eb2c8e595` — nullable journal fields, migration и same-row cold-start finalization прошли unit/static, PostgreSQL, build и smoke.
-          - Success propagation RED: `verify #813` на `a9c6880cb183fbc95d328209be50a0c4efb63723` — `runId/startedAt` не доходили до cold/incremental paths, incremental persistence ещё делала `create`.
-          - Финальный GREEN: `verify #826` на `0c3e5a460dbd9b9f0205c52499631f8cb4dc089a` — success/catchup/error финализируют одну строку, source/internal ошибки безопасно структурированы, overlap остаётся skipped; unit, docs, typecheck, lint, formatting, PostgreSQL integration, build/output и оба Electron smoke GREEN.
-          '''
-          tdd = '\n'.join(line[10:] if line.startswith('          ') else line for line in tdd.splitlines())
-          text = text.replace(marker, '\n' + tdd.strip() + marker, 1)
-          task.write_text(text)
-
-          epic = Path('docs/epics/2-4-scheduler.md')
-          epic_text = epic.read_text()
-          old_note = 'status_note: "Персональные интервалы и no-overlap закрыты: 2.4.1–2.4.2 done, 2/4 задач; далее Run journal и retries."'
-          new_note = 'status_note: "Персональные интервалы, no-overlap и Run journal закрыты: 2.4.1–2.4.3 done, 3/4 задач; далее retries и деградация."'
-          if old_note not in epic_text:
-              raise SystemExit('epic status_note replacement missing')
-          epic.write_text(epic_text.replace(old_note, new_note, 1))
+          replace_exact('docs/releases/v0.3.0.md', [
+              (
+                  '`2.1`, matcher `2.2`, scheduler registration `2.4.1` и no-overlap `2.4.2` закрыты: 21 из 34\nобязательных task-карточек MVP-1 имеют статус `done`.',
+                  '`2.1`, matcher `2.2`, scheduler registration `2.4.1`, no-overlap `2.4.2` и Run journal `2.4.3` закрыты: 22 из 34\nобязательных task-карточек MVP-1 имеют статус `done`.',
+              ),
+              ('Остаётся закрыть 13 карточек:', 'Остаётся закрыть 12 карточек:'),
+              (
+                  '- [x] `2.4.1–2.4.2` — persisted pg-boss schedules, restart reconciliation, worker dispatch and per-monitor no-overlap;',
+                  '- [x] `2.4.1–2.4.3` — persisted pg-boss schedules, restart reconciliation, per-monitor no-overlap and Run journal;',
+              ),
+              ('- [ ] `2.4.3–2.4.4` — Run journal / retries;', '- [ ] `2.4.4` — retries / degraded behavior;'),
+          ])
           PY
       - run: npm run docs:ops:refresh
       - run: npm run docs:ops:check
-      - name: Commit generated docs
+      - name: Commit release docs
         shell: bash
         run: |
           git config user.name github-actions[bot]
@@ -95,5 +90,5 @@ jobs:
             echo 'No docs changes to commit'
             exit 0
           fi
-          git commit -m 'docs: close scheduler run journal task'
+          git commit -m 'docs: advance MVP-1 after run journal'
           git push origin HEAD:feat/2-4-3-run-journal
