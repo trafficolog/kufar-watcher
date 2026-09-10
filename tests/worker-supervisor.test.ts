@@ -85,6 +85,33 @@ describe('worker shutdown', () => {
 })
 
 describe('worker supervisor', () => {
+  it('forwards pause-required events from the worker process', async () => {
+    const worker = new FakeWorker()
+    const events: unknown[] = []
+    const createWorkerSupervisor = await loadCreateWorkerSupervisor()
+
+    expect(createWorkerSupervisor).toBeTypeOf('function')
+    const supervisor = createWorkerSupervisor!({
+      spawnWorker: () => worker,
+      onEvent: (event) => events.push(event),
+    })
+
+    supervisor.start()
+    worker.emit('message', {
+      type: 'monitor-pause-required',
+      monitorId: 17,
+      stage: 'primary',
+    })
+
+    expect(events).toEqual([
+      {
+        type: 'monitor-pause-required',
+        monitorId: 17,
+        stage: 'primary',
+      },
+    ])
+  })
+
   it('restarts an unexpectedly exited worker and emits a journal event', async () => {
     vi.useFakeTimers()
     const firstWorker = new FakeWorker()
