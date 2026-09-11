@@ -1,0 +1,37 @@
+name: refresh-docs-0-3-4
+
+on:
+  push:
+    branches:
+      - 'feat/0.3.4-schema-seller-block'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/0.3.4-schema-seller-block
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Use npm 11.4.2
+        run: npm install --global npm@11.4.2
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Refresh docs rollups
+        run: npm run docs:ops:refresh
+      - name: Commit generated docs
+        run: |
+          if git diff --quiet -- docs; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs
+          git commit -m "docs: refresh 0.3.4 rollups"
+          git push
