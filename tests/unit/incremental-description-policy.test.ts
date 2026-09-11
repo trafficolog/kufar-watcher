@@ -236,7 +236,7 @@ describe('incremental description loading policy', () => {
 
     expect(prefilter.accept).toHaveBeenCalledTimes(2)
     expect(descriptionLoader.ensureDescription).toHaveBeenCalledTimes(1)
-    expect(descriptionLoader.ensureDescription).toHaveBeenCalledWith(LISTING_B)
+    expect(descriptionLoader.ensureDescription).toHaveBeenCalledWith(LISTING_B, expect.anything())
     expect(selector.select).toHaveBeenCalledTimes(1)
     expect(selector.select).toHaveBeenCalledWith(
       expect.objectContaining({ listId: LISTING_B.listId, description: 'full policy-b' }),

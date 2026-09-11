@@ -1,6 +1,7 @@
 import type { PrismaClient } from '../../generated/prisma/client'
 import { routeKufarQuery } from '../../shared/kufar-routing'
 import type { SourceAdapterRegistry } from '../../shared/source-adapter-registry'
+import { DescriptionRequestBudgetExceededError } from './description-request-budget'
 import type { DescriptionLoader } from './incremental-monitor-run'
 import {
   KufarResilientSourceError,
@@ -72,6 +73,15 @@ function isRetryableSourceRequest(error: KufarSourceRequestError): boolean {
 }
 
 function classifyRunFailure(error: unknown): RunFailureJournal {
+  if (error instanceof DescriptionRequestBudgetExceededError) {
+    return {
+      error: 'Listing detail request budget exhausted',
+      errorCategory: 'policy',
+      errorCode: 'description-budget-exhausted',
+      httpStatus: null,
+    }
+  }
+
   if (error instanceof KufarSourceRequestError) {
     return sourceRequestFailureJournal(error)
   }

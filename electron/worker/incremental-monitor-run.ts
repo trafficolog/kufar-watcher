@@ -3,6 +3,7 @@ import type { CanonicalQuery } from '../../shared/canonical-query'
 import type { Listing } from '../../shared/listing'
 import type { SourceAdapter } from '../../shared/source-adapter'
 import type { WatermarkCatchupCheckpoint, WatermarkTraversalResult } from '../../shared/watermark'
+import { DescriptionRequestBudget } from './description-request-budget'
 import type { ListingDescriptionResult } from './listing-description-cache'
 import {
   createMatchingCandidateSelector,
@@ -47,7 +48,10 @@ export const acceptAllCandidatePrefilter: CandidatePrefilter = {
 }
 
 export interface DescriptionLoader {
-  ensureDescription(listing: Listing): Promise<ListingDescriptionResult>
+  ensureDescription(
+    listing: Listing,
+    requestBudget: DescriptionRequestBudget,
+  ): Promise<ListingDescriptionResult>
 }
 
 export interface RunIncrementalMonitorInput {
@@ -273,6 +277,7 @@ export async function runIncrementalMonitor({
     checkpoint,
   })
 
+  const descriptionRequestBudget = new DescriptionRequestBudget()
   const selected: SelectedListing[] = []
   for (const listing of traversal.newListings) {
     if (!(await prefilter.accept(listing))) continue
@@ -283,7 +288,10 @@ export async function runIncrementalMonitor({
         throw new Error('Description loader is required when search in description is enabled')
       }
 
-      const descriptionResult = await descriptionLoader.ensureDescription(listing)
+      const descriptionResult = await descriptionLoader.ensureDescription(
+        listing,
+        descriptionRequestBudget,
+      )
       if (descriptionResult.kind === 'unavailable') continue
 
       candidate = {
