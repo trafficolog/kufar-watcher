@@ -1,10 +1,10 @@
 ---
 id: "1.0"
 phase: 1
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-05
-status_note: "Разведка живого контракта площадки до проектирования сетевого слоя."
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-11
+status_note: "2/2 done: live electronics and real-estate contract reconnaissance is captured in fixtures and the API contract."
 roles:
   - BACK
   - QA
@@ -40,9 +40,9 @@ roles:
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
-- [ ] В `docs/superpowers/specs/kufar-api-contract.md` не осталось пометок «требует проверки» без ответа
-- [ ] Фикстуры сохранены в `tests/fixtures/kufar/` с датой снятия
+- [x] Все дочерние задачи в статусе `done`
+- [x] В `docs/superpowers/specs/kufar-api-contract.md` не осталось пометок «требует проверки» без ответа
+- [x] Фикстуры сохранены в `tests/fixtures/kufar/` с датой снятия
 
 ## Связанные документы
 

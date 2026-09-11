@@ -1,9 +1,9 @@
 ---
 id: "0"
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-05
-status_note: "Фаза 0: скелет Electron с Nuxt, Postgres в Docker, схема по срезам, docs-ops и CI. 13 карточек, работа не начата."
+last_reviewed: 2026-09-11
+status_note: "Фаза 0 частично завершена: 0.1 и 0.2 done, 0.3 остаётся открытым из-за schema slices 0.3.4–0.3.6, 0.4 remediation in progress."
 ---
 
 # Фаза 0 — Фундамент

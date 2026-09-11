@@ -1,9 +1,9 @@
 ---
 id: "1"
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-05
-status_note: "Фаза 1: разведка контракта, URL-парсер, HTTP-клиент, адаптеры, водяной знак, догрузка описаний. 17 карточек, работа не начата."
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-11
+status_note: "Фаза 1 закрыта: все 6 эпиков (1.0–1.5) done/aligned; URL parsing, HTTP, adapters, watermark and description loading complete."
 ---
 
 # Фаза 1 — Ядро парсинга Kufar

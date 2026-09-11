@@ -1,10 +1,10 @@
 ---
 id: "0.1"
 phase: 0
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-05
-status_note: "Оболочка приложения и разделение процессов."
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-11
+status_note: "3/3 done: Electron shell, utilityProcess model and typed IPC contract are implemented and verified."
 roles:
   - BACK
   - FRONT
@@ -37,9 +37,9 @@ roles:
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
-- [ ] `sync_state: aligned` (код соответствует карточкам)
-- [ ] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+- [x] Все дочерние задачи в статусе `done`
+- [x] `sync_state: aligned` (код соответствует карточкам)
+- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
 
 ## Связанные документы
 

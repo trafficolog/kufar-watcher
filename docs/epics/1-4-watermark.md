@@ -1,10 +1,10 @@
 ---
 id: "1.4"
 phase: 1
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-09
-status_note: "Ядро логики «что считать новым»."
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-11
+status_note: "5/5 done: watermark traversal, persistence boundary, cold start, catch-up checkpoint and narrow stale-checkpoint recovery are implemented."
 roles:
   - BACK
   - DB
@@ -22,6 +22,7 @@ roles:
 - `1.4.2` — Персистентность курсора и идемпотентная запись
 - `1.4.3` — Холодный старт монитора
 - `1.4.4` — Персистентный catch-up checkpoint
+- `1.4.5` — Узкое восстановление catch-up checkpoint
 
 ## Дочерние карточки (rollup)
 
@@ -39,9 +40,9 @@ roles:
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
-- [ ] `sync_state: aligned` (код соответствует карточкам)
-- [ ] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+- [x] Все дочерние задачи в статусе `done`
+- [x] `sync_state: aligned` (код соответствует карточкам)
+- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
 
 ## Связанные документы
 

@@ -1,10 +1,10 @@
 ---
 id: "0.4"
 phase: 0
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-05
-status_note: "Инструменты консистентности документации и сборки."
+last_reviewed: 2026-09-11
+status_note: "2 delivery tasks done; remediation 0.4.3 in progress to enforce lifecycle and generated-doc freshness in CI."
 roles:
   - PRODUCT
   - DEVOPS
@@ -21,6 +21,7 @@ roles:
 
 - `0.4.1` — Внедрение docs-ops CLI и npm-скриптов
 - `0.4.2` — CI: typecheck, lint, unit, docs:ops:check
+- `0.4.3` — Parent lifecycle и freshness docs-ops
 
 ## Дочерние карточки (rollup)
 
