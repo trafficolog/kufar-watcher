@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,7 +16,7 @@ function writeDoc(root: string, relativePath: string, content: string): void {
   writeFileSync(path, content)
 }
 
-function createFixture(): string {
+function createLifecycleFixture(): string {
   const root = mkdtempSync(join(tmpdir(), 'kufar-docs-ops-'))
   roots.push(root)
 
@@ -67,8 +67,80 @@ depends_on: []
   return root
 }
 
-function runCheck(root: string) {
-  return spawnSync(TSX, [CLI, 'check'], {
+function createFreshnessFixture(): string {
+  const root = mkdtempSync(join(tmpdir(), 'kufar-docs-ops-'))
+  roots.push(root)
+
+  writeDoc(
+    root,
+    'docs/phases/1.md',
+    `---
+id: "1"
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-11
+---
+
+# Фаза 1 — Fixture
+
+<!-- docs:ops:begin phase-1-epics -->
+placeholder
+<!-- docs:ops:end phase-1-epics -->
+`,
+  )
+  writeDoc(
+    root,
+    'docs/epics/1-1.md',
+    `---
+id: "1.1"
+phase: 1
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-11
+---
+
+# Эпик 1.1 — Fixture epic
+
+<!-- docs:ops:begin epic-1.1-tasks -->
+placeholder
+<!-- docs:ops:end epic-1.1-tasks -->
+`,
+  )
+  writeDoc(
+    root,
+    'docs/tasks/1-1-1.md',
+    `---
+id: "1.1.1"
+phase: 1
+epic: "1.1"
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-11
+depends_on: []
+---
+
+# Задача 1.1.1 — Fixture task
+`,
+  )
+  mkdirSync(join(root, 'docs/operations/status'), { recursive: true })
+
+  const refresh = runCli(root, 'refresh')
+  if (refresh.status !== 0) throw new Error(refresh.stderr || refresh.stdout)
+
+  const phasePath = join(root, 'docs/phases/1.md')
+  writeFileSync(
+    phasePath,
+    readFileSync(phasePath, 'utf8').replace(
+      '**Эпиков:** 1 · **done:** 1 · **в работе/план:** 0',
+      '**Эпиков:** 1 · **done:** 0 · **в работе/план:** 1',
+    ),
+  )
+
+  return root
+}
+
+function runCli(root: string, command: 'check' | 'refresh') {
+  return spawnSync(TSX, [CLI, command], {
     cwd: root,
     encoding: 'utf8',
   })
@@ -80,9 +152,24 @@ afterEach(() => {
 
 describe('docs-ops check', () => {
   it('rejects an epic left todo/drifted when every child task is done/aligned', () => {
-    const result = runCheck(createFixture())
+    const result = runCli(createLifecycleFixture(), 'check')
 
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('1-1.md: lifecycle не соответствует дочерним задачам')
+  })
+
+  it('rejects stale generated docs without mutating them', () => {
+    const root = createFreshnessFixture()
+    const phasePath = join(root, 'docs/phases/1.md')
+    const statusPath = join(root, 'docs/operations/status/current-state.md')
+    const phaseBefore = readFileSync(phasePath, 'utf8')
+    const statusBefore = readFileSync(statusPath, 'utf8')
+
+    const result = runCli(root, 'check')
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain("1.md: generated block 'phase-1-epics' устарел")
+    expect(readFileSync(phasePath, 'utf8')).toBe(phaseBefore)
+    expect(readFileSync(statusPath, 'utf8')).toBe(statusBefore)
   })
 })
