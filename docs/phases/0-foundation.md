@@ -19,14 +19,14 @@ status_note: "Фаза 0 частично завершена: 0.1, 0.2 и 0.4 do
 ## Эпики фазы
 
 <!-- docs:ops:begin phase-0-epics -->
-**Эпиков:** 4 · **done:** 3 · **в работе/план:** 1
+**Эпиков:** 4 · **done:** 2 · **в работе/план:** 2
 
 | ID | Эпик | Статус | Sync | Ист. |
 |----|------|--------|------|------|
 | `0.1` | [Скелет Electron](../epics/0-1-electron-shell.md) | ✅ done | 🟢 aligned | 4/4 done: Electron shell, utilityProcess model, typed IPC contract and worker crash-streak reset are implemented and verified. |
 | `0.2` | [Postgres в Docker под Dockerode](../epics/0-2-docker-postgres.md) | ✅ done | 🟢 aligned | 6/6 done: compose Postgres, Dockerode supervision, recoverable bootstrap, existing-container validation and a single POSTGRES_* source-of-truth for runtime/Prisma tooling are implemented. |
 | `0.3` | [Prisma-схема и миграции](../epics/0-3-prisma-schema.md) | ⬜ todo | 🟡 drifted | Доменная модель в БД. |
-| `0.4` | [docs-ops, линт и CI](../epics/0-4-docs-ops-ci.md) | ✅ done | 🟢 aligned | 3/3 done: docs-ops CLI, CI gates, parent lifecycle and generated-doc freshness enforcement are implemented; verify #949 GREEN. |
+| `0.4` | [docs-ops, линт и CI](../epics/0-4-docs-ops-ci.md) | 🔄 in_progress | 🟢 aligned | 3/4 done: docs-ops CLI, CI gates and freshness enforcement are complete; dependency advisory remediation 0.4.4 is in progress. |
 <!-- docs:ops:end phase-0-epics -->
 
 ## Связанные документы

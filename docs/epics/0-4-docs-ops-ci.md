@@ -34,7 +34,7 @@ roles:
 | `0.4.1` | [Внедрение docs-ops CLI и npm-скриптов](../tasks/0-4-1-docs-ops.md) | ✅ done | 🟢 aligned |
 | `0.4.2` | [CI: typecheck, lint, unit, docs:ops:check](../tasks/0-4-2-ci.md) | ✅ done | 🟢 aligned |
 | `0.4.3` | [Parent lifecycle и freshness docs-ops](../tasks/0-4-3-docs-parent-freshness.md) | ✅ done | 🟢 aligned |
-| `0.4.4` | [Dependency advisory remediation](../tasks/0-4-4-dependency-advisory-remediation.md) | 🚧 in_progress | 🟢 aligned |
+| `0.4.4` | [Dependency advisory remediation](../tasks/0-4-4-dependency-advisory-remediation.md) | 🔄 in_progress | 🟢 aligned |
 <!-- docs:ops:end epic-0.4-tasks -->
 
 ## Критерии приёмки эпика
