@@ -53,6 +53,28 @@ describe('ensurePostgresContainer', () => {
     expect(runtime.startContainer).toHaveBeenCalledWith(config.containerName)
   })
 
+  it('rejects an existing container whose image differs from the current configuration', async () => {
+    const runtime = createRuntime('stopped')
+    const staleContainer = {
+      running: false,
+      image: 'postgres:15',
+      volumeName: config.volumeName,
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      password: config.password,
+      database: config.database,
+    }
+    vi.mocked(runtime.inspectContainer).mockResolvedValueOnce(staleContainer)
+
+    await expect(ensurePostgresContainer(runtime, config)).rejects.toThrow(
+      'PostgreSQL container configuration does not match: image',
+    )
+
+    expect(runtime.startContainer).not.toHaveBeenCalled()
+    expect(runtime.createContainer).not.toHaveBeenCalled()
+  })
+
   it('ensures the image, creates one container, and starts it when missing', async () => {
     const runtime = createRuntime('missing')
 
