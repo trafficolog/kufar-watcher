@@ -86,6 +86,15 @@ describe('ensurePostgresContainer', () => {
 
   it('rejects all existing container contract mismatches without exposing values', async () => {
     const runtime = createRuntime('running')
+    const expectedMismatches = [
+      'image',
+      'volumeName',
+      'host',
+      'port',
+      'user',
+      'password',
+      'database',
+    ]
     vi.mocked(runtime.inspectContainer).mockResolvedValueOnce({
       running: true,
       image: 'postgres:15',
@@ -105,8 +114,10 @@ describe('ensurePostgresContainer', () => {
     }
 
     expect(error).toBeInstanceOf(Error)
+    expect((error as Error).constructor.name).toBe('PostgresContainerConfigurationError')
+    expect(Reflect.get(error as object, 'mismatches')).toEqual(expectedMismatches)
     expect((error as Error).message).toBe(
-      'PostgreSQL container configuration does not match: image, volumeName, host, port, user, password, database',
+      `PostgreSQL container configuration does not match: ${expectedMismatches.join(', ')}`,
     )
     expect((error as Error).message).not.toContain('legacy-secret')
     expect((error as Error).message).not.toContain(config.password)
