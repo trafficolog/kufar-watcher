@@ -32,8 +32,11 @@ jobs:
           npm --version
       - name: Install dependencies
         run: npm ci
-      - name: Documentation consistency
-        run: npm run docs:ops:check
+      - name: Documentation refresh diagnostic
+        run: |
+          npm run docs:ops:refresh
+          git diff -- docs/epics/0-2-docker-postgres.md docs/operations/status
+          git diff --exit-code -- docs/epics/0-2-docker-postgres.md docs/operations/status
       - name: Unit tests
         run: npm test
       - name: CI failure-mode self-check
