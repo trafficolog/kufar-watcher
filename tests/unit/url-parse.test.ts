@@ -71,6 +71,31 @@ describe('parseKufarListingUrl', () => {
     })
   })
 
+  it('parses regionless real-estate operation routes without inventing a region', () => {
+    for (const operation of ['kupit', 'snyat'] as const) {
+      const result = parseKufarListingUrl(`https://re.kufar.by/l/${operation}/kvartiru`)
+
+      expect(result).toEqual({
+        host: 're.kufar.by',
+        category: 'kvartiru',
+        query: null,
+        region: null,
+        sellerType: null,
+        sort: null,
+        operation,
+        pathFilters: [],
+        extraParams: {},
+      })
+    }
+  })
+
+  it('keeps q~ segments as ordinary real-estate path filters', () => {
+    const result = parseKufarListingUrl('https://re.kufar.by/l/minsk/kupit/kvartiru/q~metro')
+
+    expect(result.query).toBeNull()
+    expect(result.pathFilters).toEqual(['q~metro'])
+  })
+
   it('drops pagination state while preserving repeated unknown parameter values', () => {
     const result = parseKufarListingUrl(
       'https://re.kufar.by/l/minsk/kupit/kvartiru?cursor=opaque-token&size=30&cur=USD&feature=a&feature=b&empty=',
