@@ -4,7 +4,7 @@ phase: 0
 status: done
 sync_state: aligned
 last_reviewed: 2026-09-11
-status_note: "5/5 done: compose Postgres, Dockerode supervisor, infrastructure status UI, recoverable production bootstrap and existing-container configuration validation are implemented."
+status_note: "6/6 done: compose Postgres, Dockerode supervision, recoverable bootstrap, existing-container validation and a single POSTGRES_* source-of-truth for runtime/Prisma tooling are implemented."
 roles:
   - BACK
   - DEVOPS
@@ -24,11 +24,12 @@ roles:
 - `0.2.3` — Экран состояния инфраструктуры
 - `0.2.4` — Восстановимый production bootstrap
 - `0.2.5` — Валидация конфигурации существующего Postgres-контейнера
+- `0.2.6` — Единый источник Postgres connection config
 
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-0.2-tasks -->
-**Задач:** 5 · **done:** 5
+**Задач:** 6 · **done:** 6
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
@@ -37,6 +38,7 @@ roles:
 | `0.2.3` | [Экран состояния инфраструктуры](../tasks/0-2-3-infra-status-screen.md) | ✅ done | 🟢 aligned |
 | `0.2.4` | [Восстановимый production bootstrap](../tasks/0-2-4-bootstrap-remediation.md) | ✅ done | 🟢 aligned |
 | `0.2.5` | [Валидация конфигурации существующего Postgres-контейнера](../tasks/0-2-5-postgres-container-configuration.md) | ✅ done | 🟢 aligned |
+| `0.2.6` | [Единый источник Postgres connection config](../tasks/0-2-6-postgres-connection-source.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-0.2-tasks -->
 
 ## Критерии приёмки эпика
