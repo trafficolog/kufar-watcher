@@ -11,7 +11,7 @@ _Сгенерировано 2026-09-11_
 | `0.3` | Prisma-схема и миграции | 0 | ⬜ todo | 🟡 drifted | Доменная модель в БД. |
 | `0.4` | docs-ops, линт и CI | 0 | ✅ done | 🟢 aligned | 3/3 done: docs-ops CLI, CI gates, parent lifecycle and generated-doc freshness enforcement are implemented; verify #949 GREEN. |
 | `1.0` | Разведка контракта площадки | 1 | ✅ done | 🟢 aligned | 2/2 done: live electronics and real-estate contract reconnaissance is captured in fixtures and the API contract. |
-| `1.1` | URL-парсер и canonical query | 1 | ✅ done | 🟢 aligned | Единственная точка входа пользователя — ссылка. |
+| `1.1` | URL-парсер и canonical query | 1 | ✅ done | 🟢 aligned | 4/4 done: canonical URL parse/build/routing plus real-estate regionless operation disambiguation are implemented and verified. |
 | `1.2` | HTTP-клиент и лимитер | 1 | ✅ done | 🟢 aligned | Вежливый и предсказуемый сетевой слой. |
 | `1.3` | Адаптеры выдачи Kufar | 1 | ✅ done | 🟢 aligned | 5/5: общий SourceAdapter, electronics, real-estate, проверенный HTML fallback и terminal pagination token готовы. |
 | `1.4` | Водяной знак новизны и дедупликация | 1 | ✅ done | 🟢 aligned | 5/5 done: watermark traversal, persistence boundary, cold start, catch-up checkpoint and narrow stale-checkpoint recovery are implemented. |

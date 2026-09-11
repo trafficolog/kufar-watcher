@@ -3,8 +3,8 @@ id: "1.1"
 phase: 1
 status: done
 sync_state: aligned
-last_reviewed: 2026-09-07
-status_note: "Единственная точка входа пользователя — ссылка."
+last_reviewed: 2026-09-11
+status_note: "4/4 done: canonical URL parse/build/routing plus real-estate regionless operation disambiguation are implemented and verified."
 roles:
   - BACK
 ---
@@ -20,17 +20,19 @@ roles:
 - `1.1.1` — Разбор URL листинга в CanonicalQuery
 - `1.1.2` — Обратная сборка CanonicalQuery в URL
 - `1.1.3` — Определение категории и хоста по URL
+- `1.1.4` — Real-estate route disambiguation
 
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.1-tasks -->
-**Задач:** 3 · **done:** 3
+**Задач:** 4 · **done:** 4
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `1.1.1` | [Разбор URL листинга в CanonicalQuery](../tasks/1-1-1-url-parse.md) | ✅ done | 🟢 aligned |
 | `1.1.2` | [Обратная сборка CanonicalQuery в URL](../tasks/1-1-2-url-build.md) | ✅ done | 🟢 aligned |
 | `1.1.3` | [Определение категории и хоста по URL](../tasks/1-1-3-category-routing.md) | ✅ done | 🟢 aligned |
+| `1.1.4` | [Real-estate route disambiguation](../tasks/1-1-4-realestate-route-disambiguation.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-1.1-tasks -->
 
 ## Критерии приёмки эпика
@@ -39,12 +41,13 @@ roles:
 - [x] `sync_state: aligned` (код соответствует карточкам)
 - [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
 
-## Результат — 2026-09-07
+## Результат — 2026-09-11
 
 - Пользовательские listing URL разбираются в `CanonicalQuery` с сохранением неподтверждённых параметров и typed parse errors.
 - `CanonicalQuery` детерминированно собирается обратно в site URL и в live-подтверждённые API request shapes без speculative mappings.
 - Подтверждённые electronics / real-estate правила маршрутизируются в стабильные adapter kinds; Auto и неизвестные категории отклоняются явно.
-- TDD-история задач `1.1.1`–`1.1.3` сохранена отдельными RED→GREEN коммитами и exact-SHA CI-проверками.
+- Regionless real-estate routes с ведущим `kupit`/`snyat` распознают operation без фиктивного region; подтверждённые region-first routes и real-estate `q~` path-filter semantics сохранены.
+- TDD-история задач `1.1.1`–`1.1.4` сохранена отдельными RED→GREEN коммитами и exact-SHA CI-проверками.
 
 ## Связанные документы
 

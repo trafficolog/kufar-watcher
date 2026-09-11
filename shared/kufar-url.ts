@@ -122,9 +122,13 @@ function parseGoodsPath(segments: string[]): PathSemantics {
 
 function parseRealEstatePath(segments: string[]): PathSemantics {
   const result = emptyPathSemantics()
-  const [region, ...remaining] = segments
+  const [first, ...remaining] = segments
 
-  result.region = region ?? null
+  if (first !== undefined && REAL_ESTATE_OPERATIONS.has(first)) {
+    result.operation = first
+  } else {
+    result.region = first ?? null
+  }
 
   let categoryFound = false
   for (const segment of remaining) {

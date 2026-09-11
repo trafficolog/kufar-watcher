@@ -29,6 +29,7 @@ _Сгенерировано 2026-09-11_
 | `1.1.1` | Разбор URL листинга в CanonicalQuery | 1.1 | ✅ done | 🟢 aligned |
 | `1.1.2` | Обратная сборка CanonicalQuery в URL | 1.1 | ✅ done | 🟢 aligned |
 | `1.1.3` | Определение категории и хоста по URL | 1.1 | ✅ done | 🟢 aligned |
+| `1.1.4` | Real-estate route disambiguation | 1.1 | ✅ done | 🟢 aligned |
 | `1.2.1` | Глобальный лимитер с джиттером | 1.2 | ✅ done | 🟢 aligned |
 | `1.2.2` | Клиент: таймауты, ретраи, обработка ошибок | 1.2 | ✅ done | 🟢 aligned |
 | `1.2.3` | Журнал сырых ответов для отладки дрейфа | 1.2 | ✅ done | 🟢 aligned |
