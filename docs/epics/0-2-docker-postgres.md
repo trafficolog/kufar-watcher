@@ -28,7 +28,7 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-0.2-tasks -->
-**Задач:** 4 · **done:** 4
+**Задач:** 5 · **done:** 5
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
@@ -36,6 +36,7 @@ roles:
 | `0.2.2` | [Супервизор контейнера через Dockerode](../tasks/0-2-2-dockerode-supervisor.md) | ✅ done | 🟢 aligned |
 | `0.2.3` | [Экран состояния инфраструктуры](../tasks/0-2-3-infra-status-screen.md) | ✅ done | 🟢 aligned |
 | `0.2.4` | [Восстановимый production bootstrap](../tasks/0-2-4-bootstrap-remediation.md) | ✅ done | 🟢 aligned |
+| `0.2.5` | [Валидация конфигурации существующего Postgres-контейнера](../tasks/0-2-5-postgres-container-configuration.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-0.2-tasks -->
 
 ## Критерии приёмки эпика
