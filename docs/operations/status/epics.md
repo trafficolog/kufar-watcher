@@ -2,19 +2,19 @@
 
 # Rollup: эпики
 
-_Сгенерировано 2026-09-10_
+_Сгенерировано 2026-09-11_
 
 | ID | Эпик | Фаза | Статус | Sync | Ист. |
 |----|------|------|--------|------|------|
-| `0.1` | Скелет Electron | 0 | ⬜ todo | 🟡 drifted | Оболочка приложения и разделение процессов. |
-| `0.2` | Postgres в Docker под Dockerode | 0 | ⬜ todo | 🟡 drifted | Автоподъём БД и понятная диагностика при её отсутствии. |
+| `0.1` | Скелет Electron | 0 | ✅ done | 🟢 aligned | 3/3 done: Electron shell, utilityProcess model and typed IPC contract are implemented and verified. |
+| `0.2` | Postgres в Docker под Dockerode | 0 | ✅ done | 🟢 aligned | 4/4 done: compose Postgres, Dockerode supervisor, infrastructure status UI and recoverable production bootstrap are implemented. |
 | `0.3` | Prisma-схема и миграции | 0 | ⬜ todo | 🟡 drifted | Доменная модель в БД. |
-| `0.4` | docs-ops, линт и CI | 0 | ⬜ todo | 🟡 drifted | Инструменты консистентности документации и сборки. |
-| `1.0` | Разведка контракта площадки | 1 | ⬜ todo | 🟡 drifted | Разведка живого контракта площадки до проектирования сетевого слоя. |
+| `0.4` | docs-ops, линт и CI | 0 | 🔄 in_progress | 🟢 aligned | 2 delivery tasks done; remediation 0.4.3 implementation aligned, full verify pending before closure. |
+| `1.0` | Разведка контракта площадки | 1 | ✅ done | 🟢 aligned | 2/2 done: live electronics and real-estate contract reconnaissance is captured in fixtures and the API contract. |
 | `1.1` | URL-парсер и canonical query | 1 | ✅ done | 🟢 aligned | Единственная точка входа пользователя — ссылка. |
 | `1.2` | HTTP-клиент и лимитер | 1 | ✅ done | 🟢 aligned | Вежливый и предсказуемый сетевой слой. |
 | `1.3` | Адаптеры выдачи Kufar | 1 | ✅ done | 🟢 aligned | 5/5: общий SourceAdapter, electronics, real-estate, проверенный HTML fallback и terminal pagination token готовы. |
-| `1.4` | Водяной знак новизны и дедупликация | 1 | ⬜ todo | 🟡 drifted | Ядро логики «что считать новым». |
+| `1.4` | Водяной знак новизны и дедупликация | 1 | ✅ done | 🟢 aligned | 5/5 done: watermark traversal, persistence boundary, cold start, catch-up checkpoint and narrow stale-checkpoint recovery are implemented. |
 | `1.5` | Догрузка описания карточки | 1 | ✅ done | 🟢 aligned | 3/3 done: persistent detail cache, two-stage description policy and per-Run 10-request detail budget; verify #935 GREEN. |
 | `2.1` | Нормализация текста и glob-маски | 2 | ✅ done | 🟢 aligned | Нормализация текста и glob-маски — входит в срез MVP-1. |
 | `2.2` | Матчер ключевых слов | 2 | ✅ done | 🟢 aligned | Отбор объявлений по ключевым словам. |

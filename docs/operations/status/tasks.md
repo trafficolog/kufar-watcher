@@ -2,7 +2,7 @@
 
 # Rollup: задачи
 
-_Сгенерировано 2026-09-10_
+_Сгенерировано 2026-09-11_
 
 | ID | Задача | Эпик | Статус | Sync |
 |----|--------|------|--------|------|
@@ -21,6 +21,7 @@ _Сгенерировано 2026-09-10_
 | `0.3.6` | Схема среза `0.6.0`: `HealthEvent`, `SchemaSnapshot` | 0.3 | ⬜ todo | 🟡 drifted |
 | `0.4.1` | Внедрение docs-ops CLI и npm-скриптов | 0.4 | ✅ done | 🟢 aligned |
 | `0.4.2` | CI: typecheck, lint, unit, docs:ops:check | 0.4 | ✅ done | 🟢 aligned |
+| `0.4.3` | Parent lifecycle и freshness docs-ops | 0.4 | 🔄 in_progress | 🟢 aligned |
 | `1.0.1` | Разведка выдачи по электронике | 1.0 | ✅ done | 🟢 aligned |
 | `1.0.2` | Разведка выдачи по недвижимости и сверка спеки | 1.0 | ✅ done | 🟢 aligned |
 | `1.1.1` | Разбор URL листинга в CanonicalQuery | 1.1 | ✅ done | 🟢 aligned |
