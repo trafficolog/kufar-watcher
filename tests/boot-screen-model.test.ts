@@ -68,6 +68,17 @@ describe('buildBootScreenModel', () => {
     expect(model.error?.message).toContain('Docker Desktop')
   })
 
+  it('explains that an incompatible existing Postgres container is left unchanged', () => {
+    const model = buildBootScreenModel(
+      state({ phase: 'error', errorCode: 'configuration-invalid' }),
+      'linux',
+    )
+
+    expect(model.error?.heading).toBe('Не удалось подготовить локальную базу')
+    expect(model.error?.message).toContain('существующего контейнера')
+    expect(model.error?.message).toContain('Контейнер не изменён')
+  })
+
   it('does not treat skipped or degraded Telegram as a fatal launch error', () => {
     const ready = state({
       phase: 'ready',
