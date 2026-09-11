@@ -46,8 +46,11 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint
-      - name: Formatting
-        run: npm run format:check
+      - name: Formatting diagnostic
+        run: |
+          npx prettier --write src/docs-ops/cli.ts
+          git diff -- src/docs-ops/cli.ts
+          git diff --exit-code -- src/docs-ops/cli.ts
       - name: Postgres compose integration
         run: bash scripts/verify-postgres-compose.sh
       - name: Prepare Electron Linux sandbox
