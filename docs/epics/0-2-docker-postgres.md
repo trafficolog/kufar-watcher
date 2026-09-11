@@ -1,10 +1,10 @@
 ---
 id: "0.2"
 phase: 0
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-05
-status_note: "Автоподъём БД и понятная диагностика при её отсутствии."
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-11
+status_note: "4/4 done: compose Postgres, Dockerode supervisor, infrastructure status UI and recoverable production bootstrap are implemented."
 roles:
   - BACK
   - DEVOPS
@@ -22,6 +22,7 @@ roles:
 - `0.2.1` — docker-compose с Postgres 16
 - `0.2.2` — Супервизор контейнера через Dockerode
 - `0.2.3` — Экран состояния инфраструктуры
+- `0.2.4` — Восстановимый production bootstrap
 
 ## Дочерние карточки (rollup)
 
@@ -38,9 +39,9 @@ roles:
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
-- [ ] `sync_state: aligned` (код соответствует карточкам)
-- [ ] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+- [x] Все дочерние задачи в статусе `done`
+- [x] `sync_state: aligned` (код соответствует карточкам)
+- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
 
 ## Связанные документы
 

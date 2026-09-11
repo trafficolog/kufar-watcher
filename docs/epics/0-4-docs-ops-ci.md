@@ -1,10 +1,10 @@
 ---
 id: "0.4"
 phase: 0
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-05
-status_note: "Инструменты консистентности документации и сборки."
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-11
+status_note: "3/3 done: docs-ops CLI, CI gates, parent lifecycle and generated-doc freshness enforcement are implemented; verify #949 GREEN."
 roles:
   - PRODUCT
   - DEVOPS
@@ -21,23 +21,25 @@ roles:
 
 - `0.4.1` — Внедрение docs-ops CLI и npm-скриптов
 - `0.4.2` — CI: typecheck, lint, unit, docs:ops:check
+- `0.4.3` — Parent lifecycle и freshness docs-ops
 
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-0.4-tasks -->
-**Задач:** 2 · **done:** 2
+**Задач:** 3 · **done:** 3
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `0.4.1` | [Внедрение docs-ops CLI и npm-скриптов](../tasks/0-4-1-docs-ops.md) | ✅ done | 🟢 aligned |
 | `0.4.2` | [CI: typecheck, lint, unit, docs:ops:check](../tasks/0-4-2-ci.md) | ✅ done | 🟢 aligned |
+| `0.4.3` | [Parent lifecycle и freshness docs-ops](../tasks/0-4-3-docs-parent-freshness.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-0.4-tasks -->
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
-- [ ] `sync_state: aligned` (код соответствует карточкам)
-- [ ] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+- [x] Все дочерние задачи в статусе `done`
+- [x] `sync_state: aligned` (код соответствует карточкам)
+- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
 
 ## Связанные документы
 
