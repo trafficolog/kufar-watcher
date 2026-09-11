@@ -2,9 +2,10 @@
 id: "0.3.4"
 phase: 0
 epic: "0.3"
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-05
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-11
+status_note: "SellerBlock добавлен отдельной additive migration; canonical verify #1022 GREEN."
 roles: [DB]
 depends_on: ["0.3.2"]
 estimated_hours: 1-2
@@ -14,11 +15,11 @@ tags: [prisma, schema]
 
 # Задача 0.3.4 — Схема среза `0.4.0`: `SellerBlock`
 
-> Эпик 0.3 · Фаза 0 · ⬜ todo · зависит от: 0.3.2 · оценка: 1-2 ч
+> Эпик 0.3 · Фаза 0 · ✅ done · зависит от: 0.3.2 · оценка: 1-2 ч
 
 ## Цель
 
-Добавить миграцией сущности `SellerBlock`.
+Добавить миграцией сущность `SellerBlock`.
 
 ## Контекст
 
@@ -29,14 +30,20 @@ tags: [prisma, schema]
 
 ## Что должно быть сделано
 
-- Добавить сущности `SellerBlock` по спецификации доменной модели
-- Добавить относящиеся к ним индексы из спеки
+- Добавить сущность `SellerBlock` по спецификации доменной модели
+- Добавить относящиеся к ней индексы из спеки, если они определены
 - Сгенерировать миграцию поверх текущего состояния схемы
 
 ## Критерии приёмки
 
-- [ ] Миграция применяется поверх предыдущей без потери данных
-- [ ] Состав полей соответствует `docs/superpowers/specs/data-model.md`
+- [x] Миграция применяется поверх предыдущей без потери данных
+- [x] Состав полей соответствует `docs/superpowers/specs/data-model.md`
+
+## Проверка
+
+- TDD RED: canonical `verify #1017` упал на новом schema-contract unit test до добавления `SellerBlock`.
+- GREEN: canonical `verify #1022` полностью успешен, включая unit, typecheck, lint, format, PostgreSQL integration, build и Electron dev/prod smoke.
+- PostgreSQL verifier подтверждает 6 применённых миграций, наличие `SellerBlock` и отсутствие таблиц будущих срезов `0.5.0`/`0.6.0`.
 
 ## Подсказки
 
