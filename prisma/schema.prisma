@@ -115,3 +115,10 @@ model Setting {
   key   String @id
   value Json
 }
+
+model SellerBlock {
+  accountId String   @id
+  label     String?
+  note      String?
+  createdAt DateTime @default(now())
+}
