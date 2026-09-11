@@ -36,8 +36,54 @@ describe('createDockerodePostgresRuntime', () => {
     const containerName = config.containerName
 
     await expect(runtime.inspectContainer(containerName)).resolves.toBeNull()
-    await expect(runtime.inspectContainer(containerName)).resolves.toEqual({ running: true })
+    await expect(runtime.inspectContainer(containerName)).resolves.toMatchObject({ running: true })
     await expect(runtime.inspectHealth(containerName)).resolves.toBe('healthy')
+  })
+
+  it('normalizes image, Postgres env, host port, and named data volume from inspect', async () => {
+    const inspect = vi.fn(async () => ({
+      State: { Running: false },
+      Config: {
+        Image: config.image,
+        Env: [
+          'PATH=/usr/local/bin:/usr/bin:/bin',
+          `POSTGRES_USER=${config.user}`,
+          `POSTGRES_PASSWORD=${config.password}`,
+          `POSTGRES_DB=${config.database}`,
+        ],
+      },
+      HostConfig: {
+        PortBindings: {
+          '5432/tcp': [{ HostIp: config.host, HostPort: String(config.port) }],
+        },
+      },
+      Mounts: [
+        {
+          Type: 'volume',
+          Name: config.volumeName,
+          Destination: '/var/lib/postgresql/data',
+        },
+      ],
+    }))
+    const docker = {
+      ping: vi.fn(async () => 'OK'),
+      getContainer: vi.fn(() => ({ inspect, start: vi.fn() })),
+      getImage: vi.fn(),
+      createVolume: vi.fn(),
+      createContainer: vi.fn(),
+    }
+    const runtime = createDockerodePostgresRuntime(docker)
+
+    await expect(runtime.inspectContainer(config.containerName)).resolves.toEqual({
+      running: false,
+      image: config.image,
+      volumeName: config.volumeName,
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      password: config.password,
+      database: config.database,
+    })
   })
 
   it('creates a named volume and a loopback-only Postgres container', async () => {

@@ -9,11 +9,32 @@ export interface PostgresContainerConfig {
   database: string
 }
 
+export interface PostgresContainerInspection {
+  running: boolean
+  image?: string
+  volumeName?: string
+  host?: string
+  port?: number
+  user?: string
+  password?: string
+  database?: string
+}
+
+export type PostgresContainerConfigurationField =
+  'image' | 'volumeName' | 'host' | 'port' | 'user' | 'password' | 'database'
+
+export class PostgresContainerConfigurationError extends Error {
+  constructor(readonly mismatches: PostgresContainerConfigurationField[]) {
+    super(`PostgreSQL container configuration does not match: ${mismatches.join(', ')}`)
+    this.name = 'PostgresContainerConfigurationError'
+  }
+}
+
 export type ContainerHealth = 'healthy' | 'starting' | 'unhealthy' | 'none'
 
 export interface DockerPostgresRuntime {
   ping(): Promise<void>
-  inspectContainer(name: string): Promise<{ running: boolean } | null>
+  inspectContainer(name: string): Promise<PostgresContainerInspection | null>
   ensureImage(image: string): Promise<void>
   createContainer(config: PostgresContainerConfig): Promise<void>
   startContainer(name: string): Promise<void>
@@ -26,11 +47,33 @@ export interface HealthWaitOptions {
   sleep(ms: number): Promise<void>
 }
 
+function containerConfigurationMismatches(
+  existing: PostgresContainerInspection,
+  config: PostgresContainerConfig,
+): PostgresContainerConfigurationField[] {
+  const mismatches: PostgresContainerConfigurationField[] = []
+  if (existing.image !== config.image) mismatches.push('image')
+  if (existing.volumeName !== config.volumeName) mismatches.push('volumeName')
+  if (existing.host !== config.host) mismatches.push('host')
+  if (existing.port !== config.port) mismatches.push('port')
+  if (existing.user !== config.user) mismatches.push('user')
+  if (existing.password !== config.password) mismatches.push('password')
+  if (existing.database !== config.database) mismatches.push('database')
+  return mismatches
+}
+
 export async function ensurePostgresContainer(
   runtime: DockerPostgresRuntime,
   config: PostgresContainerConfig,
 ): Promise<void> {
   const existing = await runtime.inspectContainer(config.containerName)
+
+  if (existing) {
+    const mismatches = containerConfigurationMismatches(existing, config)
+    if (mismatches.length > 0) {
+      throw new PostgresContainerConfigurationError(mismatches)
+    }
+  }
 
   if (existing?.running) return
 

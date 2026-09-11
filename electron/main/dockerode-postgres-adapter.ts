@@ -1,4 +1,8 @@
-import type { ContainerHealth, DockerPostgresRuntime } from './docker-postgres'
+import type {
+  ContainerHealth,
+  DockerPostgresRuntime,
+  PostgresContainerInspection,
+} from './docker-postgres'
 
 interface DockerodeError extends Error {
   statusCode?: number
@@ -11,6 +15,24 @@ interface DockerodeContainerInfo {
       Status?: string
     }
   }
+  Config?: {
+    Image?: string
+    Env?: string[]
+  }
+  HostConfig?: {
+    PortBindings?: Record<
+      string,
+      Array<{
+        HostIp?: string
+        HostPort?: string
+      }> | null
+    >
+  }
+  Mounts?: Array<{
+    Type?: string
+    Name?: string
+    Destination?: string
+  }>
 }
 
 interface DockerodeContainerLike {
@@ -45,6 +67,31 @@ function normalizeHealth(status: string | undefined): ContainerHealth {
   return 'none'
 }
 
+function envValue(env: string[] | undefined, key: string): string | undefined {
+  const prefix = `${key}=`
+  const entry = env?.find((value) => value.startsWith(prefix))
+  return entry?.slice(prefix.length)
+}
+
+function normalizeContainerInspection(info: DockerodeContainerInfo): PostgresContainerInspection {
+  const binding = info.HostConfig?.PortBindings?.['5432/tcp']?.[0]
+  const dataVolume = info.Mounts?.find(
+    (mount) => mount.Type === 'volume' && mount.Destination === '/var/lib/postgresql/data',
+  )
+  const port = binding?.HostPort === undefined ? undefined : Number(binding.HostPort)
+
+  return {
+    running: info.State?.Running === true,
+    image: info.Config?.Image,
+    volumeName: dataVolume?.Name,
+    host: binding?.HostIp,
+    port: Number.isInteger(port) ? port : undefined,
+    user: envValue(info.Config?.Env, 'POSTGRES_USER'),
+    password: envValue(info.Config?.Env, 'POSTGRES_PASSWORD'),
+    database: envValue(info.Config?.Env, 'POSTGRES_DB'),
+  }
+}
+
 async function ensureImageAvailable(docker: DockerodeLike, image: string): Promise<void> {
   try {
     await docker.getImage(image).inspect()
@@ -71,10 +118,10 @@ export function createDockerodePostgresRuntime(docker: DockerodeLike): DockerPos
     async ping(): Promise<void> {
       await docker.ping()
     },
-    async inspectContainer(name): Promise<{ running: boolean } | null> {
+    async inspectContainer(name): Promise<PostgresContainerInspection | null> {
       try {
         const info = await docker.getContainer(name).inspect()
-        return { running: info.State?.Running === true }
+        return normalizeContainerInspection(info)
       } catch (error) {
         if (isNotFound(error)) return null
         throw error
