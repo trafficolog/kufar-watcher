@@ -97,7 +97,7 @@ const createJournalRecord = (body = response().body) =>
   }))
 
 describe('KufarHttpClient', () => {
-  it('routes a successful GET through the limiter and preserves raw data', async () => {
+  it('routes a successful GET through the limiter with a stable User-Agent and preserves raw data', async () => {
     const { limiter, schedule } = createLimiter()
     const raw = response()
     const { transport, request } = createTransport(raw)
@@ -109,7 +109,7 @@ describe('KufarHttpClient', () => {
     expect(request).toHaveBeenCalledWith({
       url: new URL(TEST_URL),
       method: 'GET',
-      headers: undefined,
+      headers: { 'user-agent': 'kufar-watcher' },
     })
     expect(result).toEqual({
       ok: true,
@@ -120,7 +120,7 @@ describe('KufarHttpClient', () => {
     })
   })
 
-  it('forwards headers and delegates close to the transport', async () => {
+  it('forwards headers alongside the stable User-Agent and delegates close to the transport', async () => {
     const { limiter } = createLimiter()
     const { transport, request, close } = createTransport(response())
     const client = new KufarHttpClient({ limiter, transport })
@@ -131,9 +131,23 @@ describe('KufarHttpClient', () => {
     expect(request).toHaveBeenCalledWith({
       url: new URL(TEST_URL),
       method: 'GET',
-      headers: { accept: 'application/json' },
+      headers: { accept: 'application/json', 'user-agent': 'kufar-watcher' },
     })
     expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves an explicit User-Agent without adding a duplicate default', async () => {
+    const { limiter } = createLimiter()
+    const { transport, request } = createTransport(response())
+    const client = new KufarHttpClient({ limiter, transport })
+
+    await client.get(TEST_URL, { 'User-Agent': 'custom-kufar-client' })
+
+    expect(request).toHaveBeenCalledWith({
+      url: new URL(TEST_URL),
+      method: 'GET',
+      headers: { 'User-Agent': 'custom-kufar-client' },
+    })
   })
 
   it('journals a successful response exactly once', async () => {
