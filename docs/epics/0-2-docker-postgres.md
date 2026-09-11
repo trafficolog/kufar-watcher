@@ -4,7 +4,7 @@ phase: 0
 status: done
 sync_state: aligned
 last_reviewed: 2026-09-11
-status_note: "4/4 done: compose Postgres, Dockerode supervisor, infrastructure status UI and recoverable production bootstrap are implemented."
+status_note: "5/5 done: compose Postgres, Dockerode supervisor, infrastructure status UI, recoverable production bootstrap and existing-container configuration validation are implemented."
 roles:
   - BACK
   - DEVOPS
@@ -23,6 +23,7 @@ roles:
 - `0.2.2` — Супервизор контейнера через Dockerode
 - `0.2.3` — Экран состояния инфраструктуры
 - `0.2.4` — Восстановимый production bootstrap
+- `0.2.5` — Валидация конфигурации существующего Postgres-контейнера
 
 ## Дочерние карточки (rollup)
 
