@@ -9,11 +9,16 @@ export interface PostgresContainerConfig {
   database: string
 }
 
+export interface PostgresContainerInspection {
+  running: boolean
+  image?: string
+}
+
 export type ContainerHealth = 'healthy' | 'starting' | 'unhealthy' | 'none'
 
 export interface DockerPostgresRuntime {
   ping(): Promise<void>
-  inspectContainer(name: string): Promise<{ running: boolean } | null>
+  inspectContainer(name: string): Promise<PostgresContainerInspection | null>
   ensureImage(image: string): Promise<void>
   createContainer(config: PostgresContainerConfig): Promise<void>
   startContainer(name: string): Promise<void>
@@ -31,6 +36,10 @@ export async function ensurePostgresContainer(
   config: PostgresContainerConfig,
 ): Promise<void> {
   const existing = await runtime.inspectContainer(config.containerName)
+
+  if (existing?.image !== undefined && existing.image !== config.image) {
+    throw new Error('PostgreSQL container configuration does not match: image')
+  }
 
   if (existing?.running) return
 
