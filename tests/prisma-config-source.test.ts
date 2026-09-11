@@ -12,9 +12,7 @@ const originalEnv = Object.fromEntries(
   DATABASE_ENV_KEYS.map((key) => [key, process.env[key]]),
 ) as Record<(typeof DATABASE_ENV_KEYS)[number], string | undefined>
 
-function replaceDatabaseEnv(
-  values: Partial<Record<(typeof DATABASE_ENV_KEYS)[number], string>>,
-) {
+function replaceDatabaseEnv(values: Partial<Record<(typeof DATABASE_ENV_KEYS)[number], string>>) {
   for (const key of DATABASE_ENV_KEYS) Reflect.deleteProperty(process.env, key)
   Object.assign(process.env, values)
 }
