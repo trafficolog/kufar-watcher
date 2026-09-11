@@ -75,8 +75,7 @@ function runCheck(root: string) {
 }
 
 afterEach(() => {
-  while (roots.length > 0)
-    rmSync(roots.pop() as string, { recursive: true, force: true })
+  while (roots.length > 0) rmSync(roots.pop() as string, { recursive: true, force: true })
 })
 
 describe('docs-ops check', () => {

@@ -43,10 +43,7 @@ jobs:
       - name: Lint
         run: npm run lint
       - name: Formatting
-        run: |
-          npx prettier --write tests/unit/docs-ops-check.test.ts
-          git diff -- tests/unit/docs-ops-check.test.ts
-          git diff --exit-code -- tests/unit/docs-ops-check.test.ts
+        run: npm run format:check
       - name: Postgres compose integration
         run: bash scripts/verify-postgres-compose.sh
       - name: Prepare Electron Linux sandbox
