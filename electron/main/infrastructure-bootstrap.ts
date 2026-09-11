@@ -1,4 +1,5 @@
 import type { BootState, BootStep, BootStepId, BootStepState } from '../../shared/ipc'
+import { PostgresContainerConfigurationError } from './docker-postgres'
 
 export interface InfrastructureBootstrapDependencies {
   pingDocker(): Promise<void>
@@ -101,7 +102,17 @@ export async function runInfrastructureBootstrap(
       updateStep(state, 'database', 'running', 'Waiting for PostgreSQL healthcheck'),
     )
     await deps.waitForDatabase()
-  } catch {
+  } catch (error) {
+    if (error instanceof PostgresContainerConfigurationError) {
+      return fail(
+        deps,
+        state,
+        'database',
+        'configuration-invalid',
+        'Existing PostgreSQL container configuration is incompatible',
+      )
+    }
+
     return fail(deps, state, 'database', 'database-timeout', 'PostgreSQL did not become healthy')
   }
 
