@@ -4,7 +4,7 @@ phase: 0
 status: done
 sync_state: aligned
 last_reviewed: 2026-09-11
-status_note: "3/3 done: Electron shell, utilityProcess model and typed IPC contract are implemented and verified."
+status_note: "4/4 done: Electron shell, utilityProcess model, typed IPC contract and worker crash-streak reset are implemented and verified."
 roles:
   - BACK
   - FRONT
@@ -22,6 +22,7 @@ roles:
 - `0.1.1` — Инициализация репозитория и тулчейна
 - `0.1.2` — Процессная модель main + utilityProcess
 - `0.1.3` — Типизированный IPC-контракт
+- `0.1.4` — Сброс серии аварий worker после ready
 
 ## Дочерние карточки (rollup)
 
