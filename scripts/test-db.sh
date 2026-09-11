@@ -1,13 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+TEST_DB_PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+
 test_db_configure() {
   export POSTGRES_USER="${TEST_POSTGRES_USER:-kufar_ci}"
   export POSTGRES_PASSWORD="${TEST_POSTGRES_PASSWORD:-kufar_ci_${GITHUB_RUN_ID:-local}}"
   export POSTGRES_DB="${TEST_POSTGRES_DB:-kufar_ci}"
   export POSTGRES_PORT="${TEST_POSTGRES_PORT:-55432}"
   export COMPOSE_PROJECT_NAME="${TEST_COMPOSE_PROJECT_NAME:-kufar_watcher_verify}"
-  export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public"
+  export DATABASE_URL="$(
+    cd "$TEST_DB_PROJECT_ROOT"
+    ./node_modules/.bin/tsx -e "
+      import { createPostgresDatabaseUrl } from './shared/postgres-url.ts'
+      process.stdout.write(
+        createPostgresDatabaseUrl({
+          host: '127.0.0.1',
+          port: Number(process.env.POSTGRES_PORT),
+          user: process.env.POSTGRES_USER ?? '',
+          password: process.env.POSTGRES_PASSWORD ?? '',
+          database: process.env.POSTGRES_DB ?? '',
+        }),
+      )
+    "
+  )"
 }
 
 test_db_cleanup() {
