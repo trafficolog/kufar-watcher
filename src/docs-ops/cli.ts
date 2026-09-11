@@ -271,7 +271,8 @@ function checkGeneratedFreshness(phases: Doc[], epics: Doc[], tasks: Doc[], erro
     }
 
     const expected = renderStatusRollups(phases, epics, tasks, stamp)[file]
-    if (content !== expected) errors.push(`docs/operations/status/${file}: generated status устарел`)
+    if (content !== expected)
+      errors.push(`docs/operations/status/${file}: generated status устарел`)
   }
 }
 

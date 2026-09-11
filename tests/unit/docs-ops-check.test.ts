@@ -67,7 +67,7 @@ depends_on: []
   return root
 }
 
-function createFreshnessFixture(): string {
+function createGeneratedFixture(): string {
   const root = mkdtempSync(join(tmpdir(), 'kufar-docs-ops-'))
   roots.push(root)
 
@@ -127,6 +127,11 @@ depends_on: []
   const refresh = runCli(root, 'refresh')
   if (refresh.status !== 0) throw new Error(refresh.stderr || refresh.stdout)
 
+  return root
+}
+
+function createFreshnessFixture(): string {
+  const root = createGeneratedFixture()
   const phasePath = join(root, 'docs/phases/1.md')
   writeFileSync(
     phasePath,
@@ -170,6 +175,43 @@ describe('docs-ops check', () => {
     expect(result.status).toBe(1)
     expect(result.stderr).toContain("1.md: generated block 'phase-1-epics' устарел")
     expect(readFileSync(phasePath, 'utf8')).toBe(phaseBefore)
+    expect(readFileSync(statusPath, 'utf8')).toBe(statusBefore)
+  })
+
+  it('rejects a stale generated status rollup without mutating it', () => {
+    const root = createGeneratedFixture()
+    const statusPath = join(root, 'docs/operations/status/current-state.md')
+    writeFileSync(
+      statusPath,
+      readFileSync(statusPath, 'utf8').replace('- Задач: 1', '- Задач: 0'),
+    )
+    const statusBefore = readFileSync(statusPath, 'utf8')
+
+    const result = runCli(root, 'check')
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain(
+      'docs/operations/status/current-state.md: generated status устарел',
+    )
+    expect(readFileSync(statusPath, 'utf8')).toBe(statusBefore)
+  })
+
+  it('does not treat an older generation stamp as freshness drift by itself', () => {
+    const root = createGeneratedFixture()
+    const statusPath = join(root, 'docs/operations/status/current-state.md')
+    writeFileSync(
+      statusPath,
+      readFileSync(statusPath, 'utf8').replace(
+        /_Сгенерировано \d{4}-\d{2}-\d{2}_/,
+        '_Сгенерировано 2000-01-01_',
+      ),
+    )
+    const statusBefore = readFileSync(statusPath, 'utf8')
+
+    const result = runCli(root, 'check')
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('check: OK')
     expect(readFileSync(statusPath, 'utf8')).toBe(statusBefore)
   })
 })
