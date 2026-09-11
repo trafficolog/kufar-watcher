@@ -25,13 +25,14 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.2-tasks -->
-**Задач:** 3 · **done:** 3
+**Задач:** 4 · **done:** 4
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `1.2.1` | [Глобальный лимитер с джиттером](../tasks/1-2-1-rate-limiter.md) | ✅ done | 🟢 aligned |
 | `1.2.2` | [Клиент: таймауты, ретраи, обработка ошибок](../tasks/1-2-2-http-client.md) | ✅ done | 🟢 aligned |
 | `1.2.3` | [Журнал сырых ответов для отладки дрейфа](../tasks/1-2-3-raw-log.md) | ✅ done | 🟢 aligned |
+| `1.2.4` | [Stable Kufar User-Agent](../tasks/1-2-4-stable-user-agent.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-1.2-tasks -->
 
 ## Критерии приёмки эпика

@@ -1,6 +1,9 @@
 name: verify
 
 on:
+  push:
+    branches:
+      - 'feat/**'
   pull_request:
     branches:
       - main
@@ -11,7 +14,12 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      POSTGRES_USER: kufar_ci_runtime
+      POSTGRES_PASSWORD: kufar-ci-runtime-password
+      POSTGRES_DB: kufar_ci_runtime
+      POSTGRES_PORT: 5432
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,8 +32,49 @@ jobs:
           npm --version
       - name: Install dependencies
         run: npm ci
-      - name: Refresh docs diagnostic
+      - name: Documentation consistency
+        run: npm run docs:ops:check
+      - name: Unit tests
+        run: npm test
+      - name: CI failure-mode self-check
+        run: bash scripts/verify-ci-failure-modes.sh
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Formatting
+        run: npm run format:check
+      - name: Postgres compose integration
+        run: bash scripts/verify-postgres-compose.sh
+      - name: Prepare Electron Linux sandbox
         run: |
-          npm run docs:ops:refresh
-          git diff -- docs/epics/1-2-http-client.md docs/phases/1-kufar-core.md docs/operations/status/current-state.md docs/operations/status/epics.md docs/operations/status/tasks.md docs/operations/status/phases.md docs/operations/status/drift-report.md
-          git diff --exit-code -- docs/epics/1-2-http-client.md docs/phases/1-kufar-core.md docs/operations/status/current-state.md docs/operations/status/epics.md docs/operations/status/tasks.md docs/operations/status/phases.md docs/operations/status/drift-report.md
+          sudo chown root:root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+      - name: Build
+        run: npm run build
+      - name: Verify build outputs
+        run: |
+          test -f .output/public/index.html
+          test -f out/main/index.cjs
+          test -f out/preload/index.cjs
+      - name: Development launch smoke
+        shell: bash
+        run: |
+          set +e
+          timeout 30s xvfb-run -a npm run dev > /tmp/kufar-dev.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/kufar-dev.log
+          test "$status" -eq 124
+          grep -q "starting electron app" /tmp/kufar-dev.log
+          grep -q "\[worker\] ready" /tmp/kufar-dev.log
+      - name: Production launch smoke
+        shell: bash
+        run: |
+          set +e
+          timeout 20s xvfb-run -a npm start > /tmp/kufar-prod.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/kufar-prod.log
+          test "$status" -eq 124
+          grep -q "\[worker\] ready" /tmp/kufar-prod.log
