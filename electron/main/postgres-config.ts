@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createPostgresDatabaseUrl } from '../../shared/postgres-url'
 import type { PostgresContainerConfig } from './docker-postgres'
 
 export interface PostgresRuntimeConfig {
@@ -106,15 +107,6 @@ function readPort(value: string | undefined): number {
   return port
 }
 
-function createDatabaseUrl(config: PostgresContainerConfig): string {
-  const url = new URL(`postgresql://${config.host}:${config.port}`)
-  url.username = config.user
-  url.password = config.password
-  url.pathname = `/${config.database}`
-  url.searchParams.set('schema', 'public')
-  return url.toString()
-}
-
 export function readPostgresRuntimeConfig(
   env: NodeJS.ProcessEnv = process.env,
   fallback?: PostgresCredentials,
@@ -132,6 +124,6 @@ export function readPostgresRuntimeConfig(
 
   return {
     container,
-    databaseUrl: createDatabaseUrl(container),
+    databaseUrl: createPostgresDatabaseUrl(container),
   }
 }
