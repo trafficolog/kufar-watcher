@@ -75,7 +75,8 @@ function runCheck(root: string) {
 }
 
 afterEach(() => {
-  while (roots.length > 0) rmSync(roots.pop() as string, { recursive: true, force: true })
+  while (roots.length > 0)
+    rmSync(roots.pop() as string, { recursive: true, force: true })
 })
 
 describe('docs-ops check', () => {
@@ -83,6 +84,6 @@ describe('docs-ops check', () => {
     const result = runCheck(createFixture())
 
     expect(result.status).toBe(1)
-    expect(result.stderr).toContain("1-1.md: lifecycle не соответствует дочерним задачам")
+    expect(result.stderr).toContain('1-1.md: lifecycle не соответствует дочерним задачам')
   })
 })
