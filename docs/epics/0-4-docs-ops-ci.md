@@ -1,10 +1,10 @@
 ---
 id: "0.4"
 phase: 0
-status: done
+status: in_progress
 sync_state: aligned
 last_reviewed: 2026-09-11
-status_note: "3/3 done: docs-ops CLI, CI gates, parent lifecycle and generated-doc freshness enforcement are implemented; verify #949 GREEN."
+status_note: "3/4 done: docs-ops CLI, CI gates and freshness enforcement are complete; dependency advisory remediation 0.4.4 is in progress."
 roles:
   - PRODUCT
   - DEVOPS
@@ -22,24 +22,26 @@ roles:
 - `0.4.1` — Внедрение docs-ops CLI и npm-скриптов
 - `0.4.2` — CI: typecheck, lint, unit, docs:ops:check
 - `0.4.3` — Parent lifecycle и freshness docs-ops
+- `0.4.4` — Dependency advisory remediation
 
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-0.4-tasks -->
-**Задач:** 3 · **done:** 3
+**Задач:** 4 · **done:** 3
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `0.4.1` | [Внедрение docs-ops CLI и npm-скриптов](../tasks/0-4-1-docs-ops.md) | ✅ done | 🟢 aligned |
 | `0.4.2` | [CI: typecheck, lint, unit, docs:ops:check](../tasks/0-4-2-ci.md) | ✅ done | 🟢 aligned |
 | `0.4.3` | [Parent lifecycle и freshness docs-ops](../tasks/0-4-3-docs-parent-freshness.md) | ✅ done | 🟢 aligned |
+| `0.4.4` | [Dependency advisory remediation](../tasks/0-4-4-dependency-advisory-remediation.md) | 🚧 in_progress | 🟢 aligned |
 <!-- docs:ops:end epic-0.4-tasks -->
 
 ## Критерии приёмки эпика
 
-- [x] Все дочерние задачи в статусе `done`
+- [ ] Все дочерние задачи в статусе `done`
 - [x] `sync_state: aligned` (код соответствует карточкам)
-- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+- [x] Тесты по завершённым срезам эпика зелёные (unit/integration/e2e где применимо)
 
 ## Связанные документы
 
