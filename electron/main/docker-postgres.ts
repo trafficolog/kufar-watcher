@@ -20,6 +20,22 @@ export interface PostgresContainerInspection {
   database?: string
 }
 
+export type PostgresContainerConfigurationField =
+  | 'image'
+  | 'volumeName'
+  | 'host'
+  | 'port'
+  | 'user'
+  | 'password'
+  | 'database'
+
+export class PostgresContainerConfigurationError extends Error {
+  constructor(readonly mismatches: PostgresContainerConfigurationField[]) {
+    super(`PostgreSQL container configuration does not match: ${mismatches.join(', ')}`)
+    this.name = 'PostgresContainerConfigurationError'
+  }
+}
+
 export type ContainerHealth = 'healthy' | 'starting' | 'unhealthy' | 'none'
 
 export interface DockerPostgresRuntime {
@@ -40,8 +56,8 @@ export interface HealthWaitOptions {
 function containerConfigurationMismatches(
   existing: PostgresContainerInspection,
   config: PostgresContainerConfig,
-): string[] {
-  const mismatches: string[] = []
+): PostgresContainerConfigurationField[] {
+  const mismatches: PostgresContainerConfigurationField[] = []
   if (existing.image !== config.image) mismatches.push('image')
   if (existing.volumeName !== config.volumeName) mismatches.push('volumeName')
   if (existing.host !== config.host) mismatches.push('host')
@@ -61,7 +77,7 @@ export async function ensurePostgresContainer(
   if (existing) {
     const mismatches = containerConfigurationMismatches(existing, config)
     if (mismatches.length > 0) {
-      throw new Error(`PostgreSQL container configuration does not match: ${mismatches.join(', ')}`)
+      throw new PostgresContainerConfigurationError(mismatches)
     }
   }
 
