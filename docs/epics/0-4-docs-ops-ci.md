@@ -1,10 +1,10 @@
 ---
 id: "0.4"
 phase: 0
-status: in_progress
+status: done
 sync_state: aligned
 last_reviewed: 2026-09-11
-status_note: "3/4 done: docs-ops CLI, CI gates and freshness enforcement are complete; dependency advisory remediation 0.4.4 is in progress."
+status_note: "4/4 done: docs-ops CLI, canonical CI/freshness enforcement and dependency advisory remediation with blocking high/critical audit gate are implemented; verify #1011 GREEN."
 roles:
   - PRODUCT
   - DEVOPS
@@ -15,7 +15,7 @@ roles:
 
 ## Цель
 
-Документация не расходится с реальностью автоматически, а не усилием воли: CLI пересобирает сводки, CI не пропускает сломанный frontmatter и красные тесты.
+Документация не расходится с реальностью автоматически, а не усилием воли: CLI пересобирает сводки, CI не пропускает сломанный frontmatter, красные тесты или high/critical npm audit findings.
 
 ## Планируемые задачи
 
@@ -27,21 +27,21 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-0.4-tasks -->
-**Задач:** 4 · **done:** 3
+**Задач:** 4 · **done:** 4
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `0.4.1` | [Внедрение docs-ops CLI и npm-скриптов](../tasks/0-4-1-docs-ops.md) | ✅ done | 🟢 aligned |
 | `0.4.2` | [CI: typecheck, lint, unit, docs:ops:check](../tasks/0-4-2-ci.md) | ✅ done | 🟢 aligned |
 | `0.4.3` | [Parent lifecycle и freshness docs-ops](../tasks/0-4-3-docs-parent-freshness.md) | ✅ done | 🟢 aligned |
-| `0.4.4` | [Dependency advisory remediation](../tasks/0-4-4-dependency-advisory-remediation.md) | 🔄 in_progress | 🟢 aligned |
+| `0.4.4` | [Dependency advisory remediation](../tasks/0-4-4-dependency-advisory-remediation.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-0.4-tasks -->
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
+- [x] Все дочерние задачи в статусе `done`
 - [x] `sync_state: aligned` (код соответствует карточкам)
-- [x] Тесты по завершённым срезам эпика зелёные (unit/integration/e2e где применимо)
+- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
 
 ## Связанные документы
 
