@@ -181,10 +181,7 @@ describe('docs-ops check', () => {
   it('rejects a stale generated status rollup without mutating it', () => {
     const root = createGeneratedFixture()
     const statusPath = join(root, 'docs/operations/status/current-state.md')
-    writeFileSync(
-      statusPath,
-      readFileSync(statusPath, 'utf8').replace('- Задач: 1', '- Задач: 0'),
-    )
+    writeFileSync(statusPath, readFileSync(statusPath, 'utf8').replace('- Задач: 1', '- Задач: 0'))
     const statusBefore = readFileSync(statusPath, 'utf8')
 
     const result = runCli(root, 'check')
