@@ -4,6 +4,7 @@ import { kufarRateLimiter } from './kufar-rate-limiter'
 import type { KufarRawResponseJournal } from './kufar-raw-response-journal'
 
 export const KUFAR_HTTP_DEFAULTS = {
+  userAgent: 'kufar-watcher',
   connectTimeoutMs: 10_000,
   headersTimeoutMs: 15_000,
   bodyTimeoutMs: 30_000,
@@ -51,6 +52,19 @@ const getHeader = (headers: KufarHeaders, name: string): string | undefined => {
   }
 
   return undefined
+}
+
+const withDefaultUserAgent = (headers?: Record<string, string>): Record<string, string> => {
+  const requestHeaders = { ...headers }
+  const hasUserAgent = Object.keys(requestHeaders).some(
+    (headerName) => headerName.toLowerCase() === 'user-agent',
+  )
+
+  if (!hasUserAgent) {
+    requestHeaders['user-agent'] = KUFAR_HTTP_DEFAULTS.userAgent
+  }
+
+  return requestHeaders
 }
 
 const parseRetryAfterMs = (
@@ -213,7 +227,7 @@ export class KufarHttpClient {
     const request = {
       url: typeof url === 'string' ? new URL(url) : url,
       method: 'GET' as const,
-      headers,
+      headers: withDefaultUserAgent(headers),
     }
 
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
