@@ -22,11 +22,10 @@ interface DockerodeContainerInfo {
   HostConfig?: {
     PortBindings?: Record<
       string,
-      | Array<{
-          HostIp?: string
-          HostPort?: string
-        }>
-      | null
+      Array<{
+        HostIp?: string
+        HostPort?: string
+      }> | null
     >
   }
   Mounts?: Array<{
