@@ -244,6 +244,18 @@ function cmdCheck() {
   for (const t of tasks)
     if (!epicIds.has(String(t.fm.epic))) errors.push(`${t.file}: epic '${t.fm.epic}' не найден`)
 
+  const doneAligned = (doc: Doc) => doc.fm.status === 'done' && doc.fm.sync_state === 'aligned'
+  for (const e of epics) {
+    const kids = tasks.filter((t) => String(t.fm.epic) === String(e.fm.id))
+    if (kids.length > 0 && doneAligned(e) !== kids.every(doneAligned))
+      errors.push(`${e.file}: lifecycle не соответствует дочерним задачам`)
+  }
+  for (const p of phases) {
+    const kids = epics.filter((e) => String(e.fm.phase) === String(p.fm.id))
+    if (kids.length > 0 && doneAligned(p) !== kids.every(doneAligned))
+      errors.push(`${p.file}: lifecycle не соответствует дочерним эпикам`)
+  }
+
   // граф зависимостей: существование, отсутствие самоссылок и циклов
   const taskIds = new Set(tasks.map((t) => String(t.fm.id)))
   const graph = new Map<string, string[]>()
