@@ -7,7 +7,7 @@
  *
  * Commands:
  *   refresh         rebuild docs/operations/status/*.md and autoblocks in phases/epics
- *   check           validate frontmatter, duplicate IDs, phase/epic parents, depends_on graph
+ *   check           validate metadata, lifecycle, dependency graph and generated freshness
  *   new-session     create a session file from template
  *   new-iteration   create an iteration file from template
  *
@@ -31,6 +31,15 @@ const STATUS_EMOJI: Record<string, string> = {
   cancelled: '🚫',
 }
 const SYNC_EMOJI: Record<string, string> = { aligned: '🟢', drifted: '🟡' }
+const STATUS_FILES = [
+  'phases.md',
+  'epics.md',
+  'tasks.md',
+  'drift-report.md',
+  'current-state.md',
+] as const
+
+type StatusFile = (typeof STATUS_FILES)[number]
 
 interface Doc {
   file: string
@@ -107,62 +116,50 @@ function title(d: Doc): string {
 const se = (s: string) => `${STATUS_EMOJI[s] || ''} ${s}`
 const ss = (s: string) => `${SYNC_EMOJI[s] || ''} ${s}`
 
-function cmdRefresh() {
-  const phases = readDocs(PHASES),
-    epics = readDocs(EPICS),
-    tasks = readDocs(TASKS)
-
-  for (const p of phases) {
-    const pid = String(p.fm.id)
-    const kids = epics.filter((e) => String(e.fm.phase) === pid)
-    const rows = kids
-      .map(
-        (e) =>
-          `| \`${e.fm.id}\` | [${title(e)}](../epics/${e.file}) | ${se(e.fm.status)} | ${ss(e.fm.sync_state)} | ${e.fm.status_note || ''} |`,
-      )
-      .join('\n')
-    const done = kids.filter((e) => e.fm.status === 'done').length
-    const table =
-      `**Эпиков:** ${kids.length} · **done:** ${done} · **в работе/план:** ${kids.length - done}\n\n` +
-      `| ID | Эпик | Статус | Sync | Ист. |\n|----|------|--------|------|------|\n${rows}`
-    writeFileSync(p.path, replaceBlock(readFileSync(p.path, 'utf8'), `phase-${pid}-epics`, table))
-  }
-
-  for (const e of epics) {
-    const eid = String(e.fm.id)
-    const kids = tasks.filter((t) => String(t.fm.epic) === eid)
-    let table: string
-    if (!kids.length) {
-      table = `**Задач:** 0 (карточки ещё не созданы)`
-    } else {
-      const rows = kids
-        .map(
-          (t) =>
-            `| \`${t.fm.id}\` | [${title(t)}](../tasks/${t.file}) | ${se(t.fm.status)} | ${ss(t.fm.sync_state)} |`,
-        )
-        .join('\n')
-      const done = kids.filter((t) => t.fm.status === 'done').length
-      table =
-        `**Задач:** ${kids.length} · **done:** ${done}\n\n` +
-        `| ID | Задача | Статус | Sync |\n|----|--------|--------|------|\n${rows}`
-    }
-    writeFileSync(e.path, replaceBlock(readFileSync(e.path, 'utf8'), `epic-${eid}-tasks`, table))
-  }
-
-  writeStatusRollups(phases, epics, tasks)
-  console.log(
-    `refresh: phases=${phases.length} epics=${epics.length} tasks=${tasks.length} — обновлено`,
+function renderPhaseRollup(kids: Doc[]): string {
+  const rows = kids
+    .map(
+      (e) =>
+        `| \`${e.fm.id}\` | [${title(e)}](../epics/${e.file}) | ${se(e.fm.status)} | ${ss(e.fm.sync_state)} | ${e.fm.status_note || ''} |`,
+    )
+    .join('\n')
+  const done = kids.filter((e) => e.fm.status === 'done').length
+  return (
+    `**Эпиков:** ${kids.length} · **done:** ${done} · **в работе/план:** ${kids.length - done}\n\n` +
+    `| ID | Эпик | Статус | Sync | Ист. |\n|----|------|--------|------|------|\n${rows}`
   )
 }
 
-function writeStatusRollups(phases: Doc[], epics: Doc[], tasks: Doc[]) {
-  const stamp = new Date().toISOString().slice(0, 10)
+function renderEpicRollup(kids: Doc[]): string {
+  if (!kids.length) return `**Задач:** 0 (карточки ещё не созданы)`
+
+  const rows = kids
+    .map(
+      (t) =>
+        `| \`${t.fm.id}\` | [${title(t)}](../tasks/${t.file}) | ${se(t.fm.status)} | ${ss(t.fm.sync_state)} |`,
+    )
+    .join('\n')
+  const done = kids.filter((t) => t.fm.status === 'done').length
+  return (
+    `**Задач:** ${kids.length} · **done:** ${done}\n\n` +
+    `| ID | Задача | Статус | Sync |\n|----|--------|--------|------|\n${rows}`
+  )
+}
+
+function renderStatusRollups(
+  phases: Doc[],
+  epics: Doc[],
+  tasks: Doc[],
+  stamp: string,
+): Record<StatusFile, string> {
   const head = (t: string) =>
     `<!-- AUTO-GENERATED — не править вручную. Регенерация: npm run docs:ops:refresh -->\n\n# ${t}\n\n_Сгенерировано ${stamp}_\n\n`
+  const drifted = [...phases, ...epics, ...tasks].filter((d) => d.fm.sync_state === 'drifted')
+  const doneE = epics.filter((e) => e.fm.status === 'done').length
 
-  writeFileSync(
-    join(STATUS, 'phases.md'),
-    head('Rollup: фазы') +
+  return {
+    'phases.md':
+      head('Rollup: фазы') +
       '| Фаза | Название | Статус | Sync |\n|------|----------|--------|------|\n' +
       phases
         .map(
@@ -170,11 +167,8 @@ function writeStatusRollups(phases: Doc[], epics: Doc[], tasks: Doc[]) {
         )
         .join('\n') +
       '\n',
-  )
-
-  writeFileSync(
-    join(STATUS, 'epics.md'),
-    head('Rollup: эпики') +
+    'epics.md':
+      head('Rollup: эпики') +
       '| ID | Эпик | Фаза | Статус | Sync | Ист. |\n|----|------|------|--------|------|------|\n' +
       epics
         .map(
@@ -183,11 +177,8 @@ function writeStatusRollups(phases: Doc[], epics: Doc[], tasks: Doc[]) {
         )
         .join('\n') +
       '\n',
-  )
-
-  writeFileSync(
-    join(STATUS, 'tasks.md'),
-    head('Rollup: задачи') +
+    'tasks.md':
+      head('Rollup: задачи') +
       (tasks.length === 0
         ? 'Карточки задач ещё не созданы.\n'
         : '| ID | Задача | Эпик | Статус | Sync |\n|----|--------|------|--------|------|\n' +
@@ -198,23 +189,90 @@ function writeStatusRollups(phases: Doc[], epics: Doc[], tasks: Doc[]) {
             )
             .join('\n') +
           '\n'),
-  )
-
-  const drifted = [...phases, ...epics, ...tasks].filter((d) => d.fm.sync_state === 'drifted')
-  writeFileSync(
-    join(STATUS, 'drift-report.md'),
-    head('Drift-report') +
+    'drift-report.md':
+      head('Drift-report') +
       '`sync_state: drifted` = карточка опережает реализацию. Это не ошибка.\n\n' +
       drifted.map((d) => `- \`${d.fm.id}\` ${title(d)} — ${d.fm.status_note || ''}`).join('\n') +
       '\n',
-  )
-
-  const doneE = epics.filter((e) => e.fm.status === 'done').length
-  writeFileSync(
-    join(STATUS, 'current-state.md'),
-    head('Текущее состояние') +
+    'current-state.md':
+      head('Текущее состояние') +
       `## Сводка\n\n- Фаз: ${phases.length}\n- Эпиков: ${epics.length} (done: ${doneE})\n- Задач: ${tasks.length}\n`,
+  }
+}
+
+function generatedStamp(content: string): string | null {
+  return content.match(/_Сгенерировано (\d{4}-\d{2}-\d{2})_/)?.[1] ?? null
+}
+
+function cmdRefresh() {
+  const phases = readDocs(PHASES),
+    epics = readDocs(EPICS),
+    tasks = readDocs(TASKS)
+
+  for (const p of phases) {
+    const pid = String(p.fm.id)
+    const kids = epics.filter((e) => String(e.fm.phase) === pid)
+    writeFileSync(
+      p.path,
+      replaceBlock(readFileSync(p.path, 'utf8'), `phase-${pid}-epics`, renderPhaseRollup(kids)),
+    )
+  }
+
+  for (const e of epics) {
+    const eid = String(e.fm.id)
+    const kids = tasks.filter((t) => String(t.fm.epic) === eid)
+    writeFileSync(
+      e.path,
+      replaceBlock(readFileSync(e.path, 'utf8'), `epic-${eid}-tasks`, renderEpicRollup(kids)),
+    )
+  }
+
+  mkdirSync(STATUS, { recursive: true })
+  const stamp = new Date().toISOString().slice(0, 10)
+  const rollups = renderStatusRollups(phases, epics, tasks, stamp)
+  for (const file of STATUS_FILES) writeFileSync(join(STATUS, file), rollups[file])
+
+  console.log(
+    `refresh: phases=${phases.length} epics=${epics.length} tasks=${tasks.length} — обновлено`,
   )
+}
+
+function checkGeneratedFreshness(phases: Doc[], epics: Doc[], tasks: Doc[], errors: string[]) {
+  for (const p of phases) {
+    const pid = String(p.fm.id)
+    const name = `phase-${pid}-epics`
+    const content = readFileSync(p.path, 'utf8')
+    const kids = epics.filter((e) => String(e.fm.phase) === pid)
+    if (replaceBlock(content, name, renderPhaseRollup(kids)) !== content)
+      errors.push(`${p.file}: generated block '${name}' устарел`)
+  }
+
+  for (const e of epics) {
+    const eid = String(e.fm.id)
+    const name = `epic-${eid}-tasks`
+    const content = readFileSync(e.path, 'utf8')
+    const kids = tasks.filter((t) => String(t.fm.epic) === eid)
+    if (replaceBlock(content, name, renderEpicRollup(kids)) !== content)
+      errors.push(`${e.file}: generated block '${name}' устарел`)
+  }
+
+  for (const file of STATUS_FILES) {
+    const path = join(STATUS, file)
+    if (!existsSync(path)) {
+      errors.push(`docs/operations/status/${file}: generated status отсутствует`)
+      continue
+    }
+
+    const content = readFileSync(path, 'utf8')
+    const stamp = generatedStamp(content)
+    if (stamp === null) {
+      errors.push(`docs/operations/status/${file}: generation stamp отсутствует`)
+      continue
+    }
+
+    const expected = renderStatusRollups(phases, epics, tasks, stamp)[file]
+    if (content !== expected) errors.push(`docs/operations/status/${file}: generated status устарел`)
+  }
 }
 
 function cmdCheck() {
@@ -291,6 +349,8 @@ function cmdCheck() {
     color.set(id, BLACK)
   }
   for (const id of graph.keys()) visit(id)
+
+  checkGeneratedFreshness(phases, epics, tasks, errors)
 
   if (errors.length) {
     console.error(`check: ${errors.length} проблем\n` + errors.map((e) => '  ✗ ' + e).join('\n'))
