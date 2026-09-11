@@ -12,8 +12,10 @@ const originalEnv = Object.fromEntries(
   DATABASE_ENV_KEYS.map((key) => [key, process.env[key]]),
 ) as Record<(typeof DATABASE_ENV_KEYS)[number], string | undefined>
 
-function replaceDatabaseEnv(values: Partial<Record<(typeof DATABASE_ENV_KEYS)[number], string>>) {
-  for (const key of DATABASE_ENV_KEYS) delete process.env[key]
+function replaceDatabaseEnv(
+  values: Partial<Record<(typeof DATABASE_ENV_KEYS)[number], string>>,
+) {
+  for (const key of DATABASE_ENV_KEYS) Reflect.deleteProperty(process.env, key)
   Object.assign(process.env, values)
 }
 
@@ -26,7 +28,7 @@ async function loadPrismaDatabaseUrl(): Promise<string | undefined> {
 afterEach(() => {
   for (const key of DATABASE_ENV_KEYS) {
     const value = originalEnv[key]
-    if (value === undefined) delete process.env[key]
+    if (value === undefined) Reflect.deleteProperty(process.env, key)
     else process.env[key] = value
   }
   vi.resetModules()
