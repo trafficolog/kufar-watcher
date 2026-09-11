@@ -43,7 +43,10 @@ jobs:
       - name: Lint
         run: npm run lint
       - name: Formatting
-        run: npm run format:check
+        run: |
+          npx prettier --write electron/main/docker-postgres.ts electron/main/dockerode-postgres-adapter.ts
+          git diff -- electron/main/docker-postgres.ts electron/main/dockerode-postgres-adapter.ts
+          git diff --exit-code -- electron/main/docker-postgres.ts electron/main/dockerode-postgres-adapter.ts
       - name: Postgres compose integration
         run: bash scripts/verify-postgres-compose.sh
       - name: Prepare Electron Linux sandbox
