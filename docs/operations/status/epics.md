@@ -9,7 +9,7 @@ _Сгенерировано 2026-09-11_
 | `0.1` | Скелет Electron | 0 | ✅ done | 🟢 aligned | 3/3 done: Electron shell, utilityProcess model and typed IPC contract are implemented and verified. |
 | `0.2` | Postgres в Docker под Dockerode | 0 | ✅ done | 🟢 aligned | 4/4 done: compose Postgres, Dockerode supervisor, infrastructure status UI and recoverable production bootstrap are implemented. |
 | `0.3` | Prisma-схема и миграции | 0 | ⬜ todo | 🟡 drifted | Доменная модель в БД. |
-| `0.4` | docs-ops, линт и CI | 0 | 🔄 in_progress | 🟢 aligned | 2 delivery tasks done; remediation 0.4.3 implementation aligned, full verify pending before closure. |
+| `0.4` | docs-ops, линт и CI | 0 | ✅ done | 🟢 aligned | 3/3 done: docs-ops CLI, CI gates, parent lifecycle and generated-doc freshness enforcement are implemented; verify #949 GREEN. |
 | `1.0` | Разведка контракта площадки | 1 | ✅ done | 🟢 aligned | 2/2 done: live electronics and real-estate contract reconnaissance is captured in fixtures and the API contract. |
 | `1.1` | URL-парсер и canonical query | 1 | ✅ done | 🟢 aligned | Единственная точка входа пользователя — ссылка. |
 | `1.2` | HTTP-клиент и лимитер | 1 | ✅ done | 🟢 aligned | Вежливый и предсказуемый сетевой слой. |
