@@ -141,6 +141,44 @@ describe('worker supervisor', () => {
     expect(spawnCount).toBe(2)
   })
 
+  it('resets the consecutive crash streak after a worker becomes ready', async () => {
+    vi.useFakeTimers()
+    const workers = Array.from({ length: 5 }, () => new FakeWorker())
+    const fatalMessages: string[] = []
+    const events: unknown[] = []
+    let spawnCount = 0
+    const createWorkerSupervisor = await loadCreateWorkerSupervisor()
+
+    expect(createWorkerSupervisor).toBeTypeOf('function')
+    const supervisor = createWorkerSupervisor!({
+      spawnWorker: () => workers[spawnCount++]!,
+      onEvent: (event) => events.push(event),
+      onFatal: (message) => fatalMessages.push(message),
+    })
+
+    supervisor.start()
+
+    workers[0]!.emit('exit', 1)
+    await vi.advanceTimersByTimeAsync(1_000)
+    workers[1]!.emit('exit', 1)
+    await vi.advanceTimersByTimeAsync(2_000)
+    workers[2]!.emit('exit', 1)
+    await vi.advanceTimersByTimeAsync(4_000)
+
+    workers[3]!.emit('message', { type: 'ready' })
+    workers[3]!.emit('exit', 1)
+
+    expect(fatalMessages).toEqual([])
+    expect(events).toContainEqual({
+      type: 'journal',
+      level: 'warning',
+      message: 'Worker exited unexpectedly; restart in 1000 ms',
+    })
+
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(spawnCount).toBe(5)
+  })
+
   it('enters fatal state after the fourth unexpected exit', async () => {
     vi.useFakeTimers()
     const workers = Array.from({ length: 4 }, () => new FakeWorker())

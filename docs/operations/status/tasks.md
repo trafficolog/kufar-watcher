@@ -9,6 +9,7 @@ _Сгенерировано 2026-09-11_
 | `0.1.1` | Инициализация репозитория и тулчейна | 0.1 | ✅ done | 🟢 aligned |
 | `0.1.2` | Процессная модель main + utilityProcess | 0.1 | ✅ done | 🟢 aligned |
 | `0.1.3` | Типизированный IPC-контракт | 0.1 | ✅ done | 🟢 aligned |
+| `0.1.4` | Сброс серии аварий worker после ready | 0.1 | ✅ done | 🟢 aligned |
 | `0.2.1` | docker-compose с Postgres 16 | 0.2 | ✅ done | 🟢 aligned |
 | `0.2.2` | Супервизор контейнера через Dockerode | 0.2 | ✅ done | 🟢 aligned |
 | `0.2.3` | Экран состояния инфраструктуры | 0.2 | ✅ done | 🟢 aligned |

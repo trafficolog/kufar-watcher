@@ -101,7 +101,12 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
     currentWorker = worker
 
     const onMessage = (message: unknown): void => {
-      if (isWorkerEvent(message)) options.onEvent?.(message)
+      if (!isWorkerEvent(message)) return
+      if (message.type === 'ready') {
+        restartPolicy.reset()
+        restartAttempt = 0
+      }
+      options.onEvent?.(message)
     }
 
     const onExit = (): void => {
