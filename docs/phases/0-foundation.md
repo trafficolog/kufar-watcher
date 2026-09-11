@@ -23,7 +23,7 @@ status_note: "Фаза 0 частично завершена: 0.1, 0.2 и 0.4 do
 
 | ID | Эпик | Статус | Sync | Ист. |
 |----|------|--------|------|------|
-| `0.1` | [Скелет Electron](../epics/0-1-electron-shell.md) | ✅ done | 🟢 aligned | 3/3 done: Electron shell, utilityProcess model and typed IPC contract are implemented and verified. |
+| `0.1` | [Скелет Electron](../epics/0-1-electron-shell.md) | ✅ done | 🟢 aligned | 4/4 done: Electron shell, utilityProcess model, typed IPC contract and worker crash-streak reset are implemented and verified. |
 | `0.2` | [Postgres в Docker под Dockerode](../epics/0-2-docker-postgres.md) | ✅ done | 🟢 aligned | 5/5 done: compose Postgres, Dockerode supervisor, infrastructure status UI, recoverable production bootstrap and existing-container configuration validation are implemented. |
 | `0.3` | [Prisma-схема и миграции](../epics/0-3-prisma-schema.md) | ⬜ todo | 🟡 drifted | Доменная модель в БД. |
 | `0.4` | [docs-ops, линт и CI](../epics/0-4-docs-ops-ci.md) | ✅ done | 🟢 aligned | 3/3 done: docs-ops CLI, CI gates, parent lifecycle and generated-doc freshness enforcement are implemented; verify #949 GREEN. |
