@@ -9,7 +9,7 @@ _Сгенерировано 2026-09-11_
 | `0.1` | Скелет Electron | 0 | ✅ done | 🟢 aligned | 4/4 done: Electron shell, utilityProcess model, typed IPC contract and worker crash-streak reset are implemented and verified. |
 | `0.2` | Postgres в Docker под Dockerode | 0 | ✅ done | 🟢 aligned | 6/6 done: compose Postgres, Dockerode supervision, recoverable bootstrap, existing-container validation and a single POSTGRES_* source-of-truth for runtime/Prisma tooling are implemented. |
 | `0.3` | Prisma-схема и миграции | 0 | ⬜ todo | 🟡 drifted | Доменная модель в БД. |
-| `0.4` | docs-ops, линт и CI | 0 | 🔄 in_progress | 🟢 aligned | 3/4 done: docs-ops CLI, CI gates and freshness enforcement are complete; dependency advisory remediation 0.4.4 is in progress. |
+| `0.4` | docs-ops, линт и CI | 0 | ✅ done | 🟢 aligned | 4/4 done: docs-ops CLI, canonical CI/freshness enforcement and dependency advisory remediation with blocking high/critical audit gate are implemented; verify #1011 GREEN. |
 | `1.0` | Разведка контракта площадки | 1 | ✅ done | 🟢 aligned | 2/2 done: live electronics and real-estate contract reconnaissance is captured in fixtures and the API contract. |
 | `1.1` | URL-парсер и canonical query | 1 | ✅ done | 🟢 aligned | 4/4 done: canonical URL parse/build/routing plus real-estate regionless operation disambiguation are implemented and verified. |
 | `1.2` | HTTP-клиент и лимитер | 1 | ✅ done | 🟢 aligned | 4/4 done: global limiter, resilient HTTP client, raw-response journal and stable application-level User-Agent are implemented and verified. |

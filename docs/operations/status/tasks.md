@@ -25,7 +25,7 @@ _Сгенерировано 2026-09-11_
 | `0.4.1` | Внедрение docs-ops CLI и npm-скриптов | 0.4 | ✅ done | 🟢 aligned |
 | `0.4.2` | CI: typecheck, lint, unit, docs:ops:check | 0.4 | ✅ done | 🟢 aligned |
 | `0.4.3` | Parent lifecycle и freshness docs-ops | 0.4 | ✅ done | 🟢 aligned |
-| `0.4.4` | Dependency advisory remediation | 0.4 | 🔄 in_progress | 🟢 aligned |
+| `0.4.4` | Dependency advisory remediation | 0.4 | ✅ done | 🟢 aligned |
 | `1.0.1` | Разведка выдачи по электронике | 1.0 | ✅ done | 🟢 aligned |
 | `1.0.2` | Разведка выдачи по недвижимости и сверка спеки | 1.0 | ✅ done | 🟢 aligned |
 | `1.1.1` | Разбор URL листинга в CanonicalQuery | 1.1 | ✅ done | 🟢 aligned |
