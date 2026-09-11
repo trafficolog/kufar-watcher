@@ -21,13 +21,7 @@ export interface PostgresContainerInspection {
 }
 
 export type PostgresContainerConfigurationField =
-  | 'image'
-  | 'volumeName'
-  | 'host'
-  | 'port'
-  | 'user'
-  | 'password'
-  | 'database'
+  'image' | 'volumeName' | 'host' | 'port' | 'user' | 'password' | 'database'
 
 export class PostgresContainerConfigurationError extends Error {
   constructor(readonly mismatches: PostgresContainerConfigurationField[]) {
