@@ -23,7 +23,16 @@ function createRuntime(state: 'missing' | 'stopped' | 'running'): DockerPostgres
     ping: vi.fn(async () => undefined),
     inspectContainer: vi.fn(async () => {
       if (state === 'missing') return null
-      return { running: state === 'running' }
+      return {
+        running: state === 'running',
+        image: config.image,
+        volumeName: config.volumeName,
+        host: config.host,
+        port: config.port,
+        user: config.user,
+        password: config.password,
+        database: config.database,
+      }
     }),
     ensureImage: vi.fn(async () => undefined),
     createContainer: vi.fn(async () => undefined),
@@ -71,6 +80,36 @@ describe('ensurePostgresContainer', () => {
       'PostgreSQL container configuration does not match: image',
     )
 
+    expect(runtime.startContainer).not.toHaveBeenCalled()
+    expect(runtime.createContainer).not.toHaveBeenCalled()
+  })
+
+  it('rejects all existing container contract mismatches without exposing values', async () => {
+    const runtime = createRuntime('running')
+    vi.mocked(runtime.inspectContainer).mockResolvedValueOnce({
+      running: true,
+      image: 'postgres:15',
+      volumeName: 'legacy-volume',
+      host: '0.0.0.0',
+      port: 15432,
+      user: 'legacy-user',
+      password: 'legacy-secret',
+      database: 'legacy-db',
+    })
+
+    let error: unknown
+    try {
+      await ensurePostgresContainer(runtime, config)
+    } catch (caught) {
+      error = caught
+    }
+
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).toBe(
+      'PostgreSQL container configuration does not match: image, volumeName, host, port, user, password, database',
+    )
+    expect((error as Error).message).not.toContain('legacy-secret')
+    expect((error as Error).message).not.toContain(config.password)
     expect(runtime.startContainer).not.toHaveBeenCalled()
     expect(runtime.createContainer).not.toHaveBeenCalled()
   })
