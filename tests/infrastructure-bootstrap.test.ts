@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { BootState } from '../shared/ipc'
+import { PostgresContainerConfigurationError } from '../electron/main/docker-postgres'
 import { runInfrastructureBootstrap } from '../electron/main/infrastructure-bootstrap'
+import type { BootState } from '../shared/ipc'
 
 function createDeps() {
   const calls: string[] = []
@@ -60,6 +61,22 @@ describe('runInfrastructureBootstrap', () => {
     expect(result.errorCode).toBe('docker-unavailable')
     expect(calls).toEqual([])
     expect(deps.ensureDatabaseContainer).not.toHaveBeenCalled()
+    expect(deps.startWorker).not.toHaveBeenCalled()
+  })
+
+  it('reports configuration-invalid for an incompatible existing Postgres container', async () => {
+    const { calls, deps } = createDeps()
+    deps.ensureDatabaseContainer.mockRejectedValueOnce(
+      new PostgresContainerConfigurationError(['port']),
+    )
+
+    const result = await runInfrastructureBootstrap(deps)
+
+    expect(result.phase).toBe('error')
+    expect(result.errorCode).toBe('configuration-invalid')
+    expect(calls).toEqual(['ping'])
+    expect(deps.waitForDatabase).not.toHaveBeenCalled()
+    expect(deps.applyMigrations).not.toHaveBeenCalled()
     expect(deps.startWorker).not.toHaveBeenCalled()
   })
 
