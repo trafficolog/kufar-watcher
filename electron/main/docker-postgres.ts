@@ -12,6 +12,12 @@ export interface PostgresContainerConfig {
 export interface PostgresContainerInspection {
   running: boolean
   image?: string
+  volumeName?: string
+  host?: string
+  port?: number
+  user?: string
+  password?: string
+  database?: string
 }
 
 export type ContainerHealth = 'healthy' | 'starting' | 'unhealthy' | 'none'
