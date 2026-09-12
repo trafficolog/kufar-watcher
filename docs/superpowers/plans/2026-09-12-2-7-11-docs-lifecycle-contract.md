@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Enforce explicit parent lifecycle states for all-todo, partial-progress, and all-done child sets, and align drift-pause documentation with the runtime that exists today.
+**Goal:** Enforce explicit parent lifecycle states for all-todo, partial-progress, and all-done child sets while preserving explicit `blocked` / `cancelled` parent overrides, and align drift-pause documentation with the runtime that exists today.
 
-**Architecture:** Keep lifecycle derivation inside the zero-dependency docs-ops CLI. Derive one expected parent status from direct children and reuse the same validator for phase→epic and epic→task relationships. Documentation changes describe existing runtime semantics only; no worker, scheduler, database, or monitor-state behavior changes are part of this task.
+**Architecture:** Keep lifecycle derivation inside the zero-dependency docs-ops CLI. Derive one expected progress status from direct children and reuse the same validator for phase→epic and epic→task relationships, while treating `blocked` and `cancelled` as explicit parent overrides rather than child-derived progress states. Documentation changes describe existing runtime semantics only; no worker, scheduler, database, or monitor-state behavior changes are part of this task.
 
 **Tech Stack:** TypeScript, Node built-ins, Vitest, repository docs-ops CLI.
 
@@ -12,9 +12,10 @@
 
 ## Global Constraints
 
-- All direct children `todo` → parent status must be `todo`.
-- At least one child started/completed but not all children `done/aligned` → parent status must be `in_progress`.
-- All direct children `done/aligned` → parent must be `done/aligned`.
+- `blocked` and `cancelled` are explicit valid parent overrides and are not derived from direct-child progress.
+- For progress-derived parents, all direct children `todo` → parent status must be `todo`.
+- For progress-derived parents, at least one child started/completed but not all children `done/aligned` → parent status must be `in_progress`.
+- For progress-derived parents, all direct children `done/aligned` → parent must be `done/aligned`.
 - Intermediate parent `sync_state` remains independent of lifecycle status; this task does not force `aligned` while work remains.
 - Do not implement monitor autopause; runtime remains typed `pause-required` signal plus terminal no-retry disposition.
 - Do not change scheduler intervals, retry limits, queue semantics, database schema, or runtime worker code.
@@ -57,7 +58,7 @@ Commit message: `test: require in-progress parent lifecycle`.
 - Test: `tests/unit/docs-ops-check.test.ts`
 
 **Interfaces:**
-- Produces: one shared lifecycle derivation used by phase→epic and epic→task validation.
+- Produces: one shared lifecycle derivation used by phase→epic and epic→task validation, with explicit `blocked` / `cancelled` parent overrides.
 
 - [ ] **Step 1: Implement expected parent status**
 
@@ -73,7 +74,7 @@ function expectedParentStatus(children: Doc[]): 'todo' | 'in_progress' | 'done' 
 
 - [ ] **Step 2: Implement shared validation**
 
-For parents with direct children, require `parent.fm.status === expectedParentStatus(children)`. When the expected status is `done`, also require `parent.fm.sync_state === 'aligned'`. Preserve the existing Russian error messages for task and epic relationships so existing diagnostics remain stable.
+For parents with direct children, first accept `blocked` and `cancelled` as explicit parent overrides. Otherwise require `parent.fm.status === expectedParentStatus(children)`. When the expected status is `done`, also require `parent.fm.sync_state === 'aligned'`. Preserve the existing Russian error messages for task and epic relationships so existing diagnostics remain stable.
 
 - [ ] **Step 3: Apply the helper symmetrically**
 
@@ -81,7 +82,7 @@ Replace the two boolean `doneAligned` equivalence loops with the shared rule for
 
 - [ ] **Step 4: Verify GREEN at unit level and canonical CI**
 
-Expected: new partial-progress tests pass; existing docs freshness/lifecycle tests stay GREEN. Repository-level docs consistency may now identify real parent metadata that must be aligned in Task 3.
+Expected: partial-progress tests and explicit `blocked` / `cancelled` override tests pass; existing docs freshness/lifecycle tests stay GREEN. Repository-level docs consistency may now identify real parent metadata that must be aligned in Task 3.
 
 - [ ] **Step 5: Commit**
 
