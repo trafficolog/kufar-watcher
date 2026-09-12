@@ -51,7 +51,25 @@ export function formatWorkerError(error: unknown): string {
 }
 
 async function recoverInterruptedRuns(prisma: PrismaClient): Promise<void> {
-  await prisma.$executeRaw`SELECT 1`
+  const recoveredAt = new Date()
+  await prisma.$executeRaw`
+    UPDATE "Run"
+    SET
+      "finishedAt" = ${recoveredAt}::timestamp,
+      "durationMs" = LEAST(
+        2147483647,
+        GREATEST(
+          0,
+          FLOOR(EXTRACT(EPOCH FROM (${recoveredAt}::timestamp - "startedAt")) * 1000)
+        )
+      )::integer,
+      "outcome" = 'interrupted',
+      "error" = 'Worker process interrupted before Run completion',
+      "errorCategory" = 'internal',
+      "errorCode" = 'worker-interrupted'
+    WHERE "outcome" = 'running'
+      AND "finishedAt" IS NULL
+  `
 }
 
 export function createWorkerApplication(
