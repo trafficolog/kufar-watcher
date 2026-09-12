@@ -89,9 +89,7 @@ describe('buildKufarApiUrl', () => {
     const privateQuery = parseKufarListingUrl(
       'https://re.kufar.by/l/minsk/kupit/kvartiru/bez-posrednikov',
     )
-    const companyQuery = parseKufarListingUrl(
-      'https://re.kufar.by/l/minsk/kupit/kvartiru?cmp=true',
-    )
+    const companyQuery = parseKufarListingUrl('https://re.kufar.by/l/minsk/kupit/kvartiru?cmp=true')
 
     expect(buildKufarApiUrl(privateQuery)).toBe(
       'https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=1010&cmp=0&gtsy=country-belarus%7Eprovince-minsk%7Elocality-minsk&lang=ru&sort=lst.d&typ=sell',
