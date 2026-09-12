@@ -26,6 +26,9 @@ function prismaWithCursor(boundaryTime: Date | null | 'missing'): PrismaClient {
     monitor: {
       findUniqueOrThrow: vi.fn().mockResolvedValue({ cursor }),
     },
+    sellerBlock: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   } as unknown as PrismaClient
 }
 
@@ -93,13 +96,14 @@ describe('runMonitorCycle', () => {
       adapter,
       maxPages: 5,
       selector,
+      prefilter: expect.anything(),
       now,
     })
     expect(dependencyMocks.runColdStartMonitor).not.toHaveBeenCalled()
     expect(result).toMatchObject({ cycleKind: 'incremental', kind: 'complete', pagesRead: 1 })
   })
 
-  it('forwards prefilter and description loader to the incremental path', async () => {
+  it('composes prefilter and forwards description loader to the incremental path', async () => {
     const prisma = prismaWithCursor(new Date('2026-09-08T11:59:00.000Z'))
     const prefilter = { accept: vi.fn() }
     const descriptionLoader = { ensureDescription: vi.fn() }
@@ -125,7 +129,7 @@ describe('runMonitorCycle', () => {
       adapter,
       maxPages: 5,
       selector: undefined,
-      prefilter,
+      prefilter: expect.anything(),
       descriptionLoader,
       now: undefined,
     })
@@ -182,6 +186,7 @@ describe('runMonitorCycle', () => {
       adapter,
       maxPages: 3,
       selector: undefined,
+      prefilter: expect.anything(),
       now: undefined,
     })
   })

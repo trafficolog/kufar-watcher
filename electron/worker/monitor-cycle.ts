@@ -8,6 +8,7 @@ import {
   type CandidateSelector,
   type DescriptionLoader,
 } from './incremental-monitor-run'
+import { composeCandidatePrefilters, createSellerBlockPrefilter } from './seller-block-prefilter'
 
 export interface RunMonitorCycleInput {
   prisma: PrismaClient
@@ -60,6 +61,8 @@ export async function runMonitorCycle({
     return { cycleKind: 'cold-start', ...result }
   }
 
+  const sellerBlockPrefilter = await createSellerBlockPrefilter(prisma)
+  const effectivePrefilter = composeCandidatePrefilters(sellerBlockPrefilter, prefilter)
   const result = await runIncrementalMonitor({
     prisma,
     monitorId,
@@ -68,7 +71,7 @@ export async function runMonitorCycle({
     adapter,
     maxPages,
     selector,
-    ...(prefilter === undefined ? {} : { prefilter }),
+    prefilter: effectivePrefilter,
     ...(descriptionLoader === undefined ? {} : { descriptionLoader }),
     now,
   })

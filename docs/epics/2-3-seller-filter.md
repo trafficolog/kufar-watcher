@@ -1,10 +1,10 @@
 ---
 id: "2.3"
 phase: 2
-status: in_progress
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-12
-status_note: "Нативный тип продавца закрыт в 2.3.1; персональный blacklist остаётся задачей 2.3.2."
+status_note: "Нативный тип продавца и персональный SellerBlock post-filter закрыты задачами 2.3.1 и 2.3.2."
 roles:
   - BACK
   - DB
@@ -24,19 +24,19 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.3-tasks -->
-**Задач:** 2 · **done:** 1
+**Задач:** 2 · **done:** 2
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `2.3.1` | [Тип продавца как параметр запроса](../tasks/2-3-1-seller-type-request.md) | ✅ done | 🟢 aligned |
-| `2.3.2` | [Персональный чёрный список аккаунтов](../tasks/2-3-2-personal-seller-blacklist.md) | ⬜ todo | 🟡 drifted |
+| `2.3.2` | [Персональный чёрный список аккаунтов](../tasks/2-3-2-personal-seller-blacklist.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-2.3-tasks -->
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
-- [ ] `sync_state: aligned` (код соответствует карточкам)
-- [ ] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+- [x] Все дочерние задачи в статусе `done`
+- [x] `sync_state: aligned` (код соответствует карточкам)
+- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
 
 ## Связанные документы
 
