@@ -228,4 +228,46 @@ integration('scheduled Run journal', () => {
     expect(runs).toHaveLength(2)
     expect(runs.map(({ outcome }) => outcome)).toEqual(['success', 'skipped'])
   })
+
+  it('prevents overlap across independent executor and database contexts', async () => {
+    const secondPrisma = createPrismaClient()
+    await secondPrisma.$connect()
+    let releaseFirst!: () => void
+    let firstEntered!: () => void
+    const release = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    const entered = new Promise<void>((resolve) => {
+      firstEntered = resolve
+    })
+    const fetchPage = vi.fn(async () => {
+      if (fetchPage.mock.calls.length === 1) {
+        firstEntered()
+        await release
+      }
+      return { listings: [], nextCursor: null }
+    })
+    const firstExecutor = executorFor(prisma, fetchPage)
+    const secondExecutor = executorFor(secondPrisma, fetchPage)
+    const first = firstExecutor(MONITOR_ID)
+    await entered
+
+    try {
+      await expect(secondExecutor(MONITOR_ID)).resolves.toEqual({
+        cycleKind: 'skipped-overlap',
+      })
+      expect(fetchPage).toHaveBeenCalledTimes(1)
+    } finally {
+      releaseFirst()
+      await first
+      await secondPrisma.$disconnect()
+    }
+
+    const runs = await prisma.run.findMany({
+      where: { monitorId: MONITOR_ID },
+      orderBy: { id: 'asc' },
+    })
+    expect(runs).toHaveLength(2)
+    expect(runs.map(({ outcome }) => outcome).sort()).toEqual(['skipped', 'success'])
+  })
 })
