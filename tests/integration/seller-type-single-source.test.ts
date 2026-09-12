@@ -66,6 +66,14 @@ integration('sellerType single-source migration', () => {
 
       await client.query(migrationSql)
 
+      const cursors = await client.query<{ monitorId: number }>(
+        `SELECT "monitorId"
+         FROM "MonitorCursor"
+         WHERE "monitorId" IN (${FIXTURE_IDS.join(', ')})
+         ORDER BY "monitorId"`,
+      )
+      expect(cursors.rows).toEqual([{ monitorId: FIXTURE_IDS[0] }, { monitorId: FIXTURE_IDS[1] }])
+
       const rows = await client.query<{ id: number; sellerType: string | null }>(
         `SELECT "id", "query"->>'sellerType' AS "sellerType"
          FROM "Monitor"
@@ -78,14 +86,6 @@ integration('sellerType single-source migration', () => {
         { id: FIXTURE_IDS[2], sellerType: 'company' },
         { id: FIXTURE_IDS[3], sellerType: 'private' },
       ])
-
-      const cursors = await client.query<{ monitorId: number }>(
-        `SELECT "monitorId"
-         FROM "MonitorCursor"
-         WHERE "monitorId" IN (${FIXTURE_IDS.join(', ')})
-         ORDER BY "monitorId"`,
-      )
-      expect(cursors.rows).toEqual([{ monitorId: FIXTURE_IDS[0] }, { monitorId: FIXTURE_IDS[1] }])
 
       const columns = await client.query<{ count: string }>(
         `SELECT count(*) AS count
