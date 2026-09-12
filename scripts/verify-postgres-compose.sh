@@ -10,6 +10,7 @@ test_db_start_clean
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/listing-description-cache.test.ts
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-run-persistence.test.ts
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/run-journal.test.ts
+KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/run-lifecycle-recovery.test.ts
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-config-persistence.test.ts
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-run-stale-config.test.ts
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-scheduler.test.ts
