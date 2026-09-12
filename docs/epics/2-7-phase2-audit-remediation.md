@@ -34,7 +34,7 @@ roles: [BACK, DB, QA]
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.7-tasks -->
-**Задач:** 10 · **done:** 4
+**Задач:** 10 · **done:** 5
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
@@ -42,7 +42,7 @@ roles: [BACK, DB, QA]
 | `2.7.11` | [Lifecycle-контракт docs и точная семантика drift pause signal](../tasks/2-7-11-docs-lifecycle-audit-contract.md) | ✅ done | 🟢 aligned |
 | `2.7.2` | [Контракт термов и симметричная нормализация](../tasks/2-7-2-matching-term-contract.md) | ✅ done | 🟢 aligned |
 | `2.7.3` | [Terminal disposition при исчерпании description budget](../tasks/2-7-3-description-budget-terminal-disposition.md) | ✅ done | 🟢 aligned |
-| `2.7.4` | [Целостность жизненного цикла Run](../tasks/2-7-4-run-lifecycle-integrity.md) | ⬜ todo | 🟡 drifted |
+| `2.7.4` | [Целостность жизненного цикла Run](../tasks/2-7-4-run-lifecycle-integrity.md) | ✅ done | 🟢 aligned |
 | `2.7.5` | [Единый источник истины для sellerType](../tasks/2-7-5-seller-type-single-source.md) | ⬜ todo | 🟡 drifted |
 | `2.7.6` | [Process-independent запрет пересечения обходов](../tasks/2-7-6-durable-monitor-no-overlap.md) | ⬜ todo | 🟡 drifted |
 | `2.7.7` | [Snippet только для совпадения в описании](../tasks/2-7-7-description-only-snippet.md) | ⬜ todo | 🟡 drifted |
