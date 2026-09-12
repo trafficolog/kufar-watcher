@@ -78,6 +78,13 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string')
 }
 
+function parsePersistedSellerType(value: unknown): CanonicalQuery['sellerType'] {
+  if (value === null) return null
+  if (value === 'private' || value === 'company') return value
+  if (value === 'bez-posrednikov') return 'private'
+  throw new PersistedCanonicalQueryError()
+}
+
 export function parsePersistedCanonicalQuery(value: unknown): CanonicalQuery {
   if (!isRecord(value)) throw new PersistedCanonicalQueryError()
 
@@ -86,7 +93,6 @@ export function parsePersistedCanonicalQuery(value: unknown): CanonicalQuery {
     !isNullableString(value.category) ||
     !isNullableString(value.query) ||
     !isNullableString(value.region) ||
-    !isNullableString(value.sellerType) ||
     !isNullableString(value.sort) ||
     !isNullableString(value.operation) ||
     !isStringArray(value.pathFilters) ||
@@ -95,6 +101,7 @@ export function parsePersistedCanonicalQuery(value: unknown): CanonicalQuery {
     throw new PersistedCanonicalQueryError()
   }
 
+  const sellerType = parsePersistedSellerType(value.sellerType)
   const extraParams: Record<string, string[]> = {}
   for (const [key, values] of Object.entries(value.extraParams)) {
     if (!isStringArray(values)) throw new PersistedCanonicalQueryError()
@@ -106,7 +113,7 @@ export function parsePersistedCanonicalQuery(value: unknown): CanonicalQuery {
     category: value.category,
     query: value.query,
     region: value.region,
-    sellerType: value.sellerType,
+    sellerType,
     sort: value.sort,
     operation: value.operation,
     pathFilters: [...value.pathFilters],

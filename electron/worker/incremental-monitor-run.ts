@@ -9,6 +9,7 @@ import {
   createMatchingCandidateSelector,
   parsePersistedKeywordRule,
 } from './listing-match-selector'
+import { parsePersistedCanonicalQuery } from './monitor-config-persistence'
 import {
   commitMonitorRun,
   type MatchSelection,
@@ -75,56 +76,12 @@ interface PersistedCatchupCursor {
   catchupLastListId: string | null
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function isNullableString(value: unknown): value is string | null {
-  return typeof value === 'string' || value === null
-}
-
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string')
 }
 
 function isValidDate(value: Date): boolean {
   return Number.isFinite(value.getTime())
-}
-
-function parseCanonicalQuery(value: unknown): CanonicalQuery {
-  if (!isRecord(value)) throw new Error('Invalid persisted canonical query')
-
-  if (
-    typeof value.host !== 'string' ||
-    !isNullableString(value.category) ||
-    !isNullableString(value.query) ||
-    !isNullableString(value.region) ||
-    !isNullableString(value.sellerType) ||
-    !isNullableString(value.sort) ||
-    !isNullableString(value.operation) ||
-    !isStringArray(value.pathFilters) ||
-    !isRecord(value.extraParams)
-  ) {
-    throw new Error('Invalid persisted canonical query')
-  }
-
-  const extraParams: Record<string, string[]> = {}
-  for (const [key, values] of Object.entries(value.extraParams)) {
-    if (!isStringArray(values)) throw new Error('Invalid persisted canonical query')
-    extraParams[key] = [...values]
-  }
-
-  return {
-    host: value.host,
-    category: value.category,
-    query: value.query,
-    region: value.region,
-    sellerType: value.sellerType,
-    sort: value.sort,
-    operation: value.operation,
-    pathFilters: [...value.pathFilters],
-    extraParams,
-  }
 }
 
 function parseBoundaryIds(value: unknown): string[] {
@@ -252,7 +209,7 @@ export async function runIncrementalMonitor({
     throw new ColdStartRequiredError(monitorId)
   }
 
-  const query = parseCanonicalQuery(monitor.query)
+  const query = parsePersistedCanonicalQuery(monitor.query)
   const persistedSelector =
     monitor.keywords === undefined
       ? acceptAllCandidateSelector

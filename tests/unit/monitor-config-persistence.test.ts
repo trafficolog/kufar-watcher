@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   canonicalQueryEquals,
+  parsePersistedCanonicalQuery,
+  PersistedCanonicalQueryError,
   shouldResetMonitorCursor,
   type MonitorSourceIdentity,
 } from '../../electron/worker/monitor-config-persistence'
@@ -76,6 +78,26 @@ describe('canonicalQueryEquals', () => {
     expect(canonicalQueryEquals(query(), query({ region: 'vitebsk' }))).toBe(false)
     expect(canonicalQueryEquals(query(), query({ sellerType: 'company' }))).toBe(false)
     expect(canonicalQueryEquals(query(), query({ sort: 'price' }))).toBe(false)
+  })
+})
+
+describe('parsePersistedCanonicalQuery', () => {
+  it('normalizes the legacy private seller marker without a database migration', () => {
+    const persisted = {
+      ...query(),
+      sellerType: 'bez-posrednikov',
+    }
+
+    expect(parsePersistedCanonicalQuery(persisted)).toEqual(query({ sellerType: 'private' }))
+  })
+
+  it('rejects unknown persisted seller types', () => {
+    expect(() =>
+      parsePersistedCanonicalQuery({
+        ...query(),
+        sellerType: 'broker',
+      }),
+    ).toThrowError(PersistedCanonicalQueryError)
   })
 })
 
