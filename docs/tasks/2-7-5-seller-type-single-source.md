@@ -2,8 +2,8 @@
 id: "2.7.5"
 phase: 2
 epic: "2.7"
-status: todo
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-12
 roles: [BACK, DB, QA]
 depends_on: ["2.3.1"]
@@ -18,18 +18,30 @@ tags: [audit, seller, canonical-query, prisma, invariant, p1]
 
 Runtime использует `Monitor.query.sellerType`, но schema одновременно хранит `Monitor.sellerType String?`. Отдельная колонка записывается через `MonitorConfigPatch.sellerType?: string | null` без canonical validation и может молча расходиться с JSON query.
 
-## Предпочтительное направление
+## Реализация
 
-Сохранить один independently writable source. Перед реализацией проверить будущие consumers в data-model/UI; если отдельная колонка не нужна реальному запросу/индексу, удалить её безопасной миграцией и считать `query.sellerType` единственным источником. Если колонка остаётся, запись обязана быть транзакционно синхронизирована и валидирована тем же `SellerType` contract.
+- `Monitor.query.sellerType` — единственный independently writable source; отдельное поле удалено из `MonitorConfigPatch`, Prisma schema и PostgreSQL.
+- Write boundary принимает только canonical `null | private | company` и отклоняет остальные значения до `monitor.update` и удаления cursor.
+- Migration сохраняет существующий `query.sellerType` при конфликте, потому что именно его использовал runtime; если canonical seller отсутствует, переносит `private`/`company` из старой колонки и нормализует `bez-posrednikov` в `private`.
+- Неизвестный legacy-only seller останавливает migration вместо молчаливой потери фильтра.
+- Development seed хранит полный synthetic `CanonicalQuery`; будущий UI читает и пишет seller только внутри canonical query.
 
 ## Критерии приёмки
 
-- [ ] Невозможно сохранить `query.sellerType='private'` и независимо `Monitor.sellerType='company'` через поддерживаемый path.
-- [ ] Невалидные seller values отклоняются до commit.
-- [ ] Legacy persisted `bez-posrednikov` продолжает читаться по контракту `2.3.1`.
-- [ ] Миграция существующих rows не теряет эффективный seller filter.
-- [ ] Cursor reset/preserve semantics зависят от эффективного CanonicalQuery, а не от второго рассинхронизированного поля.
-- [ ] Data-model и будущий UI contract описывают один source of truth.
+- [x] Невозможно сохранить `query.sellerType='private'` и независимо `Monitor.sellerType='company'` через поддерживаемый path.
+- [x] Невалидные seller values отклоняются до commit.
+- [x] Legacy persisted `bez-posrednikov` продолжает читаться по контракту `2.3.1`.
+- [x] Миграция существующих rows не теряет эффективный seller filter.
+- [x] Cursor reset/preserve semantics зависят от эффективного CanonicalQuery, а не от второго рассинхронизированного поля.
+- [x] Data-model и будущий UI contract описывают один source of truth.
+
+## TDD и проверка
+
+- **Typed contract RED:** commit `e91b153544bd1a064df50830ce8cbbc7c59243e0`, verify **#1136** (`34713047160`) — все предыдущие шаги GREEN, typecheck упал только на существующем top-level `MonitorConfigPatch.sellerType`.
+- **Persistence RED:** commit `99c9c5f96b5bf55828312c6ade681f951a064caa`, verify **#1137** (`34713096203`) — typecheck/lint/formatting GREEN, PostgreSQL integration показал, что `sellerType='broker'` сохранялся вместо отклонения.
+- **Migration RED:** commit `8e1a8ad8dd578f1889819235c75d0e943c1d5b12`, verify **#1138** (`34713209380`) — persistence gate GREEN, оба migration scenarios упали только из-за отсутствующего migration SQL.
+- **Migration implementation:** commit `60fb5347b3c3006b734601957cb6207eca38e8fe`; verify **#1139** выявил несовместимость real Kufar host в synthetic seed contract, после чего commit `126eddbe368cfab05d3e3e9689b55a33e2437bb5` вернул fixture-only host без изменения seller semantics.
+- **GREEN:** verify **#1140** (`34713459868`) полностью GREEN, включая unit tests, typecheck, lint, formatting, PostgreSQL migration characterization, clean deploy/reset, build и оба Electron smoke.
 
 ## Не делать
 

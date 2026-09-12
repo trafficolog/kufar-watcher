@@ -62,6 +62,13 @@ window.kufar.external.openListing(id)
 `contextIsolation` включён, `nodeIntegration` выключен, сырой `ipcRenderer`
 наружу не отдаётся ни при каких условиях.
 
+В create/edit contract тип продавца передаётся только как
+`CanonicalQuery.sellerType: null | 'private' | 'company'`. Renderer может
+показывать его как отдельный контрол формы или как результат проверки URL, но
+не отправляет независимо изменяемое top-level поле `sellerType`: сохранение
+всегда обновляет canonical query, а смена seller поэтому следует общей cursor
+reset semantics для изменения выдачи.
+
 ## Структура renderer
 
 ```

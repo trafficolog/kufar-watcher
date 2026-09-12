@@ -8,7 +8,7 @@
 
 | Сущность | Назначение | Ключевые поля |
 |----------|-----------|---------------|
-| `Monitor` | правило мониторинга | `name` (имя-тег в уведомлении), `sourceUrl`, `query` (jsonb, разобранный CanonicalQuery), `intervalSec`, `keywords` (jsonb), `searchInDescription`, `sellerType`, `state` |
+| `Monitor` | правило мониторинга | `name` (имя-тег в уведомлении), `sourceUrl`, `query` (jsonb, разобранный `CanonicalQuery`, включая `sellerType`), `intervalSec`, `keywords` (jsonb), `searchInDescription`, `state` |
 | `MonitorCursor` | состояние обхода монитора | `monitorId` (первичный ключ), `boundaryTime`, `boundaryIds` (jsonb), `lastRunAt`, `updatedAt` |
 | `Run` | одна попытка обхода | `monitorId`, `startedAt`, `finishedAt`, `durationMs`, `outcome`, `httpStatus`, `seen`, `matched`, `error`, `errorCategory`, `errorCode`, `degradedLevel` |
 | `Listing` | объявление площадки | `listId` (первичный ключ, идентификатор площадки), `title`, `priceKind`, `priceAmount` (nullable), `currency`, `url`, `region`, `accountId`, `isCompany`, `listTime`, `description`, `raw` (jsonb), `firstSeenAt` |
@@ -72,8 +72,8 @@ UNIQUE(source, externalId)
 
 | Что изменилось | Курсор |
 |----------------|--------|
-| `sourceUrl` или разобранный запрос | сбрасывается, следующий обход — холодный старт |
-| интервал, имя, ключевые слова, фильтр продавца | сохраняется |
+| `sourceUrl` или разобранный запрос, включая `query.sellerType` | сбрасывается, следующий обход — холодный старт |
+| интервал, имя, ключевые слова, `searchInDescription` | сохраняется |
 | монитор вернулся из архива | сбрасывается |
 
 Смену ссылки без сброса легко недооценить: если правило переставили с приставок
@@ -85,6 +85,12 @@ UNIQUE(source, externalId)
 намеренное выключение: за три месяца в архиве накопились сотни объявлений,
 которые человек сознательно не отслеживал, и присылать их пачкой было бы
 наказанием за возврат. Поэтому возврат из архива — новая точка отсчёта.
+
+**Тип продавца хранится только в `Monitor.query.sellerType`.** Допустимый
+canonical contract — `null | private | company`; исторический marker
+`bez-posrednikov` нормализуется в `private` только при чтении старого JSON.
+Отдельной колонки и отдельного patch-поля нет: runtime, cursor policy и будущий
+редактор правила используют один и тот же `CanonicalQuery`.
 
 **Куда пишутся события здоровья до среза `0.6.0`.** Сущность `HealthEvent`
 появляется только в `0.6.0`, а требование записать событие при `429` есть уже в
