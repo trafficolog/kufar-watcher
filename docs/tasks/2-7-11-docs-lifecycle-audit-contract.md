@@ -5,7 +5,7 @@ epic: "2.7"
 status: done
 sync_state: aligned
 last_reviewed: 2026-09-12
-status_note: "Parent lifecycle policy теперь различает todo, in_progress и done/aligned; 2.4.4 и deferred risk согласованы с фактическим typed pause-required runtime без автопаузы."
+status_note: "Parent lifecycle policy различает todo, in_progress и done/aligned, сохраняя blocked/cancelled как explicit overrides; 2.4.4 и deferred risk согласованы с фактическим typed pause-required runtime без автопаузы."
 roles: [QA, BACK]
 depends_on: ["0.4.3", "2.4.4"]
 estimated_hours: 2-3
@@ -19,7 +19,7 @@ tags: [audit, docs-ops, lifecycle, drift, p0]
 
 `docs:ops:check` проверял только эквивалентность `done/aligned` родителя состоянию «все дети done/aligned». Он разрешал родителю оставаться `todo`, когда часть детей уже `done`/`in_progress`.
 
-Теперь policy явная: все прямые дети `todo` → parent `todo`; смешанный прогресс → parent `in_progress`; все дети `done/aligned` → parent `done/aligned`. Для промежуточного состояния `sync_state` остаётся отдельным измерением и не форсируется в `aligned`.
+Теперь policy явная: все прямые дети `todo` → parent `todo`; смешанный прогресс → parent `in_progress`; все дети `done/aligned` → parent `done/aligned`. Для промежуточного состояния `sync_state` остаётся отдельным измерением и не форсируется в `aligned`. Явно назначенные `blocked` и `cancelled` остаются допустимыми parent overrides и не схлопываются обратно в progress-derived статус.
 
 ## Проблема 2: карточка 2.4.4
 
@@ -30,6 +30,7 @@ tags: [audit, docs-ops, lifecycle, drift, p0]
 ## Что сделано
 
 - Расширена lifecycle validation для промежуточных состояний parent/children и покрыта тестами на epic и phase уровнях.
+- Сохранена совместимость с явными parent-состояниями `blocked` и `cancelled`; они валидны независимо от progress-derived статуса прямых детей.
 - Частично выполненные `0.3`, `2.7` и фаза `2` переведены в `in_progress/drifted` согласно общей policy.
 - Переформулирован `2.4.4`: drift даёт terminal no-retry disposition и typed pause-required signal; `Monitor.state` здесь не меняется.
 - Записан accepted slice risk: до `4.3` тот же drift может снова сработать на следующем schedule slot.
@@ -39,6 +40,7 @@ tags: [audit, docs-ops, lifecycle, drift, p0]
 - [x] Все дети todo → parent может быть todo.
 - [x] Есть начатый/завершённый ребёнок, но не все done → parent обязан отражать work-in-progress согласно документированной policy.
 - [x] Все дети done/aligned → parent done/aligned.
+- [x] Явные `blocked`/`cancelled` parent states остаются допустимыми overrides на epic и phase уровнях.
 - [x] `docs:ops:check` ловит regression для phase и epic levels.
 - [x] `2.4.4` больше не утверждает фактическую автопаузу.
 - [x] `deferred-requirements.md` явно фиксирует временный риск повторного drift traversal до `4.3`.
@@ -49,6 +51,8 @@ tags: [audit, docs-ops, lifecycle, drift, p0]
 - **Минимальная реализация** `fc6cb5ad86f2abc005b6fbee3b02901cd2989317`: общий `expectedParentStatus` и симметричная parent validation для epic→tasks и phase→epics.
 - **Repository characterization — verify #1097**: усиленный checker нашёл ровно три существующих metadata mismatch — `0.3`, `2.7` и фазу `2`, без других lifecycle нарушений.
 - **Canonical GREEN — verify #1100** на `c5b45e67dcd95d1475ec7e150a992f6411750bdc`, tree `3d3bea48768d4a86c9f36a76e1feea655edc256a`: dependency audit, docs consistency, unit tests, CI self-check, typecheck, lint, formatting, PostgreSQL integration, build/output и оба Electron smoke прошли.
+- **Review mutation RED — verify #1115** на `b701b5f49cd12c3dbe662a893d07db2703a91e1f`: после временного удаления explicit override ровно четыре refined-теста (`blocked`/`cancelled` × epic/phase) упали, остальные 505 unit-тестов прошли; repository docs consistency оставался GREEN.
+- **Review fix GREEN — verify #1117** на `e808253cfa0a88d43b9d3335d3ce7e3f711d26ab`, tree `d4b57ab0511c8d4aa69e1b7dcd5600e1e7f068dc`: полный canonical pipeline прошёл, включая formatting, PostgreSQL integration, build/output и оба Electron smoke.
 
 ## Не делать
 
