@@ -2,7 +2,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import type { Prisma, PrismaClient } from '../../generated/prisma/client'
 import { createPrismaClient } from '../../electron/worker/prisma-client'
+import { createSellerBlockPrefilter } from '../../electron/worker/seller-block-prefilter'
 import type { CanonicalQuery } from '../../shared/canonical-query'
+import type { Listing } from '../../shared/listing'
 
 const integrationDescribe =
   process.env.KUFAR_POSTGRES_INTEGRATION === '1' ? describe : describe.skip
@@ -29,6 +31,8 @@ const CATCHUP_BOUNDARY_TIME = new Date('2026-09-08T11:00:00.000Z')
 const CATCHUP_BOUNDARY_IDS = ['config-pending']
 const CATCHUP_LAST_LIST_TIME = new Date('2026-09-08T10:30:00.000Z')
 const CATCHUP_LAST_LIST_ID = 'config-last'
+const SELLER_BLOCK_FIRST = 'monitor-config-seller-block-first'
+const SELLER_BLOCK_SECOND = 'monitor-config-seller-block-second'
 
 type ConfigPersistenceModule = {
   updateMonitorConfig: (
@@ -41,6 +45,23 @@ type ConfigPersistenceModule = {
     monitorId: number,
     patch: Record<string, unknown>,
   ) => Promise<void>
+}
+
+function sellerListing(accountId: string): Listing {
+  return {
+    listId: `seller-block-${accountId}`,
+    title: 'Seller block integration fixture',
+    priceKind: 'fixed',
+    priceAmount: '100.00',
+    currency: 'BYN',
+    url: `https://fixtures.invalid/seller-block/${accountId}`,
+    region: 'minsk',
+    accountId,
+    isCompany: false,
+    listTime: '2026-09-12T08:00:00.000Z',
+    description: null,
+    raw: { source: 'integration' },
+  }
 }
 
 integrationDescribe('monitor config persistence', () => {
@@ -64,6 +85,9 @@ integrationDescribe('monitor config persistence', () => {
 
   beforeEach(async () => {
     await prisma.monitor.deleteMany({ where: { id: MONITOR_ID } })
+    await prisma.sellerBlock.deleteMany({
+      where: { accountId: { in: [SELLER_BLOCK_FIRST, SELLER_BLOCK_SECOND] } },
+    })
     await prisma.monitor.create({
       data: {
         id: MONITOR_ID,
@@ -186,5 +210,19 @@ integrationDescribe('monitor config persistence', () => {
     })
     expect(cursor.catchupCursor).toBe('page-2')
     expect(cursor.catchupBoundaryIds).toEqual(CATCHUP_BOUNDARY_IDS)
+  })
+
+  it('refreshes SellerBlock snapshots between calls without reconnecting Prisma', async () => {
+    await prisma.sellerBlock.create({ data: { accountId: SELLER_BLOCK_FIRST } })
+    const firstPrefilter = await createSellerBlockPrefilter(prisma)
+
+    await prisma.sellerBlock.delete({ where: { accountId: SELLER_BLOCK_FIRST } })
+    await prisma.sellerBlock.create({ data: { accountId: SELLER_BLOCK_SECOND } })
+    const secondPrefilter = await createSellerBlockPrefilter(prisma)
+
+    await expect(firstPrefilter.accept(sellerListing(SELLER_BLOCK_FIRST))).resolves.toBe(false)
+    await expect(firstPrefilter.accept(sellerListing(SELLER_BLOCK_SECOND))).resolves.toBe(true)
+    await expect(secondPrefilter.accept(sellerListing(SELLER_BLOCK_FIRST))).resolves.toBe(true)
+    await expect(secondPrefilter.accept(sellerListing(SELLER_BLOCK_SECOND))).resolves.toBe(false)
   })
 })
