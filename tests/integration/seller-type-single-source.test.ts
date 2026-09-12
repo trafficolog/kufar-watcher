@@ -4,7 +4,7 @@ import { Client } from 'pg'
 import { describe, expect, it } from 'vitest'
 
 const integration = process.env.KUFAR_POSTGRES_INTEGRATION === '1' ? describe : describe.skip
-const FIXTURE_IDS = [975_101, 975_102, 975_103]
+const FIXTURE_IDS = [975_101, 975_102, 975_103, 975_104]
 const MIGRATION_URL = new URL(
   '../../prisma/migrations/20260912183500_seller_type_single_source/migration.sql',
   import.meta.url,
@@ -22,9 +22,20 @@ const QUERY_WITH_COMPANY = {
   extraParams: {},
 }
 
-const QUERY_WITHOUT_SELLER = {
+const QUERY_WITH_NULL_SELLER = {
   ...QUERY_WITH_COMPANY,
   sellerType: null,
+}
+
+const QUERY_WITHOUT_SELLER = {
+  host: 'www.kufar.by',
+  category: 'electronics',
+  query: 'phone',
+  region: 'minsk',
+  sort: 'lst.d',
+  operation: null,
+  pathFilters: [],
+  extraParams: {},
 }
 
 integration('sellerType single-source migration', () => {
@@ -40,8 +51,17 @@ integration('sellerType single-source migration', () => {
         `INSERT INTO "Monitor" ("id", "name", "sourceUrl", "query", "intervalSec", "keywords", "sellerType")
          VALUES
            (${FIXTURE_IDS[0]}, 'canonical-wins', 'https://fixtures.invalid/canonical-wins', '${JSON.stringify(QUERY_WITH_COMPANY)}'::jsonb, 60, '[]'::jsonb, 'private'),
-           (${FIXTURE_IDS[1]}, 'legacy-company', 'https://fixtures.invalid/legacy-company', '${JSON.stringify(QUERY_WITHOUT_SELLER)}'::jsonb, 60, '[]'::jsonb, 'company'),
-           (${FIXTURE_IDS[2]}, 'legacy-marker', 'https://fixtures.invalid/legacy-marker', '${JSON.stringify(QUERY_WITHOUT_SELLER)}'::jsonb, 60, '[]'::jsonb, 'bez-posrednikov')`,
+           (${FIXTURE_IDS[1]}, 'canonical-null-wins', 'https://fixtures.invalid/canonical-null-wins', '${JSON.stringify(QUERY_WITH_NULL_SELLER)}'::jsonb, 60, '[]'::jsonb, 'company'),
+           (${FIXTURE_IDS[2]}, 'legacy-company', 'https://fixtures.invalid/legacy-company', '${JSON.stringify(QUERY_WITHOUT_SELLER)}'::jsonb, 60, '[]'::jsonb, 'company'),
+           (${FIXTURE_IDS[3]}, 'legacy-marker', 'https://fixtures.invalid/legacy-marker', '${JSON.stringify(QUERY_WITHOUT_SELLER)}'::jsonb, 60, '[]'::jsonb, 'bez-posrednikov')`,
+      )
+      await client.query(
+        `INSERT INTO "MonitorCursor" ("monitorId", "boundaryIds", "updatedAt")
+         VALUES
+           (${FIXTURE_IDS[0]}, '[]'::jsonb, CURRENT_TIMESTAMP),
+           (${FIXTURE_IDS[1]}, '[]'::jsonb, CURRENT_TIMESTAMP),
+           (${FIXTURE_IDS[2]}, '[]'::jsonb, CURRENT_TIMESTAMP),
+           (${FIXTURE_IDS[3]}, '[]'::jsonb, CURRENT_TIMESTAMP)`,
       )
 
       await client.query(migrationSql)
@@ -54,9 +74,18 @@ integration('sellerType single-source migration', () => {
       )
       expect(rows.rows).toEqual([
         { id: FIXTURE_IDS[0], sellerType: 'company' },
-        { id: FIXTURE_IDS[1], sellerType: 'company' },
-        { id: FIXTURE_IDS[2], sellerType: 'private' },
+        { id: FIXTURE_IDS[1], sellerType: null },
+        { id: FIXTURE_IDS[2], sellerType: 'company' },
+        { id: FIXTURE_IDS[3], sellerType: 'private' },
       ])
+
+      const cursors = await client.query<{ monitorId: number }>(
+        `SELECT "monitorId"
+         FROM "MonitorCursor"
+         WHERE "monitorId" IN (${FIXTURE_IDS.join(', ')})
+         ORDER BY "monitorId"`,
+      )
+      expect(cursors.rows).toEqual([{ monitorId: FIXTURE_IDS[0] }, { monitorId: FIXTURE_IDS[1] }])
 
       const columns = await client.query<{ count: string }>(
         `SELECT count(*) AS count
