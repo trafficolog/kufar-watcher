@@ -30,6 +30,7 @@ const degradationEvent: SourceDegradationEvent = {
 function executorFor(
   prisma: ReturnType<typeof createPrismaClient>,
   fetchPage: SourceAdapter['fetchPage'],
+  runCycle?: Parameters<typeof createScheduledMonitorRunExecutor>[0]['runCycle'],
 ) {
   const adapter = { fetchPage } as SourceAdapter
   const adapters = createSourceAdapterRegistry({
@@ -41,6 +42,7 @@ function executorFor(
     createRunAdapters: () => adapters,
     maxPages: 2,
     descriptionLoader: { ensureDescription: vi.fn() },
+    runCycle,
   })
 }
 
@@ -240,15 +242,21 @@ integration('scheduled Run journal', () => {
     const entered = new Promise<void>((resolve) => {
       firstEntered = resolve
     })
-    const fetchPage = vi.fn(async () => {
-      if (fetchPage.mock.calls.length === 1) {
+    const runCycle = vi.fn(async () => {
+      if (runCycle.mock.calls.length === 1) {
         firstEntered()
         await release
       }
-      return { listings: [], nextCursor: null }
+      return {
+        cycleKind: 'cold-start' as const,
+        baselineCount: 0,
+        pagesRead: 1,
+        nextWatermark: null,
+      }
     })
-    const firstExecutor = executorFor(prisma, fetchPage)
-    const secondExecutor = executorFor(secondPrisma, fetchPage)
+    const fetchPage = vi.fn().mockResolvedValue({ listings: [], nextCursor: null })
+    const firstExecutor = executorFor(prisma, fetchPage, runCycle)
+    const secondExecutor = executorFor(secondPrisma, fetchPage, runCycle)
     const first = firstExecutor(MONITOR_ID)
     await entered
 
@@ -256,7 +264,8 @@ integration('scheduled Run journal', () => {
       await expect(secondExecutor(MONITOR_ID)).resolves.toEqual({
         cycleKind: 'skipped-overlap',
       })
-      expect(fetchPage).toHaveBeenCalledTimes(1)
+      expect(runCycle).toHaveBeenCalledTimes(1)
+      expect(fetchPage).not.toHaveBeenCalled()
     } finally {
       releaseFirst()
       await first
