@@ -31,53 +31,21 @@
 - Consumes: `DescriptionRequestBudgetExceededError`, `KufarSourceRequestError`, `createScheduledMonitorRunExecutor()`.
 - Produces: focused regression tests that require budget exhaustion to resolve as `{ cycleKind: 'failed-no-retry' }` while transient source errors still reject.
 
-- [ ] **Step 1: Write the failing budget-disposition test**
+- [x] **Step 1: Write the failing budget-disposition test**
 
-Create a focused test harness with a minimal Prisma fake and adapter registry, then add a test equivalent to:
+Created a focused harness that asserts budget exhaustion resolves `failed-no-retry` while persisting the policy/error journal.
 
-```ts
-it('treats description budget exhaustion as a terminal failed-no-retry run', async () => {
-  const { prisma, runUpdate, createRunAdapters, descriptionLoader } = executorDependencies()
-  const failure = new DescriptionRequestBudgetExceededError()
-  const runCycle = vi.fn().mockRejectedValue(failure)
-  const executor = createScheduledMonitorRunExecutor({
-    prisma,
-    createRunAdapters,
-    maxPages: 5,
-    descriptionLoader,
-    runCycle: runCycle as never,
-  })
+- [x] **Step 2: Add transient-source characterization**
 
-  await expect(executor(17)).resolves.toEqual({ cycleKind: 'failed-no-retry' })
-  expect(runCycle).toHaveBeenCalledTimes(1)
-  expect(runUpdate).toHaveBeenCalledWith({
-    where: { id: 9001 },
-    data: {
-      finishedAt: expect.any(Date),
-      durationMs: expect.any(Number),
-      outcome: 'error',
-      seen: 0,
-      matched: 0,
-      error: 'Listing detail request budget exhausted',
-      errorCategory: 'policy',
-      errorCode: 'description-budget-exhausted',
-      httpStatus: null,
-    },
-  })
-})
-```
+Covered `network`, `timeout`, and `http-5xx` with rejecting executor expectations to preserve the pg-boss retry path.
 
-- [ ] **Step 2: Add transient-source characterization**
+- [x] **Step 3: Verify RED**
 
-Cover `network`, `timeout`, and `http-5xx` `KufarSourceRequestError` values with `it.each`, asserting `executor(17)` rejects with the same error. This protects the existing pg-boss retry path.
+Canonical verify **#1084** (`34694646451`) on commit `2f8178787e6a3646bdf2622904989c18c42d77ea` failed only because budget exhaustion was still rethrown; all three transient cases passed.
 
-- [ ] **Step 3: Verify RED**
+- [x] **Step 4: Commit RED tests**
 
-Run canonical/unit verification for the branch. Expected failure: the new budget test rejects with `DescriptionRequestBudgetExceededError` instead of resolving `failed-no-retry`; transient characterization passes.
-
-- [ ] **Step 4: Commit RED tests**
-
-Commit only the test changes with a message such as `test: define terminal description budget disposition`.
+Committed as `2f8178787e6a3646bdf2622904989c18c42d77ea` (`test: define terminal description budget disposition`).
 
 ---
 
@@ -86,14 +54,15 @@ Commit only the test changes with a message such as `test: define terminal descr
 **Files:**
 - Modify: `electron/worker/scheduled-monitor-run.ts`
 - Test: `tests/unit/description-budget-terminal-disposition.test.ts`
+- Test: `tests/unit/scheduled-monitor-retry-disposition.test.ts`
 
 **Interfaces:**
 - Consumes: existing `FailedNoRetryMonitorRunResult` and journal classification.
 - Produces: `DescriptionRequestBudgetExceededError` is journaled as policy/error and returns `{ cycleKind: 'failed-no-retry' }`.
 
-- [ ] **Step 1: Write the minimal production branch**
+- [x] **Step 1: Write the minimal production branch**
 
-Immediately after journal persistence and before retryable source handling, add:
+Added exactly:
 
 ```ts
 if (error instanceof DescriptionRequestBudgetExceededError) {
@@ -101,15 +70,15 @@ if (error instanceof DescriptionRequestBudgetExceededError) {
 }
 ```
 
-Do not change queue retry options or other failure branches.
+after journal persistence. Queue retry options and other failure branches were unchanged.
 
-- [ ] **Step 2: Verify GREEN**
+- [x] **Step 2: Verify GREEN**
 
-Run the targeted unit tests, then the repository's canonical verification. Expected: budget-disposition and transient characterization tests pass with no unrelated failures.
+The new focused regression was GREEN after commit `7d845550009e178b75e89cd9e0c11386ab2962eb`. Verify **#1085** then exposed one pre-existing characterization test whose expectation intentionally represented the old retryable budget behavior. Systematic debugging traced the failure to that stale contract; commit `e94dbda05c9d78fc8ea3f951130a816e48653db0` aligned only that expectation while preserving journal assertions. Canonical verify **#1087** later passed the complete suite.
 
-- [ ] **Step 3: Commit production change**
+- [x] **Step 3: Commit production change**
 
-Commit with a message such as `fix: stop retries after description budget exhaustion`.
+Committed as `7d845550009e178b75e89cd9e0c11386ab2962eb` (`fix: stop retries after description budget exhaustion`).
 
 ---
 
@@ -123,19 +92,17 @@ Commit with a message such as `fix: stop retries after description budget exhaus
 - Consumes: `ListingDescriptionCache.ensureDescription()` persistence contract.
 - Produces: a two-instance test proving a description persisted by one run is a cache hit in the next run without HTTP or budget consumption.
 
-- [ ] **Step 1: Add a two-run persistent-cache test**
+- [x] **Step 1: Add a two-run persistent-cache test**
 
-Use a small stateful Prisma fake shared by two distinct `ListingDescriptionCache` instances. First instance starts with no cached row, loads a fixture over HTTP, and records the fields passed to `listing.upsert`. The fake then exposes that persisted `description`, `descriptionLoadedAt`, and `availability` through `listing.findUnique`. Second instance uses the same fake with an HTTP mock that would fail if called plus `{ consume: vi.fn() }` as request budget.
+Added a stateful Prisma fake shared by two distinct cache instances. The first run fetches and persists the detail; the second run sees the persisted row, performs no HTTP request, and does not consume its request budget.
 
-Assert the second call resolves with `source: 'cache'`, performs no HTTP request, and does not call `consume()`.
+- [x] **Step 2: Verify the characterization is already GREEN**
 
-- [ ] **Step 2: Verify the characterization is already GREEN**
+Canonical verify **#1087** (`34694893254`) passed this test without any production cache changes, proving existing persistence semantics satisfy next-run cache progress.
 
-Run the targeted cache test. Expected: PASS without production changes, proving current persistence semantics already satisfy the next-run cache-progress acceptance criterion.
+- [x] **Step 3: Commit characterization test**
 
-- [ ] **Step 3: Commit characterization test**
-
-Commit with a message such as `test: preserve description cache progress across runs`.
+Committed as `3dee0efc21fc71a8e16bee4cca4bca37b24db210` (`test: preserve description cache progress across runs`).
 
 ---
 
@@ -149,13 +116,13 @@ Commit with a message such as `test: preserve description cache progress across 
 - Consumes: RED and GREEN workflow evidence from Tasks 1-3.
 - Produces: task status `done`, `sync_state: aligned`, refreshed rollups, and an exact-tree canonical GREEN commit suitable for PR review.
 
-- [ ] **Step 1: Update task evidence**
+- [x] **Step 1: Update task evidence**
 
-Mark each acceptance criterion complete and record the exact RED/GREEN workflow run numbers and relevant commit SHAs.
+Marked the task `done/aligned`, checked every acceptance criterion, and recorded RED **#1084**, stale-contract diagnostic **#1085**, and code GREEN **#1087** evidence.
 
 - [ ] **Step 2: Refresh generated docs**
 
-Run `npm run docs:ops:refresh` using the established self-cleaning workflow pattern if local execution is unavailable. Ensure no temporary workflow remains in the final tree.
+Run `npm run docs:ops:refresh` using the established self-cleaning workflow pattern. Ensure no temporary workflow remains in the final tree.
 
 - [ ] **Step 3: Run final canonical verify**
 
@@ -164,3 +131,10 @@ Require all unit, typecheck, lint, formatting, PostgreSQL, build, and Electron s
 - [ ] **Step 4: Review branch diff and open PR**
 
 Compare against `main`, confirm only intended code/tests/docs changed, then open a PR. Do not merge without explicit user authorization.
+
+## Evidence summary
+
+- RED: verify **#1084**, commit `2f8178787e6a3646bdf2622904989c18c42d77ea`.
+- Minimal production fix: `7d845550009e178b75e89cd9e0c11386ab2962eb`.
+- Stale characterization alignment: `e94dbda05c9d78fc8ea3f951130a816e48653db0`.
+- Cache carry-over characterization + code GREEN: verify **#1087**, commit `3dee0efc21fc71a8e16bee4cca4bca37b24db210`.
