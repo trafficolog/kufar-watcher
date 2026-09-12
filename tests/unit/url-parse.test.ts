@@ -53,7 +53,7 @@ describe('parseKufarListingUrl', () => {
     })
   })
 
-  it('parses the observed real-estate route semantics and seller marker', () => {
+  it('normalizes the observed private real-estate seller marker', () => {
     const result = parseKufarListingUrl(
       'https://re.kufar.by/l/minsk/kupit/kvartiru/1k/bez-posrednikov?cur=USD',
     )
@@ -63,12 +63,51 @@ describe('parseKufarListingUrl', () => {
       category: 'kvartiru',
       query: null,
       region: 'minsk',
-      sellerType: 'bez-posrednikov',
+      sellerType: 'private',
       sort: null,
       operation: 'kupit',
       pathFilters: ['1k'],
       extraParams: { cur: ['USD'] },
     })
+  })
+
+  it.each([
+    ['0', 'private'],
+    ['false', 'private'],
+    ['1', 'company'],
+    ['true', 'company'],
+  ] as const)('normalizes cmp=%s to sellerType=%s', (cmp, sellerType) => {
+    const result = parseKufarListingUrl(
+      `https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5?cmp=${cmp}&cur=BYN`,
+    )
+
+    expect(result.sellerType).toBe(sellerType)
+    expect(result.extraParams).toEqual({ cur: ['BYN'] })
+    expect(result.extraParams).not.toHaveProperty('cmp')
+  })
+
+  it('accepts repeated equivalent cmp encodings as one seller semantic', () => {
+    const result = parseKufarListingUrl(
+      'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5?cmp=0&cmp=false',
+    )
+
+    expect(result.sellerType).toBe('private')
+    expect(result.extraParams).not.toHaveProperty('cmp')
+  })
+
+  it('rejects invalid or conflicting seller encodings with a stable error code', () => {
+    expectParseError(
+      'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5?cmp=2',
+      'invalid-seller-filter',
+    )
+    expectParseError(
+      'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5?cmp=0&cmp=1',
+      'invalid-seller-filter',
+    )
+    expectParseError(
+      'https://www.kufar.by/l/r~minsk/igry-i-pristavki/bez-posrednikov/q~ps5?cmp=1',
+      'invalid-seller-filter',
+    )
   })
 
   it('parses regionless real-estate operation routes without inventing a region', () => {
