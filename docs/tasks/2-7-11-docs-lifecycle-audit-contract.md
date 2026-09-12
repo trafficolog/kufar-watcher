@@ -48,7 +48,7 @@ tags: [audit, docs-ops, lifecycle, drift, p0]
 - **RED — verify #1096** на `f87fc9b5bfdf27e3a61c68ed8cc09adb90bf4c76`: два новых partial-progress теста ожидаемо получили `check` exit code `0`; all-todo boundary и остальные 503 теста прошли.
 - **Минимальная реализация** `fc6cb5ad86f2abc005b6fbee3b02901cd2989317`: общий `expectedParentStatus` и симметричная parent validation для epic→tasks и phase→epics.
 - **Repository characterization — verify #1097**: усиленный checker нашёл ровно три существующих metadata mismatch — `0.3`, `2.7` и фазу `2`, без других lifecycle нарушений.
-- Финальный canonical exact-tree verify фиксируется после refresh generated rollups.
+- **Canonical GREEN — verify #1100** на `c5b45e67dcd95d1475ec7e150a992f6411750bdc`, tree `3d3bea48768d4a86c9f36a76e1feea655edc256a`: dependency audit, docs consistency, unit tests, CI self-check, typecheck, lint, formatting, PostgreSQL integration, build/output и оба Electron smoke прошли.
 
 ## Не делать
 
