@@ -8,10 +8,7 @@ import {
   type CandidateSelector,
   type DescriptionLoader,
 } from './incremental-monitor-run'
-import {
-  composeCandidatePrefilters,
-  createSellerBlockPrefilter,
-} from './seller-block-prefilter'
+import { composeCandidatePrefilters, createSellerBlockPrefilter } from './seller-block-prefilter'
 
 export interface RunMonitorCycleInput {
   prisma: PrismaClient

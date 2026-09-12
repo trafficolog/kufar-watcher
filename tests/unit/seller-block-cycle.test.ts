@@ -80,10 +80,9 @@ beforeEach(() => {
 
 describe('runMonitorCycle seller blacklist', () => {
   it('loads one SellerBlock snapshot and composes it before a caller prefilter', async () => {
-    const { prisma, sellerBlockFindMany } = prismaWithCursor(
-      new Date('2026-09-12T07:59:00.000Z'),
-      [{ accountId: 'blocked-account' }],
-    )
+    const { prisma, sellerBlockFindMany } = prismaWithCursor(new Date('2026-09-12T07:59:00.000Z'), [
+      { accountId: 'blocked-account' },
+    ])
     const callerAccept = vi.fn(async (listing: Listing) => listing.listId !== 'caller-rejected')
     const callerPrefilter = { accept: callerAccept }
 
@@ -116,9 +115,7 @@ describe('runMonitorCycle seller blacklist', () => {
   })
 
   it('refreshes the SellerBlock snapshot for every incremental cycle', async () => {
-    const { prisma, sellerBlockFindMany } = prismaWithCursor(
-      new Date('2026-09-12T07:59:00.000Z'),
-    )
+    const { prisma, sellerBlockFindMany } = prismaWithCursor(new Date('2026-09-12T07:59:00.000Z'))
     sellerBlockFindMany
       .mockResolvedValueOnce([{ accountId: 'blocked-first' }])
       .mockResolvedValueOnce([{ accountId: 'blocked-second' }])
@@ -129,11 +126,9 @@ describe('runMonitorCycle seller blacklist', () => {
     expect(sellerBlockFindMany).toHaveBeenCalledTimes(2)
 
     const firstPrefilter = dependencyMocks.runIncrementalMonitor.mock.calls[0]?.[0]?.prefilter as
-      | { accept(listing: Listing): Promise<boolean> }
-      | undefined
+      { accept(listing: Listing): Promise<boolean> } | undefined
     const secondPrefilter = dependencyMocks.runIncrementalMonitor.mock.calls[1]?.[0]?.prefilter as
-      | { accept(listing: Listing): Promise<boolean> }
-      | undefined
+      { accept(listing: Listing): Promise<boolean> } | undefined
     expect(firstPrefilter).toBeDefined()
     expect(secondPrefilter).toBeDefined()
 
@@ -143,15 +138,18 @@ describe('runMonitorCycle seller blacklist', () => {
     await expect(secondPrefilter?.accept(makeListing('blocked-second'))).resolves.toBe(false)
   })
 
-  it.each(['missing', null] as const)('does not query SellerBlock during %s cold start', async (state) => {
-    const { prisma, sellerBlockFindMany } = prismaWithCursor(state, [
-      { accountId: 'irrelevant-during-baseline' },
-    ])
+  it.each(['missing', null] as const)(
+    'does not query SellerBlock during %s cold start',
+    async (state) => {
+      const { prisma, sellerBlockFindMany } = prismaWithCursor(state, [
+        { accountId: 'irrelevant-during-baseline' },
+      ])
 
-    await runMonitorCycle({ prisma, monitorId: MONITOR_ID, adapter, maxPages: 3 })
+      await runMonitorCycle({ prisma, monitorId: MONITOR_ID, adapter, maxPages: 3 })
 
-    expect(sellerBlockFindMany).not.toHaveBeenCalled()
-    expect(dependencyMocks.runColdStartMonitor).toHaveBeenCalledTimes(1)
-    expect(dependencyMocks.runIncrementalMonitor).not.toHaveBeenCalled()
-  })
+      expect(sellerBlockFindMany).not.toHaveBeenCalled()
+      expect(dependencyMocks.runColdStartMonitor).toHaveBeenCalledTimes(1)
+      expect(dependencyMocks.runIncrementalMonitor).not.toHaveBeenCalled()
+    },
+  )
 })
