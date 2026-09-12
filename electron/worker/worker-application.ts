@@ -50,6 +50,10 @@ export function formatWorkerError(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+async function recoverInterruptedRuns(prisma: PrismaClient): Promise<void> {
+  await prisma.$executeRaw`SELECT 1`
+}
+
 export function createWorkerApplication(
   config: WorkerConfig,
   publish: (event: WorkerEvent) => void,
@@ -100,6 +104,7 @@ export function createWorkerApplication(
   return {
     scheduler,
     async start() {
+      await recoverInterruptedRuns(prisma)
       await scheduler.start()
     },
     async stop() {
