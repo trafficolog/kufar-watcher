@@ -8,7 +8,7 @@ _Сгенерировано 2026-09-12_
 |----|------|------|--------|------|------|
 | `0.1` | Скелет Electron | 0 | ✅ done | 🟢 aligned | 4/4 done: Electron shell, utilityProcess model, typed IPC contract and worker crash-streak reset are implemented and verified. |
 | `0.2` | Postgres в Docker под Dockerode | 0 | ✅ done | 🟢 aligned | 6/6 done: compose Postgres, Dockerode supervision, recoverable bootstrap, existing-container validation and a single POSTGRES_* source-of-truth for runtime/Prisma tooling are implemented. |
-| `0.3` | Prisma-схема и миграции | 0 | ⬜ todo | 🟡 drifted | Доменная модель в БД. |
+| `0.3` | Prisma-схема и миграции | 0 | 🔄 in_progress | 🟡 drifted | 0.3.1–0.3.4 закрыты; schema-срезы 0.3.5 и 0.3.6 остаются запланированными для следующих релизных срезов. |
 | `0.4` | docs-ops, линт и CI | 0 | ✅ done | 🟢 aligned | 4/4 done: docs-ops CLI, canonical CI/freshness enforcement and dependency advisory remediation with blocking high/critical audit gate are implemented; verify #1011 GREEN. |
 | `1.0` | Разведка контракта площадки | 1 | ✅ done | 🟢 aligned | 2/2 done: live electronics and real-estate contract reconnaissance is captured in fixtures and the API contract. |
 | `1.1` | URL-парсер и canonical query | 1 | ✅ done | 🟢 aligned | 4/4 done: canonical URL parse/build/routing plus real-estate regionless operation disambiguation are implemented and verified. |
@@ -22,7 +22,7 @@ _Сгенерировано 2026-09-12_
 | `2.4` | Планировщик на pg-boss | 2 | ✅ done | 🟢 aligned | Эпик закрыт: 2.4.1–2.4.4 delivery scope done; remediation 2.4.5 закрепляет per-Run source degradation без изменения retry/watermark policy, verify #915 GREEN. |
 | `2.5` | Питание и догоняющий обход | 2 | ⬜ todo | 🟡 drifted | Корректная работа на машине, которая уходит в сон. |
 | `2.6` | Морфология русского языка | 2 | ⬜ todo | 🟡 drifted | Русский стеммер и правило выбора между маской и морфологией — срез 0.4.0. |
-| `2.7` | Ремедиация повторного аудита фазы 2 | 2 | ⬜ todo | 🟡 drifted | Повторный аудит фазы 2 после интеграции 2.3.2: подтверждённые remediation-задачи по scheduler, matcher, run lifecycle, sellerType и docs contracts. |
+| `2.7` | Ремедиация повторного аудита фазы 2 | 2 | 🔄 in_progress | 🟡 drifted | P0 remediation в работе: 2.7.1–2.7.3 закрыты; 2.7.11 закрывает docs lifecycle/drift semantics; P1/P2/P3 остаются очередью. |
 | `3.1` | Телеграм-бот и транспорт | 3 | ⬜ todo | 🟡 drifted | Канал доставки уведомлений. |
 | `3.2` | Форматтер и кнопки | 3 | ⬜ todo | 🟡 drifted | Формат уведомления о находке. |
 | `3.3` | Тихие часы и очередь | 3 | ⬜ todo | 🟡 drifted | Уведомления не будят ночью и не теряются. |

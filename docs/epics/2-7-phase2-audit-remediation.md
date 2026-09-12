@@ -34,12 +34,12 @@ roles: [BACK, DB, QA]
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.7-tasks -->
-**Задач:** 10 · **done:** 3
+**Задач:** 10 · **done:** 4
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `2.7.1` | [Валидация интервала и изоляция scheduler startup](../tasks/2-7-1-scheduler-interval-isolation.md) | ✅ done | 🟢 aligned |
-| `2.7.11` | [Lifecycle-контракт docs и точная семантика drift pause signal](../tasks/2-7-11-docs-lifecycle-audit-contract.md) | ⬜ todo | 🟡 drifted |
+| `2.7.11` | [Lifecycle-контракт docs и точная семантика drift pause signal](../tasks/2-7-11-docs-lifecycle-audit-contract.md) | ✅ done | 🟢 aligned |
 | `2.7.2` | [Контракт термов и симметричная нормализация](../tasks/2-7-2-matching-term-contract.md) | ✅ done | 🟢 aligned |
 | `2.7.3` | [Terminal disposition при исчерпании description budget](../tasks/2-7-3-description-budget-terminal-disposition.md) | ✅ done | 🟢 aligned |
 | `2.7.4` | [Целостность жизненного цикла Run](../tasks/2-7-4-run-lifecycle-integrity.md) | ⬜ todo | 🟡 drifted |
