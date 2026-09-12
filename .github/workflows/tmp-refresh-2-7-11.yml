@@ -1,0 +1,47 @@
+name: refresh-docs-2-7-11
+
+on:
+  push:
+    branches:
+      - feat/2.7.11-docs-lifecycle-contract
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/2.7.11-docs-lifecycle-contract
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Use npm 11.4.2
+        run: npm install --global npm@11.4.2
+      - name: Install dependencies
+        run: npm ci
+      - name: Refresh docs and format touched files
+        run: |
+          npm run docs:ops:refresh
+          npx prettier --write \
+            src/docs-ops/cli.ts \
+            tests/unit/docs-ops-check.test.ts \
+            docs/epics/0-3-prisma-schema.md \
+            docs/epics/2-7-phase2-audit-remediation.md \
+            docs/phases/2-rules-scheduler.md \
+            docs/tasks/2-4-4-retries.md \
+            docs/tasks/2-7-11-docs-lifecycle-audit-contract.md \
+            docs/superpowers/specs/deferred-requirements.md \
+            docs/superpowers/plans/2026-09-12-2-7-11-docs-lifecycle-contract.md
+      - name: Commit refreshed docs and self-remove
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/tmp-refresh-2-7-11.yml
+          git add src/docs-ops/cli.ts tests/unit/docs-ops-check.test.ts docs
+          git commit -m "docs: refresh lifecycle rollups"
+          git push
