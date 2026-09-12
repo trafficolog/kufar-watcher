@@ -191,6 +191,10 @@ export function createScheduledMonitorRunExecutor(
           },
         })
 
+        if (error instanceof DescriptionRequestBudgetExceededError) {
+          return { cycleKind: 'failed-no-retry' }
+        }
+
         if (error instanceof KufarResilientSourceError && error.action === 'pause-required') {
           await options.onPauseRequired?.(monitorId, error.stage)
           return { cycleKind: 'pause-required' }
