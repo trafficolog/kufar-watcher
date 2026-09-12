@@ -1,7 +1,11 @@
-import type { CanonicalQuery } from './canonical-query'
+import type { CanonicalQuery, SellerType } from './canonical-query'
 
 export type KufarUrlParseErrorCode =
-  'invalid-url' | 'unsupported-protocol' | 'foreign-host' | 'not-listing-url'
+  | 'invalid-url'
+  | 'unsupported-protocol'
+  | 'foreign-host'
+  | 'not-listing-url'
+  | 'invalid-seller-filter'
 
 export class KufarUrlParseError extends Error {
   readonly code: KufarUrlParseErrorCode
@@ -28,13 +32,14 @@ export class KufarUrlBuildError extends Error {
 const PAGINATION_PARAMS = new Set(['cursor', 'size'])
 const REAL_ESTATE_OPERATIONS = new Set(['kupit', 'snyat'])
 const SELLER_MARKER = 'bez-posrednikov'
+const SELLER_PARAM = 'cmp'
 const API_SEARCH_URL = 'https://api.kufar.by/search-api/v2/search/rendered-paginated'
 
 interface PathSemantics {
   category: string | null
   query: string | null
   region: string | null
-  sellerType: string | null
+  sellerType: SellerType | null
   operation: string | null
   pathFilters: string[]
 }
@@ -105,7 +110,7 @@ function parseGoodsPath(segments: string[]): PathSemantics {
     }
 
     if (segment === SELLER_MARKER) {
-      result.sellerType = SELLER_MARKER
+      result.sellerType = 'private'
       continue
     }
 
@@ -138,7 +143,7 @@ function parseRealEstatePath(segments: string[]): PathSemantics {
     }
 
     if (segment === SELLER_MARKER) {
-      result.sellerType = SELLER_MARKER
+      result.sellerType = 'private'
       continue
     }
 
@@ -154,11 +159,34 @@ function parseRealEstatePath(segments: string[]): PathSemantics {
   return result
 }
 
+function parseSellerParam(value: string): SellerType {
+  if (value === '0' || value === 'false') return 'private'
+  if (value === '1' || value === 'true') return 'company'
+
+  throw new KufarUrlParseError(
+    'invalid-seller-filter',
+    `Unsupported Kufar seller filter value: ${value}`,
+  )
+}
+
+function mergeSellerType(current: SellerType | null, next: SellerType): SellerType {
+  if (current !== null && current !== next) {
+    throw new KufarUrlParseError(
+      'invalid-seller-filter',
+      'Kufar URL contains conflicting seller filter values',
+    )
+  }
+
+  return next
+}
+
 function parseQueryParams(url: URL): {
   sort: string | null
+  sellerType: SellerType | null
   extraParams: Record<string, string[]>
 } {
   let sort: string | null = null
+  let sellerType: SellerType | null = null
   const extraParams: Record<string, string[]> = {}
 
   for (const [key, value] of url.searchParams) {
@@ -171,6 +199,11 @@ function parseQueryParams(url: URL): {
       continue
     }
 
+    if (key === SELLER_PARAM) {
+      sellerType = mergeSellerType(sellerType, parseSellerParam(value))
+      continue
+    }
+
     const existing = extraParams[key]
     if (existing === undefined) {
       extraParams[key] = [value]
@@ -179,7 +212,7 @@ function parseQueryParams(url: URL): {
     }
   }
 
-  return { sort, extraParams }
+  return { sort, sellerType, extraParams }
 }
 
 function buildListingPath(query: CanonicalQuery): string {
@@ -190,12 +223,12 @@ function buildListingPath(query: CanonicalQuery): string {
     if (query.operation !== null) segments.push(query.operation)
     if (query.category !== null) segments.push(query.category)
     segments.push(...query.pathFilters)
-    if (query.sellerType !== null) segments.push(query.sellerType)
+    if (query.sellerType === 'private') segments.push(SELLER_MARKER)
   } else {
     if (query.region !== null) segments.push(`r~${query.region}`)
     if (query.category !== null) segments.push(query.category)
     segments.push(...query.pathFilters)
-    if (query.sellerType !== null) segments.push(query.sellerType)
+    if (query.sellerType === 'private') segments.push(SELLER_MARKER)
     if (query.query !== null) segments.push(`q~${query.query}`)
   }
 
@@ -210,16 +243,21 @@ function appendSortedParams(searchParams: URLSearchParams, params: Record<string
   }
 }
 
-function apiParamsFromExtras(query: CanonicalQuery): Record<string, string[]> {
+function canonicalExtras(query: CanonicalQuery): Record<string, string[]> {
   const result: Record<string, string[]> = {}
 
   for (const [key, values] of Object.entries(query.extraParams)) {
-    if (!PAGINATION_PARAMS.has(key) && key !== 'sort') {
+    if (!PAGINATION_PARAMS.has(key) && key !== 'sort' && key !== SELLER_PARAM) {
       result[key] = [...values]
     }
   }
 
   return result
+}
+
+function sellerApiParams(sellerType: SellerType | null): Record<string, string[]> {
+  if (sellerType === null) return {}
+  return { [SELLER_PARAM]: [sellerType === 'private' ? '0' : '1'] }
 }
 
 function confirmedApiParams(query: CanonicalQuery): Record<string, string[]> {
@@ -229,11 +267,11 @@ function confirmedApiParams(query: CanonicalQuery): Record<string, string[]> {
     query.category === 'igry-i-pristavki' &&
     query.region === 'minsk' &&
     query.operation === null &&
-    query.pathFilters.length === 0 &&
-    query.sellerType === null
+    query.pathFilters.length === 0
   ) {
     return {
-      ...apiParamsFromExtras(query),
+      ...canonicalExtras(query),
+      ...sellerApiParams(query.sellerType),
       cat: ['5040'],
       lang: ['ru'],
       ...(query.query === null ? {} : { query: [query.query] }),
@@ -248,11 +286,11 @@ function confirmedApiParams(query: CanonicalQuery): Record<string, string[]> {
     query.region === 'minsk' &&
     query.operation === 'kupit' &&
     query.query === null &&
-    query.pathFilters.length === 0 &&
-    query.sellerType === null
+    query.pathFilters.length === 0
   ) {
     return {
-      ...apiParamsFromExtras(query),
+      ...canonicalExtras(query),
+      ...sellerApiParams(query.sellerType),
       cat: ['1010'],
       gtsy: ['country-belarus~province-minsk~locality-minsk'],
       lang: ['ru'],
@@ -288,13 +326,17 @@ export function parseKufarListingUrl(input: string): CanonicalQuery {
   const path =
     url.hostname === 're.kufar.by' ? parseRealEstatePath(segments) : parseGoodsPath(segments)
   const queryParams = parseQueryParams(url)
+  const sellerType =
+    queryParams.sellerType === null
+      ? path.sellerType
+      : mergeSellerType(path.sellerType, queryParams.sellerType)
 
   return {
     host: url.hostname,
     category: path.category,
     query: path.query,
     region: path.region,
-    sellerType: path.sellerType,
+    sellerType,
     sort: queryParams.sort,
     operation: path.operation,
     pathFilters: path.pathFilters,
@@ -309,7 +351,10 @@ export function buildKufarListingUrl(query: CanonicalQuery): string {
   if (query.sort !== null) {
     url.searchParams.append('sort', query.sort)
   }
-  appendSortedParams(url.searchParams, query.extraParams)
+  if (query.sellerType === 'company') {
+    url.searchParams.append(SELLER_PARAM, '1')
+  }
+  appendSortedParams(url.searchParams, canonicalExtras(query))
 
   return url.toString()
 }
