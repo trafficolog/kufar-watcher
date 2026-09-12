@@ -40,9 +40,12 @@ describe('matching term compilation', () => {
     )
   })
 
-  it.each(['   ', '... !!!'])('rejects a term that is empty after normalization: %j', (term) => {
-    expect(() => matchingTermCompiler.compile(term)).toThrowError(/exactly one token/i)
-  })
+  it.each(['   ', '... !!!'])(
+    'rejects a term that is empty after normalization: %j',
+    (term) => {
+      expect(() => matchingTermCompiler.compile(term)).toThrowError(/exactly one token/i)
+    },
+  )
 
   it('supports a trailing star across a whole token', () => {
     const matches = matchingTermCompiler.compile('playstation*')
