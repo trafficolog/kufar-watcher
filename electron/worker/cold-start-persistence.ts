@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client'
 import type { Listing } from '../../shared/listing'
+import { RUN_OUTCOME } from '../../shared/run-outcome'
 import type { Watermark } from '../../shared/watermark'
 import {
   parsePersistedCanonicalQuery,
@@ -110,7 +111,7 @@ export async function persistColdStartBaselineTransaction(
       data: {
         finishedAt: input.finishedAt,
         durationMs: Math.max(0, input.finishedAt.getTime() - input.startedAt.getTime()),
-        outcome: 'success',
+        outcome: RUN_OUTCOME.SUCCESS,
         seen: input.listings.length,
         matched: 0,
         error: null,
@@ -127,7 +128,7 @@ export async function persistColdStartBaselineTransaction(
       monitorId: input.monitorId,
       startedAt: input.startedAt,
       finishedAt: input.finishedAt,
-      outcome: 'success',
+      outcome: RUN_OUTCOME.SUCCESS,
       seen: input.listings.length,
       matched: 0,
       error: null,

@@ -1,4 +1,5 @@
 import type { PrismaClient } from '../../generated/prisma/client'
+import { RUN_OUTCOME } from '../../shared/run-outcome'
 import type { WorkerEvent } from '../../shared/runtime'
 import type { WorkerConfig } from './config'
 import {
@@ -63,11 +64,11 @@ async function recoverInterruptedRuns(prisma: PrismaClient): Promise<void> {
           FLOOR(EXTRACT(EPOCH FROM (${recoveredAt}::timestamp - "startedAt")) * 1000)
         )
       )::integer,
-      "outcome" = 'interrupted',
+      "outcome" = ${RUN_OUTCOME.INTERRUPTED}::text,
       "error" = 'Worker process interrupted before Run completion',
       "errorCategory" = 'internal',
       "errorCode" = 'worker-interrupted'
-    WHERE "outcome" = 'running'
+    WHERE "outcome" = ${RUN_OUTCOME.RUNNING}::text
       AND "finishedAt" IS NULL
   `
 }
