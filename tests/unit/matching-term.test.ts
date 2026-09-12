@@ -25,6 +25,25 @@ describe('matching term compilation', () => {
     expect(matches('ёлка')).toBe(false)
   })
 
+  it.each([
+    ['(PS5)', 'ps5'],
+    ['«PlayStation*»', 'playstation5'],
+  ])('normalizes term edge punctuation symmetrically for %j', (term, token) => {
+    const matches = matchingTermCompiler.compile(term)
+
+    expect(matches(token)).toBe(true)
+  })
+
+  it('rejects a multiword term instead of compiling an always-false single-token predicate', () => {
+    expect(() => matchingTermCompiler.compile('playstation 5')).toThrowError(
+      /exactly one token/i,
+    )
+  })
+
+  it.each(['   ', '... !!!'])('rejects a term that is empty after normalization: %j', (term) => {
+    expect(() => matchingTermCompiler.compile(term)).toThrowError(/exactly one token/i)
+  })
+
   it('supports a trailing star across a whole token', () => {
     const matches = matchingTermCompiler.compile('playstation*')
 

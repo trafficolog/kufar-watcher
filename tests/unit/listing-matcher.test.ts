@@ -82,6 +82,19 @@ describe('listing matcher', () => {
     })
   })
 
+  it.each([
+    { include: ['playstation 5'], exclude: [] },
+    { include: [], exclude: ['playstation 5'] },
+  ])('applies the same single-token validation contract to include and exclude', (terms) => {
+    expect(() =>
+      matchListing({
+        ...terms,
+        document: { title: 'PlayStation 5' },
+        fields: ['title'],
+      }),
+    ).toThrowError(/exactly one token/i)
+  })
+
   it('does not search description when description is not an active field', () => {
     expect(
       matchListing({
