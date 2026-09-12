@@ -1,0 +1,38 @@
+name: close-2-3-2
+
+on:
+  push:
+    branches:
+      - feat/2.3.2-personal-seller-blacklist
+    paths:
+      - .github/workflows/close-2-3-2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  close-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --global npm@11.4.2
+      - run: npm ci
+      - name: Refresh documentation state
+        run: |
+          npx prettier --write \
+            docs/tasks/2-3-2-personal-seller-blacklist.md \
+            docs/epics/2-3-seller-filter.md
+          npm run docs:ops:refresh
+          npm run docs:ops:check
+          rm .github/workflows/close-2-3-2.yml
+      - name: Commit closure and remove helper
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "docs: close personal seller blacklist 2.3.2"
+          git push
