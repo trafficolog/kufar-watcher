@@ -19,7 +19,7 @@ status_note: "Фаза 2: эпики 2.1, 2.2 и 2.4 закрыты; scheduler 2
 ## Эпики фазы
 
 <!-- docs:ops:begin phase-2-epics -->
-**Эпиков:** 6 · **done:** 4 · **в работе/план:** 2
+**Эпиков:** 7 · **done:** 4 · **в работе/план:** 3
 
 | ID | Эпик | Статус | Sync | Ист. |
 |----|------|--------|------|------|
@@ -29,6 +29,7 @@ status_note: "Фаза 2: эпики 2.1, 2.2 и 2.4 закрыты; scheduler 2
 | `2.4` | [Планировщик на pg-boss](../epics/2-4-scheduler.md) | ✅ done | 🟢 aligned | Эпик закрыт: 2.4.1–2.4.4 delivery scope done; remediation 2.4.5 закрепляет per-Run source degradation без изменения retry/watermark policy, verify #915 GREEN. |
 | `2.5` | [Питание и догоняющий обход](../epics/2-5-power-catchup.md) | ⬜ todo | 🟡 drifted | Корректная работа на машине, которая уходит в сон. |
 | `2.6` | [Морфология русского языка](../epics/2-6-morphology.md) | ⬜ todo | 🟡 drifted | Русский стеммер и правило выбора между маской и морфологией — срез 0.4.0. |
+| `2.7` | [Ремедиация повторного аудита фазы 2](../epics/2-7-phase2-audit-remediation.md) | ⬜ todo | 🟡 drifted | Повторный аудит фазы 2 после интеграции 2.3.2: подтверждённые remediation-задачи по scheduler, matcher, run lifecycle, sellerType и docs contracts. |
 <!-- docs:ops:end phase-2-epics -->
 
 ## Связанные документы

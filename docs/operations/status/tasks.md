@@ -62,6 +62,17 @@ _Сгенерировано 2026-09-12_
 | `2.4.3` | Журнал одного обхода | 2.4 | ✅ done | 🟢 aligned |
 | `2.4.4` | Ретраи расписания и деградация при ошибках | 2.4 | ✅ done | 🟢 aligned |
 | `2.4.5` | Persist source degradation per Run | 2.4 | ✅ done | 🟢 aligned |
+| `2.7.1` | Валидация интервала и изоляция scheduler startup | 2.7 | ⬜ todo | 🟡 drifted |
+| `2.7.10` | Live scheduler sync в реальном config mutation path | 2.7 | ⬜ todo | 🟡 drifted |
+| `2.7.11` | Lifecycle-контракт docs и точная семантика drift pause signal | 2.7 | ⬜ todo | 🟡 drifted |
+| `2.7.2` | Контракт термов и симметричная нормализация | 2.7 | ⬜ todo | 🟡 drifted |
+| `2.7.3` | Terminal disposition при исчерпании description budget | 2.7 | ⬜ todo | 🟡 drifted |
+| `2.7.4` | Целостность жизненного цикла Run | 2.7 | ⬜ todo | 🟡 drifted |
+| `2.7.5` | Единый источник истины для sellerType | 2.7 | ⬜ todo | 🟡 drifted |
+| `2.7.6` | Process-independent запрет пересечения обходов | 2.7 | ⬜ todo | 🟡 drifted |
+| `2.7.7` | Snippet только для совпадения в описании | 2.7 | ⬜ todo | 🟡 drifted |
+| `2.7.8` | Детерминированное разнесение стартов мониторов | 2.7 | ⬜ todo | 🟡 drifted |
+| `2.7.9` | Конфигурируемый monitorMaxPages | 2.7 | ⬜ todo | 🟡 drifted |
 | `3.1.1` | Бот на grammY и привязка чата | 3.1 | ⬜ todo | 🟡 drifted |
 | `3.1.2` | Устойчивое переподключение long-polling | 3.1 | ⬜ todo | 🟡 drifted |
 | `3.1.3` | Очередь исходящих с соблюдением лимитов | 3.1 | ⬜ todo | 🟡 drifted |
