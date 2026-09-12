@@ -160,13 +160,26 @@ integrationDescribe('monitor config persistence', () => {
     expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).toBeNull()
   })
 
+  it('rejects an unsupported seller type in a new canonical query before commit', async () => {
+    await expect(
+      updateMonitorConfig(prisma, MONITOR_ID, {
+        query: { ...ORIGINAL_QUERY, sellerType: 'broker' },
+      }),
+    ).rejects.toThrow(/canonical query/i)
+
+    const monitor = await prisma.monitor.findUniqueOrThrow({ where: { id: MONITOR_ID } })
+    expect(monitor.query).toEqual(ORIGINAL_QUERY)
+    expect(
+      await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } }),
+    ).not.toBeNull()
+  })
+
   it('preserves confirmed cursor and catch-up checkpoint for non-source edits', async () => {
     await updateMonitorConfig(prisma, MONITOR_ID, {
       name: 'renamed monitor',
       intervalSec: 300,
       keywords: ['phone', 'pixel'],
       searchInDescription: true,
-      sellerType: 'company',
     })
 
     const monitor = await prisma.monitor.findUniqueOrThrow({ where: { id: MONITOR_ID } })
@@ -174,7 +187,6 @@ integrationDescribe('monitor config persistence', () => {
     expect(monitor.intervalSec).toBe(300)
     expect(monitor.keywords).toEqual(['phone', 'pixel'])
     expect(monitor.searchInDescription).toBe(true)
-    expect(monitor.sellerType).toBe('company')
 
     const cursor = await prisma.monitorCursor.findUniqueOrThrow({
       where: { monitorId: MONITOR_ID },

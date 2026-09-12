@@ -5,6 +5,7 @@ import {
   parsePersistedCanonicalQuery,
   PersistedCanonicalQueryError,
   shouldResetMonitorCursor,
+  type MonitorConfigPatch,
   type MonitorSourceIdentity,
 } from '../../electron/worker/monitor-config-persistence'
 import type { CanonicalQuery } from '../../shared/canonical-query'
@@ -35,6 +36,12 @@ function identity(overrides: Partial<MonitorSourceIdentity> = {}): MonitorSource
     ...overrides,
   }
 }
+
+const topLevelSellerPatchIsNotSupported: MonitorConfigPatch = {
+  // @ts-expect-error sellerType is part of CanonicalQuery, not an independently writable field
+  sellerType: 'company',
+}
+void topLevelSellerPatchIsNotSupported
 
 describe('canonicalQueryEquals', () => {
   it('ignores extraParams object key insertion order', () => {
