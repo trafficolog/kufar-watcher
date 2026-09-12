@@ -1,10 +1,10 @@
 ---
 id: "2.7"
 phase: 2
-status: todo
+status: in_progress
 sync_state: drifted
 last_reviewed: 2026-09-12
-status_note: "Повторный аудит фазы 2 после интеграции 2.3.2: подтверждённые remediation-задачи по scheduler, matcher, run lifecycle, sellerType и docs contracts."
+status_note: "P0 remediation в работе: 2.7.1–2.7.3 закрыты; 2.7.11 закрывает docs lifecycle/drift semantics; P1/P2/P3 остаются очередью."
 roles: [BACK, DB, QA]
 ---
 
@@ -34,12 +34,12 @@ roles: [BACK, DB, QA]
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.7-tasks -->
-**Задач:** 10 · **done:** 3
+**Задач:** 10 · **done:** 4
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `2.7.1` | [Валидация интервала и изоляция scheduler startup](../tasks/2-7-1-scheduler-interval-isolation.md) | ✅ done | 🟢 aligned |
-| `2.7.11` | [Lifecycle-контракт docs и точная семантика drift pause signal](../tasks/2-7-11-docs-lifecycle-audit-contract.md) | ⬜ todo | 🟡 drifted |
+| `2.7.11` | [Lifecycle-контракт docs и точная семантика drift pause signal](../tasks/2-7-11-docs-lifecycle-audit-contract.md) | ✅ done | 🟢 aligned |
 | `2.7.2` | [Контракт термов и симметричная нормализация](../tasks/2-7-2-matching-term-contract.md) | ✅ done | 🟢 aligned |
 | `2.7.3` | [Terminal disposition при исчерпании description budget](../tasks/2-7-3-description-budget-terminal-disposition.md) | ✅ done | 🟢 aligned |
 | `2.7.4` | [Целостность жизненного цикла Run](../tasks/2-7-4-run-lifecycle-integrity.md) | ⬜ todo | 🟡 drifted |

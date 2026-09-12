@@ -1,10 +1,10 @@
 ---
 id: "0.3"
 phase: 0
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-05
-status_note: "Доменная модель в БД."
+last_reviewed: 2026-09-12
+status_note: "0.3.1–0.3.4 закрыты; schema-срезы 0.3.5 и 0.3.6 остаются запланированными для следующих релизных срезов."
 roles:
   - DB
   - BACK

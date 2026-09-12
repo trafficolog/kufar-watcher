@@ -4,7 +4,7 @@ phase: 2
 epic: "2.4"
 status: done
 sync_state: aligned
-last_reviewed: 2026-09-10
+last_reviewed: 2026-09-12
 roles: [BACK]
 depends_on: ["2.4.3"]
 estimated_hours: 2-3
@@ -41,7 +41,7 @@ status_note: "Bounded pg-boss retries настроены для transient networ
 - [x] Исчерпание попыток не останавливает расписание
 - [x] Десять подряд неуспешных обходов не создают десятикратной нагрузки на площадку
 - [x] После десяти неуспешных обходов `Monitor.intervalSec` в базе не изменился
-- [x] Дрейф схемы приводит к паузе монитора, а не к ретраям
+- [x] Дрейф схемы завершает текущий job terminal/no-retry и публикует typed `pause-required` signal; `Monitor.state` в рамках `2.4.4` не меняется
 
 ## TDD и проверка
 
@@ -54,6 +54,8 @@ status_note: "Bounded pg-boss retries настроены для transient networ
 - Supervisor GREEN: `verify #850` на `fd439baf9b3c484eba1c48264601999768c0cb24` — typed pause-required signal проходит worker → application → supervisor; фактическая автопауза намеренно остаётся задачей эпика 4.3.
 - Error disposition characterization: `verify #851` на `beef4e42631679d435fa98485dee4fd98b4c607c` — network/timeout/5xx остаются retryable для pg-boss; `429` и permanent 4xx завершают job без pg-boss retry.
 - Acceptance GREEN: `verify #854` на `1b10567bcd35a0feba4430a9ce5ec92f1bc41536` — 438 unit tests, PostgreSQL integration с десятью подряд retryable failures и неизменным `Monitor.intervalSec`, сохранение schedule/worker после failed job, docs consistency, typecheck, lint, formatting, build/output и оба Electron smoke полностью GREEN.
+
+Фактическая смена `Monitor.state` на paused намеренно не входит в `2.4.4`: она остаётся обязанностью эпика `4.3`. До реализации этой границы typed signal не следует описывать как уже выполненную автопаузу.
 
 ## Подсказки
 

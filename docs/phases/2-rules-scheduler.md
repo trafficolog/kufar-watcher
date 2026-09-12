@@ -1,9 +1,9 @@
 ---
 id: "2"
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-10
-status_note: "Фаза 2: эпики 2.1, 2.2 и 2.4 закрыты; scheduler 2.4.1–2.4.4 done, remediation 2.4.5 aligned; далее seller filter 2.3, power/catch-up 2.5 и morphology 2.6."
+last_reviewed: 2026-09-12
+status_note: "Фаза 2 в работе: эпики 2.1–2.4 закрыты; remediation 2.7 выполняется; power/catch-up 2.5 и morphology 2.6 остаются в очереди."
 ---
 
 # Фаза 2 — Правила, матчинг, планировщик
@@ -29,7 +29,7 @@ status_note: "Фаза 2: эпики 2.1, 2.2 и 2.4 закрыты; scheduler 2
 | `2.4` | [Планировщик на pg-boss](../epics/2-4-scheduler.md) | ✅ done | 🟢 aligned | Эпик закрыт: 2.4.1–2.4.4 delivery scope done; remediation 2.4.5 закрепляет per-Run source degradation без изменения retry/watermark policy, verify #915 GREEN. |
 | `2.5` | [Питание и догоняющий обход](../epics/2-5-power-catchup.md) | ⬜ todo | 🟡 drifted | Корректная работа на машине, которая уходит в сон. |
 | `2.6` | [Морфология русского языка](../epics/2-6-morphology.md) | ⬜ todo | 🟡 drifted | Русский стеммер и правило выбора между маской и морфологией — срез 0.4.0. |
-| `2.7` | [Ремедиация повторного аудита фазы 2](../epics/2-7-phase2-audit-remediation.md) | ⬜ todo | 🟡 drifted | Повторный аудит фазы 2 после интеграции 2.3.2: подтверждённые remediation-задачи по scheduler, matcher, run lifecycle, sellerType и docs contracts. |
+| `2.7` | [Ремедиация повторного аудита фазы 2](../epics/2-7-phase2-audit-remediation.md) | 🔄 in_progress | 🟡 drifted | P0 remediation в работе: 2.7.1–2.7.3 закрыты; 2.7.11 закрывает docs lifecycle/drift semantics; P1/P2/P3 остаются очередью. |
 <!-- docs:ops:end phase-2-epics -->
 
 ## Связанные документы

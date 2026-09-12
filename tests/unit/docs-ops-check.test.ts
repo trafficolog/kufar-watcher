@@ -67,6 +67,214 @@ depends_on: []
   return root
 }
 
+function createPartialEpicLifecycleFixture(): string {
+  const root = mkdtempSync(join(tmpdir(), 'kufar-docs-ops-'))
+  roots.push(root)
+
+  writeDoc(
+    root,
+    'docs/phases/1.md',
+    `---
+id: "1"
+status: todo
+sync_state: drifted
+last_reviewed: 2026-09-12
+---
+
+# Фаза 1 — Fixture
+`,
+  )
+  writeDoc(
+    root,
+    'docs/epics/1-1.md',
+    `---
+id: "1.1"
+phase: 1
+status: todo
+sync_state: drifted
+last_reviewed: 2026-09-12
+---
+
+# Эпик 1.1 — Fixture epic
+`,
+  )
+  writeDoc(
+    root,
+    'docs/tasks/1-1-1.md',
+    `---
+id: "1.1.1"
+phase: 1
+epic: "1.1"
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-12
+depends_on: []
+---
+
+# Задача 1.1.1 — Done task
+`,
+  )
+  writeDoc(
+    root,
+    'docs/tasks/1-1-2.md',
+    `---
+id: "1.1.2"
+phase: 1
+epic: "1.1"
+status: todo
+sync_state: drifted
+last_reviewed: 2026-09-12
+depends_on: []
+---
+
+# Задача 1.1.2 — Todo task
+`,
+  )
+
+  const refresh = runCli(root, 'refresh')
+  if (refresh.status !== 0) throw new Error(refresh.stderr || refresh.stdout)
+
+  return root
+}
+
+function createPartialPhaseLifecycleFixture(): string {
+  const root = mkdtempSync(join(tmpdir(), 'kufar-docs-ops-'))
+  roots.push(root)
+
+  writeDoc(
+    root,
+    'docs/phases/1.md',
+    `---
+id: "1"
+status: todo
+sync_state: drifted
+last_reviewed: 2026-09-12
+---
+
+# Фаза 1 — Fixture
+`,
+  )
+  writeDoc(
+    root,
+    'docs/epics/1-1.md',
+    `---
+id: "1.1"
+phase: 1
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-12
+---
+
+# Эпик 1.1 — Done epic
+`,
+  )
+  writeDoc(
+    root,
+    'docs/tasks/1-1-1.md',
+    `---
+id: "1.1.1"
+phase: 1
+epic: "1.1"
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-12
+depends_on: []
+---
+
+# Задача 1.1.1 — Done task
+`,
+  )
+  writeDoc(
+    root,
+    'docs/epics/1-2.md',
+    `---
+id: "1.2"
+phase: 1
+status: todo
+sync_state: drifted
+last_reviewed: 2026-09-12
+---
+
+# Эпик 1.2 — Todo epic
+`,
+  )
+  writeDoc(
+    root,
+    'docs/tasks/1-2-1.md',
+    `---
+id: "1.2.1"
+phase: 1
+epic: "1.2"
+status: todo
+sync_state: drifted
+last_reviewed: 2026-09-12
+depends_on: []
+---
+
+# Задача 1.2.1 — Todo task
+`,
+  )
+
+  const refresh = runCli(root, 'refresh')
+  if (refresh.status !== 0) throw new Error(refresh.stderr || refresh.stdout)
+
+  return root
+}
+
+function createAllTodoLifecycleFixture(): string {
+  const root = mkdtempSync(join(tmpdir(), 'kufar-docs-ops-'))
+  roots.push(root)
+
+  writeDoc(
+    root,
+    'docs/phases/1.md',
+    `---
+id: "1"
+status: todo
+sync_state: drifted
+last_reviewed: 2026-09-12
+---
+
+# Фаза 1 — Fixture
+`,
+  )
+  writeDoc(
+    root,
+    'docs/epics/1-1.md',
+    `---
+id: "1.1"
+phase: 1
+status: todo
+sync_state: drifted
+last_reviewed: 2026-09-12
+---
+
+# Эпик 1.1 — Fixture epic
+`,
+  )
+  writeDoc(
+    root,
+    'docs/tasks/1-1-1.md',
+    `---
+id: "1.1.1"
+phase: 1
+epic: "1.1"
+status: todo
+sync_state: drifted
+last_reviewed: 2026-09-12
+depends_on: []
+---
+
+# Задача 1.1.1 — Todo task
+`,
+  )
+
+  const refresh = runCli(root, 'refresh')
+  if (refresh.status !== 0) throw new Error(refresh.stderr || refresh.stdout)
+
+  return root
+}
+
 function createGeneratedFixture(): string {
   const root = mkdtempSync(join(tmpdir(), 'kufar-docs-ops-'))
   roots.push(root)
@@ -161,6 +369,64 @@ describe('docs-ops check', () => {
 
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('1-1.md: lifecycle не соответствует дочерним задачам')
+  })
+
+  it('rejects an epic left todo when child tasks show partial progress', () => {
+    const result = runCli(createPartialEpicLifecycleFixture(), 'check')
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('1-1.md: lifecycle не соответствует дочерним задачам')
+  })
+
+  it('rejects a phase left todo when child epics show partial progress', () => {
+    const result = runCli(createPartialPhaseLifecycleFixture(), 'check')
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('1.md: lifecycle не соответствует дочерним эпикам')
+  })
+
+  it('accepts todo parents when every direct child is still todo', () => {
+    const result = runCli(createAllTodoLifecycleFixture(), 'check')
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('check: OK')
+  })
+
+  it.each(['blocked', 'cancelled'])('accepts an epic explicitly marked %s', (status) => {
+    const root = createPartialEpicLifecycleFixture()
+    const epicPath = join(root, 'docs/epics/1-1.md')
+    const phasePath = join(root, 'docs/phases/1.md')
+    writeFileSync(
+      epicPath,
+      readFileSync(epicPath, 'utf8').replace('status: todo', `status: ${status}`),
+    )
+    writeFileSync(
+      phasePath,
+      readFileSync(phasePath, 'utf8').replace('status: todo', 'status: in_progress'),
+    )
+    const refresh = runCli(root, 'refresh')
+    if (refresh.status !== 0) throw new Error(refresh.stderr || refresh.stdout)
+
+    const result = runCli(root, 'check')
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('check: OK')
+  })
+
+  it.each(['blocked', 'cancelled'])('accepts a phase explicitly marked %s', (status) => {
+    const root = createPartialPhaseLifecycleFixture()
+    const phasePath = join(root, 'docs/phases/1.md')
+    writeFileSync(
+      phasePath,
+      readFileSync(phasePath, 'utf8').replace('status: todo', `status: ${status}`),
+    )
+    const refresh = runCli(root, 'refresh')
+    if (refresh.status !== 0) throw new Error(refresh.stderr || refresh.stdout)
+
+    const result = runCli(root, 'check')
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('check: OK')
   })
 
   it('rejects stale generated docs without mutating them', () => {
