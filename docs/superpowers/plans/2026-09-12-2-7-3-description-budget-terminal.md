@@ -24,16 +24,16 @@
 ### Task 1: RED — terminal policy disposition and transient characterization
 
 **Files:**
-- Modify: `tests/unit/scheduled-monitor-run.test.ts`
+- Create: `tests/unit/description-budget-terminal-disposition.test.ts`
 - Read: `electron/worker/scheduled-monitor-run.ts`
 
 **Interfaces:**
 - Consumes: `DescriptionRequestBudgetExceededError`, `KufarSourceRequestError`, `createScheduledMonitorRunExecutor()`.
-- Produces: regression tests that require budget exhaustion to resolve as `{ cycleKind: 'failed-no-retry' }` while transient source errors still reject.
+- Produces: focused regression tests that require budget exhaustion to resolve as `{ cycleKind: 'failed-no-retry' }` while transient source errors still reject.
 
 - [ ] **Step 1: Write the failing budget-disposition test**
 
-Add an import for `DescriptionRequestBudgetExceededError` and a test equivalent to:
+Create a focused test harness with a minimal Prisma fake and adapter registry, then add a test equivalent to:
 
 ```ts
 it('treats description budget exhaustion as a terminal failed-no-retry run', async () => {
@@ -85,7 +85,7 @@ Commit only the test changes with a message such as `test: define terminal descr
 
 **Files:**
 - Modify: `electron/worker/scheduled-monitor-run.ts`
-- Test: `tests/unit/scheduled-monitor-run.test.ts`
+- Test: `tests/unit/description-budget-terminal-disposition.test.ts`
 
 **Interfaces:**
 - Consumes: existing `FailedNoRetryMonitorRunResult` and journal classification.
