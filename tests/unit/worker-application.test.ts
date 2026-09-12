@@ -138,6 +138,7 @@ describe('worker application', () => {
   it('starts through the scheduler and stops scheduler before source and Prisma resources', async () => {
     const order: string[] = []
     const prisma = {
+      $executeRaw: vi.fn(async () => 1),
       $disconnect: vi.fn(async () => {
         order.push('prisma')
       }),
