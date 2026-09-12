@@ -1,9 +1,9 @@
 ---
 id: "2"
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-10
-status_note: "Фаза 2: эпики 2.1, 2.2 и 2.4 закрыты; scheduler 2.4.1–2.4.4 done, remediation 2.4.5 aligned; далее seller filter 2.3, power/catch-up 2.5 и morphology 2.6."
+last_reviewed: 2026-09-12
+status_note: "Фаза 2 в работе: эпики 2.1–2.4 закрыты; remediation 2.7 выполняется; power/catch-up 2.5 и morphology 2.6 остаются в очереди."
 ---
 
 # Фаза 2 — Правила, матчинг, планировщик

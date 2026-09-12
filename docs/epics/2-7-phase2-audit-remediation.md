@@ -1,10 +1,10 @@
 ---
 id: "2.7"
 phase: 2
-status: todo
+status: in_progress
 sync_state: drifted
 last_reviewed: 2026-09-12
-status_note: "Повторный аудит фазы 2 после интеграции 2.3.2: подтверждённые remediation-задачи по scheduler, matcher, run lifecycle, sellerType и docs contracts."
+status_note: "P0 remediation в работе: 2.7.1–2.7.3 закрыты; 2.7.11 закрывает docs lifecycle/drift semantics; P1/P2/P3 остаются очередью."
 roles: [BACK, DB, QA]
 ---
 
