@@ -5,6 +5,7 @@ import type {
   MonitorScheduleQueue,
   MonitorScheduleRepository,
   MonitorScheduler,
+  MonitorSchedulerOptions,
 } from '../../electron/worker/monitor-scheduler'
 import type { SourceDegradationEvent } from '../../electron/worker/kufar-resilient-source'
 import type {
@@ -54,6 +55,7 @@ describe('worker application', () => {
     let queueError: ((error: unknown) => void) | undefined
     let sourceDegradation: ScheduledMonitorRunExecutorOptions['onSourceDegradation']
     let pauseRequired: ScheduledMonitorRunExecutorOptions['onPauseRequired']
+    let reconcileError: MonitorSchedulerOptions['onReconcileError']
     const createPrismaClient = vi.fn(() => prisma)
     const createQueue = vi.fn((databaseUrl: string, onError: (error: unknown) => void) => {
       void databaseUrl
@@ -67,7 +69,10 @@ describe('worker application', () => {
       pauseRequired = options.onPauseRequired
       return runMonitor
     })
-    const createScheduler = vi.fn(() => scheduler)
+    const createScheduler = vi.fn((options: MonitorSchedulerOptions) => {
+      reconcileError = options.onReconcileError
+      return scheduler
+    })
 
     const app = createWorkerApplication(config, publish, {
       createPrismaClient,
@@ -95,12 +100,18 @@ describe('worker application', () => {
       onSourceDegradation: expect.any(Function),
       onPauseRequired: expect.any(Function),
     })
-    expect(createScheduler).toHaveBeenCalledWith({ repository, queue, runMonitor })
+    expect(createScheduler).toHaveBeenCalledWith({
+      repository,
+      queue,
+      runMonitor,
+      onReconcileError: expect.any(Function),
+    })
     expect(app.scheduler).toBe(scheduler)
 
     queueError?.(new Error('pg-boss failed'))
     await sourceDegradation?.(17, degradationEvent)
     await pauseRequired?.(17, 'primary')
+    reconcileError?.(23, new Error('unsupported interval'))
 
     expect(publish).toHaveBeenNthCalledWith(1, {
       type: 'journal',
@@ -116,6 +127,11 @@ describe('worker application', () => {
       type: 'monitor-pause-required',
       monitorId: 17,
       stage: 'primary',
+    })
+    expect(publish).toHaveBeenNthCalledWith(4, {
+      type: 'journal',
+      level: 'error',
+      message: 'Monitor 23 schedule reconciliation failed: unsupported interval',
     })
   })
 

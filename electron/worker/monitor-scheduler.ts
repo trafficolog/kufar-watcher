@@ -1,3 +1,7 @@
+import { monitorIntervalCron } from '../../shared/monitor-interval'
+
+export { monitorIntervalCron } from '../../shared/monitor-interval'
+
 export type SchedulerMonitorState = 'active' | 'paused' | 'archived'
 
 export interface SchedulerMonitor {
@@ -30,30 +34,14 @@ export interface MonitorSchedulerOptions {
   repository: MonitorScheduleRepository
   queue: MonitorScheduleQueue
   runMonitor(monitorId: number): Promise<unknown>
+  onReconcileError?(monitorId: number, error: unknown): void
 }
-
-const MONITOR_INTERVAL_CRON = new Map<number, string>([
-  [60, '* * * * *'],
-  [120, '*/2 * * * *'],
-  [300, '*/5 * * * *'],
-  [600, '*/10 * * * *'],
-  [900, '*/15 * * * *'],
-  [3600, '0 * * * *'],
-])
 
 export function monitorQueueName(monitorId: number): string {
   if (!Number.isInteger(monitorId) || monitorId < 1) {
     throw new Error(`Invalid monitor id: ${monitorId}`)
   }
   return `monitor-run/${monitorId}`
-}
-
-export function monitorIntervalCron(intervalSec: number): string {
-  const cron = MONITOR_INTERVAL_CRON.get(intervalSec)
-  if (cron === undefined) {
-    throw new Error(`Unsupported monitor interval: ${intervalSec}`)
-  }
-  return cron
 }
 
 function assertScheduledMonitorId(data: unknown, expectedMonitorId: number): void {
@@ -72,19 +60,25 @@ export class MonitorScheduler {
   private readonly repository: MonitorScheduleRepository
   private readonly queue: MonitorScheduleQueue
   private readonly runMonitor: (monitorId: number) => Promise<unknown>
+  private readonly onReconcileError: (monitorId: number, error: unknown) => void
   private readonly workerIds = new Map<string, string>()
 
-  constructor({ repository, queue, runMonitor }: MonitorSchedulerOptions) {
+  constructor({ repository, queue, runMonitor, onReconcileError }: MonitorSchedulerOptions) {
     this.repository = repository
     this.queue = queue
     this.runMonitor = runMonitor
+    this.onReconcileError = onReconcileError ?? (() => undefined)
   }
 
   async start(): Promise<void> {
     await this.queue.start()
 
     for (const monitor of await this.repository.list()) {
-      await this.reconcile(monitor.id, monitor)
+      try {
+        await this.reconcile(monitor.id, monitor)
+      } catch (error) {
+        this.onReconcileError(monitor.id, error)
+      }
     }
   }
 
@@ -116,11 +110,13 @@ export class MonitorScheduler {
       return
     }
 
+    const cron = monitorIntervalCron(monitor.intervalSec)
+
     if (!(await this.queue.hasQueue(name))) {
       await this.queue.createQueue(name)
     }
 
-    await this.queue.upsertSchedule(name, monitorIntervalCron(monitor.intervalSec), {
+    await this.queue.upsertSchedule(name, cron, {
       monitorId: monitor.id,
     })
 

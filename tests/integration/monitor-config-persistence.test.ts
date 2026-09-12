@@ -10,6 +10,21 @@ const integrationDescribe =
   process.env.KUFAR_POSTGRES_INTEGRATION === '1' ? describe : describe.skip
 
 const MONITOR_ID = 914_201
+const INTERVAL_LEGACY_MONITOR_ID = 927_101
+const INTERVAL_VALID_MONITOR_ID = 927_102
+const INTERVAL_REJECTED_MONITOR_ID = 927_103
+const INTERVAL_FIXTURE_IDS = [
+  INTERVAL_LEGACY_MONITOR_ID,
+  INTERVAL_VALID_MONITOR_ID,
+  INTERVAL_REJECTED_MONITOR_ID,
+]
+const INTERVAL_CONSTRAINT_NAME = 'Monitor_intervalSec_supported_check'
+const ADD_INTERVAL_CONSTRAINT_SQL = `
+  ALTER TABLE "Monitor"
+  ADD CONSTRAINT "${INTERVAL_CONSTRAINT_NAME}"
+  CHECK ("intervalSec" IN (60, 120, 300, 600, 900, 3600))
+  NOT VALID
+`
 const ORIGINAL_URL = 'https://www.kufar.by/l/electronics?query=phone'
 const ORIGINAL_QUERY: CanonicalQuery = {
   host: 'www.kufar.by',
@@ -64,6 +79,17 @@ function sellerListing(accountId: string): Listing {
   }
 }
 
+function intervalMonitorData(id: number, intervalSec: number): Prisma.MonitorUncheckedCreateInput {
+  return {
+    id,
+    name: `interval-constraint-${id}`,
+    sourceUrl: `https://fixtures.invalid/interval-constraint/${id}`,
+    query: ORIGINAL_QUERY as unknown as Prisma.InputJsonValue,
+    intervalSec,
+    keywords: [],
+  }
+}
+
 integrationDescribe('monitor config persistence', () => {
   let prisma: ReturnType<typeof createPrismaClient>
   let updateMonitorConfig: ConfigPersistenceModule['updateMonitorConfig']
@@ -85,6 +111,7 @@ integrationDescribe('monitor config persistence', () => {
 
   beforeEach(async () => {
     await prisma.monitor.deleteMany({ where: { id: MONITOR_ID } })
+    await prisma.monitor.deleteMany({ where: { id: { in: INTERVAL_FIXTURE_IDS } } })
     await prisma.sellerBlock.deleteMany({
       where: { accountId: { in: [SELLER_BLOCK_FIRST, SELLER_BLOCK_SECOND] } },
     })
@@ -210,6 +237,54 @@ integrationDescribe('monitor config persistence', () => {
     })
     expect(cursor.catchupCursor).toBe('page-2')
     expect(cursor.catchupBoundaryIds).toEqual(CATCHUP_BOUNDARY_IDS)
+  })
+
+  it('deploys a legacy-safe interval constraint that rejects new unsupported values', async () => {
+    const deployed = await prisma.$queryRawUnsafe<Array<{ convalidated: boolean }>>(
+      `SELECT c.convalidated
+       FROM pg_constraint c
+       JOIN pg_class t ON t.oid = c.conrelid
+       JOIN pg_namespace n ON n.oid = t.relnamespace
+       WHERE n.nspname = 'public'
+         AND t.relname = 'Monitor'
+         AND c.conname = '${INTERVAL_CONSTRAINT_NAME}'`,
+    )
+
+    expect(deployed).toEqual([{ convalidated: false }])
+
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "Monitor" DROP CONSTRAINT IF EXISTS "${INTERVAL_CONSTRAINT_NAME}"`,
+    )
+
+    try {
+      await prisma.monitor.create({
+        data: intervalMonitorData(INTERVAL_LEGACY_MONITOR_ID, 180),
+      })
+      await prisma.$executeRawUnsafe(ADD_INTERVAL_CONSTRAINT_SQL)
+
+      const legacy = await prisma.monitor.findUniqueOrThrow({
+        where: { id: INTERVAL_LEGACY_MONITOR_ID },
+      })
+      expect(legacy.intervalSec).toBe(180)
+
+      await expect(
+        prisma.monitor.create({
+          data: intervalMonitorData(INTERVAL_REJECTED_MONITOR_ID, 180),
+        }),
+      ).rejects.toThrow()
+
+      await expect(
+        prisma.monitor.create({
+          data: intervalMonitorData(INTERVAL_VALID_MONITOR_ID, 300),
+        }),
+      ).resolves.toMatchObject({ intervalSec: 300 })
+    } finally {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "Monitor" DROP CONSTRAINT IF EXISTS "${INTERVAL_CONSTRAINT_NAME}"`,
+      )
+      await prisma.monitor.deleteMany({ where: { id: { in: INTERVAL_FIXTURE_IDS } } })
+      await prisma.$executeRawUnsafe(ADD_INTERVAL_CONSTRAINT_SQL)
+    }
   })
 
   it('refreshes SellerBlock snapshots between calls without reconnecting Prisma', async () => {
