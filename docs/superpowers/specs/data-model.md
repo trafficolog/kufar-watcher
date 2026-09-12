@@ -10,7 +10,7 @@
 |----------|-----------|---------------|
 | `Monitor` | правило мониторинга | `name` (имя-тег в уведомлении), `sourceUrl`, `query` (jsonb, разобранный CanonicalQuery), `intervalSec`, `keywords` (jsonb), `searchInDescription`, `sellerType`, `state` |
 | `MonitorCursor` | состояние обхода монитора | `monitorId` (первичный ключ), `boundaryTime`, `boundaryIds` (jsonb), `lastRunAt`, `updatedAt` |
-| `Run` | одна попытка обхода | `monitorId`, `startedAt`, `finishedAt`, `outcome`, `httpStatus`, `seen`, `matched`, `error`, `degradedLevel` |
+| `Run` | одна попытка обхода | `monitorId`, `startedAt`, `finishedAt`, `durationMs`, `outcome`, `httpStatus`, `seen`, `matched`, `error`, `errorCategory`, `errorCode`, `degradedLevel` |
 | `Listing` | объявление площадки | `listId` (первичный ключ, идентификатор площадки), `title`, `priceKind`, `priceAmount` (nullable), `currency`, `url`, `region`, `accountId`, `isCompany`, `listTime`, `description`, `raw` (jsonb), `firstSeenAt` |
 | `Match` | попадание объявления под правило | `monitorId`, `listingId`, `matchedTerms`, `matchedIn`, `snippet`, `notifiedAt` |
 | `Favorite` | помеченное для слежки за ценой | `listingId`, `monitorId`, `addedAt`, `state` (`active` / `frozen`) |
@@ -91,6 +91,28 @@ UNIQUE(source, externalId)
 MVP-задаче `1.2.2`. До появления `HealthEvent` такие события пишутся в `Run`:
 поля `outcome` и `error` для этого достаточны. Заводить `HealthEvent` раньше
 срока не нужно, но и придумывать третье место хранения — тоже.
+
+**Жизненный цикл `Run` конечен и типизирован.** Runtime writers используют общий
+`RUN_OUTCOME`; допустимые значения и их смысл для health consumers:
+
+| `outcome` | Смысл | Классификация для health |
+|-----------|-------|--------------------------|
+| `running` | попытка началась и ещё не получила terminal disposition | незавершённая; не считать завершённым результатом |
+| `success` | полный обход или cold-start baseline успешно завершён | успешная |
+| `catchup` | bounded traversal chunk успешно сохранён вместе с checkpoint, но полный watermark traversal ещё не завершён | успешная попытка, не ошибка |
+| `skipped` | запуск намеренно пропущен, например из-за overlap | нейтральная; не считать успешным source traversal и не считать ошибкой |
+| `error` | попытка завершилась контролируемой или неожиданной ошибкой | неуспешная; причина уточняется через `errorCategory`, `errorCode` и `httpStatus` |
+| `interrupted` | startup recovery обнаружил `running` row предыдущего process incarnation без `finishedAt` | неуспешная terminal; не считать `success` или `skipped` |
+
+Для `interrupted` recovery заполняет `finishedAt`, `durationMs`,
+`errorCategory=internal` и `errorCode=worker-interrupted` до запуска scheduler.
+Это делает повторный startup идемпотентным и не затрагивает normal `running`
+текущего процесса.
+
+На уровне БД constraint `Run_outcome_supported_check` отклоняет произвольные
+**non-null** строки и разрешает только шесть значений выше. Constraint создан
+`NOT VALID`, поэтому migration не ретро-проверяет существующие строки; отдельный
+`NOT NULL` не добавлялся, и legacy `NULL` остаётся допустимым.
 
 **`raw` хранится целиком.** Место дешёвое, а при изменении структуры ответа
 сырой снимок — единственный способ понять, что именно поменялось, и починить
