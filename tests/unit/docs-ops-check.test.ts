@@ -392,6 +392,36 @@ describe('docs-ops check', () => {
     expect(result.stdout).toContain('check: OK')
   })
 
+  it.each(['blocked', 'cancelled'])('accepts an epic explicitly marked %s', (status) => {
+    const root = createPartialEpicLifecycleFixture()
+    const epicPath = join(root, 'docs/epics/1-1.md')
+    const phasePath = join(root, 'docs/phases/1.md')
+    writeFileSync(epicPath, readFileSync(epicPath, 'utf8').replace('status: todo', `status: ${status}`))
+    writeFileSync(
+      phasePath,
+      readFileSync(phasePath, 'utf8').replace('status: todo', 'status: in_progress'),
+    )
+
+    const result = runCli(root, 'check')
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('check: OK')
+  })
+
+  it.each(['blocked', 'cancelled'])('accepts a phase explicitly marked %s', (status) => {
+    const root = createPartialPhaseLifecycleFixture()
+    const phasePath = join(root, 'docs/phases/1.md')
+    writeFileSync(
+      phasePath,
+      readFileSync(phasePath, 'utf8').replace('status: todo', `status: ${status}`),
+    )
+
+    const result = runCli(root, 'check')
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('check: OK')
+  })
+
   it('rejects stale generated docs without mutating them', () => {
     const root = createFreshnessFixture()
     const phasePath = join(root, 'docs/phases/1.md')
