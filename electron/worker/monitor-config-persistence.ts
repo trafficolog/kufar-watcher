@@ -122,6 +122,14 @@ export function parsePersistedCanonicalQuery(value: unknown): CanonicalQuery {
 }
 
 function canonicalQueryJson(query: CanonicalQuery): Prisma.InputJsonValue {
+  if (
+    query.sellerType !== null &&
+    query.sellerType !== 'private' &&
+    query.sellerType !== 'company'
+  ) {
+    throw new PersistedCanonicalQueryError()
+  }
+
   return {
     host: query.host,
     category: query.category,
