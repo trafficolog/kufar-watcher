@@ -310,7 +310,6 @@ function cmdCheck() {
     return 'in_progress'
   }
   const parentMatchesLifecycle = (parent: Doc, kids: Doc[]) => {
-    if (parent.fm.status === 'blocked' || parent.fm.status === 'cancelled') return true
     const expectedStatus = expectedParentStatus(kids)
     return (
       parent.fm.status === expectedStatus &&
