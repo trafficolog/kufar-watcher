@@ -33,6 +33,10 @@ roles:
 
 <!-- docs:ops:begin epic-5.2-tasks -->
 **Задач:** 1 · **done:** 0
+
+| ID | Задача | Статус | Sync |
+|----|--------|--------|------|
+| `5.2.4` | [Live scheduler sync после редактирования монитора](../tasks/5-2-4-live-scheduler-sync.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-5.2-tasks -->
 
 ## Критерии приёмки эпика

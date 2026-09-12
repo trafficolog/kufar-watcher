@@ -63,7 +63,6 @@ _Сгенерировано 2026-09-12_
 | `2.4.4` | Ретраи расписания и деградация при ошибках | 2.4 | ✅ done | 🟢 aligned |
 | `2.4.5` | Persist source degradation per Run | 2.4 | ✅ done | 🟢 aligned |
 | `2.7.1` | Валидация интервала и изоляция scheduler startup | 2.7 | ⬜ todo | 🟡 drifted |
-| `2.7.10` | Live scheduler sync в реальном config mutation path | 2.7 | ⬜ todo | 🟡 drifted |
 | `2.7.11` | Lifecycle-контракт docs и точная семантика drift pause signal | 2.7 | ⬜ todo | 🟡 drifted |
 | `2.7.2` | Контракт термов и симметричная нормализация | 2.7 | ⬜ todo | 🟡 drifted |
 | `2.7.3` | Terminal disposition при исчерпании description budget | 2.7 | ⬜ todo | 🟡 drifted |
@@ -84,6 +83,7 @@ _Сгенерировано 2026-09-12_
 | `5.0.2` | Настройка Telegram: токен и привязка чата | 5.0 | ⬜ todo | 🟡 drifted |
 | `5.0.3` | Минимальный список мониторов | 5.0 | ⬜ todo | 🟡 drifted |
 | `5.0.4` | Приёмка среза MVP-1 | 5.0 | ⬜ todo | 🟡 drifted |
+| `5.2.4` | Live scheduler sync после редактирования монитора | 5.2 | ⬜ todo | 🟡 drifted |
 | `5.3.4` | Период и архивные мониторы в ленте | 5.3 | ⬜ todo | 🟡 drifted |
 | `5.4.5` | Управление чёрным списком продавцов | 5.4 | ⬜ todo | 🟡 drifted |
 | `5.5.3` | Режим источника данных адаптера | 5.5 | ⬜ todo | 🟡 drifted |
