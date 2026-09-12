@@ -1,9 +1,26 @@
 const LEADING_PUNCTUATION = /^\p{P}+/u
 const TRAILING_PUNCTUATION = /\p{P}+$/u
 const NON_WHITESPACE = /\S+/gu
+const GLOB_PLACEHOLDER = '\uE000'
 
 function normalizeToken(value: string): string {
   return value.toLowerCase().replaceAll('ё', 'е')
+}
+
+function matchingTokenSource(
+  rawToken: string,
+  options: { preserveGlob?: boolean } = {},
+): { sourceToken: string; leadingLength: number } {
+  const edgeComparable = options.preserveGlob
+    ? rawToken.replaceAll('*', GLOB_PLACEHOLDER)
+    : rawToken
+  const leadingLength = edgeComparable.match(LEADING_PUNCTUATION)?.[0].length ?? 0
+  const trailingLength = edgeComparable.match(TRAILING_PUNCTUATION)?.[0].length ?? 0
+
+  return {
+    sourceToken: rawToken.slice(leadingLength, rawToken.length - trailingLength),
+    leadingLength,
+  }
 }
 
 export interface MatchingTokenSpan {
@@ -16,15 +33,24 @@ export function normalizeMatchingText(value: string): string {
   return normalizeToken(value).trim().replace(/\s+/gu, ' ')
 }
 
+export function normalizeMatchingTermTokens(value: string): string[] {
+  const tokens: string[] = []
+
+  for (const match of value.matchAll(NON_WHITESPACE)) {
+    const { sourceToken } = matchingTokenSource(match[0], { preserveGlob: true })
+    if (sourceToken.length > 0) tokens.push(normalizeToken(sourceToken))
+  }
+
+  return tokens
+}
+
 export function tokenizeMatchingTextWithSpans(value: string): MatchingTokenSpan[] {
   const tokens: MatchingTokenSpan[] = []
 
   for (const match of value.matchAll(NON_WHITESPACE)) {
     const rawToken = match[0]
     const rawStart = match.index
-    const leadingLength = rawToken.match(LEADING_PUNCTUATION)?.[0].length ?? 0
-    const trailingLength = rawToken.match(TRAILING_PUNCTUATION)?.[0].length ?? 0
-    const sourceToken = rawToken.slice(leadingLength, rawToken.length - trailingLength)
+    const { sourceToken, leadingLength } = matchingTokenSource(rawToken)
 
     if (sourceToken.length === 0) continue
 
