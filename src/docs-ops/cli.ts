@@ -391,17 +391,15 @@ function cmdNewIteration(ctx: string) {
   const seq = pad(existing.length + 1)
   mkdirSync(dir, { recursive: true })
   const tpl = readFileSync(join(TEMPLATES, 'iteration.md'), 'utf8')
-  const out = join(dir, `${stamp}-${stamp ? ctx || 'iteration' : ''}.md`)
-  const realOut = join(dir, `${stamp}-${seq}-${ctx || 'iteration'}.md`)
+  const out = join(dir, `${stamp}-${seq}-${ctx || 'iteration'}.md`)
   writeFileSync(
-    realOut,
+    out,
     tpl
       .replace(/{{date}}/g, stamp)
       .replace(/{{seq}}/g, seq)
       .replace(/{{context}}/g, ctx || ''),
   )
-  console.log('создано: ' + realOut)
-  void out
+  console.log('создано: ' + out)
 }
 
 const [cmd, arg] = process.argv.slice(2)
