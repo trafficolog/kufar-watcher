@@ -396,7 +396,10 @@ describe('docs-ops check', () => {
     const root = createPartialEpicLifecycleFixture()
     const epicPath = join(root, 'docs/epics/1-1.md')
     const phasePath = join(root, 'docs/phases/1.md')
-    writeFileSync(epicPath, readFileSync(epicPath, 'utf8').replace('status: todo', `status: ${status}`))
+    writeFileSync(
+      epicPath,
+      readFileSync(epicPath, 'utf8').replace('status: todo', `status: ${status}`),
+    )
     writeFileSync(
       phasePath,
       readFileSync(phasePath, 'utf8').replace('status: todo', 'status: in_progress'),
