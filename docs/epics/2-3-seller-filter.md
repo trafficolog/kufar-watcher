@@ -24,12 +24,12 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.3-tasks -->
-**Задач:** 2 · **done:** 1
+**Задач:** 2 · **done:** 2
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `2.3.1` | [Тип продавца как параметр запроса](../tasks/2-3-1-seller-type-request.md) | ✅ done | 🟢 aligned |
-| `2.3.2` | [Персональный чёрный список аккаунтов](../tasks/2-3-2-personal-seller-blacklist.md) | ⬜ todo | 🟡 drifted |
+| `2.3.2` | [Персональный чёрный список аккаунтов](../tasks/2-3-2-personal-seller-blacklist.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-2.3-tasks -->
 
 ## Критерии приёмки эпика
