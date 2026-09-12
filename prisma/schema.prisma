@@ -35,7 +35,6 @@ model Monitor {
   intervalSec         Int
   keywords            Json
   searchInDescription Boolean        @default(false)
-  sellerType          String?
   state               MonitorState   @default(active)
   cursor              MonitorCursor?
   runs                Run[]

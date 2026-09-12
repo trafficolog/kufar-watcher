@@ -124,7 +124,6 @@ integrationDescribe('monitor config persistence', () => {
         intervalSec: 60,
         keywords: ['phone'],
         searchInDescription: false,
-        sellerType: null,
         state: 'active',
       },
     })

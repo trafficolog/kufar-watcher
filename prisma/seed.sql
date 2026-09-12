@@ -8,7 +8,6 @@ INSERT INTO "Monitor" (
   "intervalSec",
   "keywords",
   "searchInDescription",
-  "sellerType",
   "state"
 )
 VALUES
@@ -16,22 +15,20 @@ VALUES
     100001,
     'seed-monitor-electronics',
     'https://fixtures.invalid/search/electronics',
-    '{"category":"electronics","source":"fixture"}'::jsonb,
+    '{"host":"www.kufar.by","category":"electronics","query":null,"region":null,"sellerType":"private","sort":"lst.d","operation":null,"pathFilters":[],"extraParams":{}}'::jsonb,
     60,
     '["pixel","phone"]'::jsonb,
     true,
-    'private',
     'active'
   ),
   (
     100002,
     'seed-monitor-housing',
     'https://fixtures.invalid/search/housing',
-    '{"category":"housing","source":"fixture"}'::jsonb,
+    '{"host":"re.kufar.by","category":"housing","query":null,"region":null,"sellerType":null,"sort":"lst.d","operation":null,"pathFilters":[],"extraParams":{}}'::jsonb,
     300,
     '["studio","balcony"]'::jsonb,
     false,
-    NULL,
     'active'
   )
 ON CONFLICT ("id") DO UPDATE SET
@@ -41,7 +38,6 @@ ON CONFLICT ("id") DO UPDATE SET
   "intervalSec" = EXCLUDED."intervalSec",
   "keywords" = EXCLUDED."keywords",
   "searchInDescription" = EXCLUDED."searchInDescription",
-  "sellerType" = EXCLUDED."sellerType",
   "state" = EXCLUDED."state";
 
 INSERT INTO "MonitorCursor" (
