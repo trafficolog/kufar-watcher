@@ -64,7 +64,7 @@ _Сгенерировано 2026-09-12_
 | `2.4.5` | Persist source degradation per Run | 2.4 | ✅ done | 🟢 aligned |
 | `2.7.1` | Валидация интервала и изоляция scheduler startup | 2.7 | ✅ done | 🟢 aligned |
 | `2.7.11` | Lifecycle-контракт docs и точная семантика drift pause signal | 2.7 | ⬜ todo | 🟡 drifted |
-| `2.7.2` | Контракт термов и симметричная нормализация | 2.7 | ⬜ todo | 🟡 drifted |
+| `2.7.2` | Контракт термов и симметричная нормализация | 2.7 | ✅ done | 🟢 aligned |
 | `2.7.3` | Terminal disposition при исчерпании description budget | 2.7 | ⬜ todo | 🟡 drifted |
 | `2.7.4` | Целостность жизненного цикла Run | 2.7 | ⬜ todo | 🟡 drifted |
 | `2.7.5` | Единый источник истины для sellerType | 2.7 | ⬜ todo | 🟡 drifted |

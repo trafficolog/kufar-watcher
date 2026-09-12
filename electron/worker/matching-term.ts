@@ -1,4 +1,4 @@
-import { normalizeMatchingText } from './matching-normalization'
+import { normalizeMatchingTermTokens } from './matching-normalization'
 
 const REGEXP_SPECIAL_CHARACTERS = /[.*+?^${}()|[\]\\]/g
 
@@ -7,7 +7,12 @@ function escapeRegExp(value: string): string {
 }
 
 export function compileMatchingTerm(term: string): (normalizedToken: string) => boolean {
-  const normalizedTerm = normalizeMatchingText(term)
+  const normalizedTokens = normalizeMatchingTermTokens(term)
+  const normalizedTerm = normalizedTokens[0]
+
+  if (normalizedTokens.length !== 1 || normalizedTerm === undefined) {
+    throw new Error('Matching term must normalize to exactly one token')
+  }
 
   if (!normalizedTerm.includes('*')) {
     return (normalizedToken) => normalizedToken === normalizedTerm

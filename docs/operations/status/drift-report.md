@@ -34,7 +34,6 @@ _Сгенерировано 2026-09-12_
 - `0.3.5` Схема среза `0.5.0`: `Favorite`, `PriceSnapshot` — 
 - `0.3.6` Схема среза `0.6.0`: `HealthEvent`, `SchemaSnapshot` — 
 - `2.7.11` Lifecycle-контракт docs и точная семантика drift pause signal — 
-- `2.7.2` Контракт термов и симметричная нормализация — 
 - `2.7.3` Terminal disposition при исчерпании description budget — 
 - `2.7.4` Целостность жизненного цикла Run — 
 - `2.7.5` Единый источник истины для sellerType — 
