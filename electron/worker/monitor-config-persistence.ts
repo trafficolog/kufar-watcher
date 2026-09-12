@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client'
 import type { CanonicalQuery } from '../../shared/canonical-query'
+import { assertSupportedMonitorInterval } from '../../shared/monitor-interval'
 
 export interface MonitorSourceIdentity {
   sourceUrl: string
@@ -142,6 +143,10 @@ export async function updateMonitorConfigTransaction(
   monitorId: number,
   patch: MonitorConfigPatch,
 ): Promise<void> {
+  if (patch.intervalSec !== undefined) {
+    assertSupportedMonitorInterval(patch.intervalSec)
+  }
+
   const current = await tx.monitor.findUniqueOrThrow({
     where: { id: monitorId },
     select: {

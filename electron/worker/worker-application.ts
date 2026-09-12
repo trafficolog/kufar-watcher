@@ -84,7 +84,18 @@ export function createWorkerApplication(
       publish({ type: 'monitor-pause-required', monitorId, stage })
     },
   })
-  const scheduler = dependencies.createScheduler({ repository, queue, runMonitor })
+  const scheduler = dependencies.createScheduler({
+    repository,
+    queue,
+    runMonitor,
+    onReconcileError(monitorId, error) {
+      publish({
+        type: 'journal',
+        level: 'error',
+        message: `Monitor ${monitorId} schedule reconciliation failed: ${formatWorkerError(error)}`,
+      })
+    },
+  })
 
   return {
     scheduler,
