@@ -304,14 +304,27 @@ function cmdCheck() {
     if (!epicIds.has(String(t.fm.epic))) errors.push(`${t.file}: epic '${t.fm.epic}' не найден`)
 
   const doneAligned = (doc: Doc) => doc.fm.status === 'done' && doc.fm.sync_state === 'aligned'
+  const expectedParentStatus = (kids: Doc[]): 'todo' | 'in_progress' | 'done' => {
+    if (kids.every((kid) => kid.fm.status === 'todo')) return 'todo'
+    if (kids.every(doneAligned)) return 'done'
+    return 'in_progress'
+  }
+  const parentMatchesLifecycle = (parent: Doc, kids: Doc[]) => {
+    const expectedStatus = expectedParentStatus(kids)
+    return (
+      parent.fm.status === expectedStatus &&
+      (expectedStatus !== 'done' || parent.fm.sync_state === 'aligned')
+    )
+  }
+
   for (const e of epics) {
     const kids = tasks.filter((t) => String(t.fm.epic) === String(e.fm.id))
-    if (kids.length > 0 && doneAligned(e) !== kids.every(doneAligned))
+    if (kids.length > 0 && !parentMatchesLifecycle(e, kids))
       errors.push(`${e.file}: lifecycle не соответствует дочерним задачам`)
   }
   for (const p of phases) {
     const kids = epics.filter((e) => String(e.fm.phase) === String(p.fm.id))
-    if (kids.length > 0 && doneAligned(p) !== kids.every(doneAligned))
+    if (kids.length > 0 && !parentMatchesLifecycle(p, kids))
       errors.push(`${p.file}: lifecycle не соответствует дочерним эпикам`)
   }
 
