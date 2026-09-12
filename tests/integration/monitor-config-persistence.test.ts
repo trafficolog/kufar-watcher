@@ -79,7 +79,7 @@ function sellerListing(accountId: string): Listing {
   }
 }
 
-function intervalMonitorData(id: number, intervalSec: number): Prisma.MonitorCreateInput {
+function intervalMonitorData(id: number, intervalSec: number): Prisma.MonitorUncheckedCreateInput {
   return {
     id,
     name: `interval-constraint-${id}`,
