@@ -401,6 +401,8 @@ describe('docs-ops check', () => {
       phasePath,
       readFileSync(phasePath, 'utf8').replace('status: todo', 'status: in_progress'),
     )
+    const refresh = runCli(root, 'refresh')
+    if (refresh.status !== 0) throw new Error(refresh.stderr || refresh.stdout)
 
     const result = runCli(root, 'check')
 
@@ -415,6 +417,8 @@ describe('docs-ops check', () => {
       phasePath,
       readFileSync(phasePath, 'utf8').replace('status: todo', `status: ${status}`),
     )
+    const refresh = runCli(root, 'refresh')
+    if (refresh.status !== 0) throw new Error(refresh.stderr || refresh.stdout)
 
     const result = runCli(root, 'check')
 
