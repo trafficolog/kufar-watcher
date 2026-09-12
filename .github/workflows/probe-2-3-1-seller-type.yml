@@ -1,0 +1,49 @@
+name: probe-2-3-1-seller-type
+
+on:
+  push:
+    branches:
+      - 'feat/2.3.1-seller-type-request'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe current search API
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040&rgn=7&query=ps5&size=30&sort=lst.d&lang=ru'
+          for variant in baseline cmp0 cmp1 cmptrue cmpfalse; do
+            case "$variant" in
+              baseline) url="$base" ;;
+              cmp0) url="$base&cmp=0" ;;
+              cmp1) url="$base&cmp=1" ;;
+              cmptrue) url="$base&cmp=true" ;;
+              cmpfalse) url="$base&cmp=false" ;;
+            esac
+            status=$(curl --silent --show-error --location --connect-timeout 10 --max-time 30 \
+              --user-agent 'KufarMonitor/2.3.1-recon' \
+              --output "/tmp/${variant}.json" --write-out '%{http_code}' "$url")
+            echo "=== ${variant} status=${status} ==="
+            VARIANT="$variant" STATUS="$status" node <<'NODE'
+          const fs = require('node:fs')
+          const variant = process.env.VARIANT
+          const status = process.env.STATUS
+          const raw = fs.readFileSync(`/tmp/${variant}.json`, 'utf8')
+          let body
+          try {
+            body = JSON.parse(raw)
+          } catch {
+            console.log(JSON.stringify({ variant, status, parseError: true, bodyPrefix: raw.slice(0, 200) }))
+            process.exit(0)
+          }
+          const ads = Array.isArray(body.ads) ? body.ads : []
+          const company = ads.filter((ad) => ad?.company_ad === true).length
+          const privateCount = ads.filter((ad) => ad?.company_ad === false).length
+          console.log(JSON.stringify({ variant, status, total: body.total ?? null, ads: ads.length, company, private: privateCount }))
+          NODE
+          done
