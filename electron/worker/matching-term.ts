@@ -8,12 +8,11 @@ function escapeRegExp(value: string): string {
 
 export function compileMatchingTerm(term: string): (normalizedToken: string) => boolean {
   const normalizedTokens = normalizeMatchingTermTokens(term)
+  const normalizedTerm = normalizedTokens[0]
 
-  if (normalizedTokens.length !== 1) {
+  if (normalizedTokens.length !== 1 || normalizedTerm === undefined) {
     throw new Error('Matching term must normalize to exactly one token')
   }
-
-  const [normalizedTerm] = normalizedTokens
 
   if (!normalizedTerm.includes('*')) {
     return (normalizedToken) => normalizedToken === normalizedTerm
