@@ -35,17 +35,12 @@ describe('matching term compilation', () => {
   })
 
   it('rejects a multiword term instead of compiling an always-false single-token predicate', () => {
-    expect(() => matchingTermCompiler.compile('playstation 5')).toThrowError(
-      /exactly one token/i,
-    )
+    expect(() => matchingTermCompiler.compile('playstation 5')).toThrowError(/exactly one token/i)
   })
 
-  it.each(['   ', '... !!!'])(
-    'rejects a term that is empty after normalization: %j',
-    (term) => {
-      expect(() => matchingTermCompiler.compile(term)).toThrowError(/exactly one token/i)
-    },
-  )
+  it.each(['   ', '... !!!'])('rejects a term that is empty after normalization: %j', (term) => {
+    expect(() => matchingTermCompiler.compile(term)).toThrowError(/exactly one token/i)
+  })
 
   it('supports a trailing star across a whole token', () => {
     const matches = matchingTermCompiler.compile('playstation*')
