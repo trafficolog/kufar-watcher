@@ -19,15 +19,18 @@
 6. `2.7.5` — один independently writable sellerType source of truth.
 7. `2.7.6` — process-independent overlap invariant; сначала characterization, затем durable lock только если gap реально воспроизводится.
 
-### P2 — контрактные и integration gaps
+### P2 — контрактные/config gaps
 
 8. `2.7.7` — snippet только при description match.
 9. `2.7.9` — page cap становится валидируемой операционной конфигурацией при default 5.
-10. `2.7.10` — реальный config mutation path обязан вызывать scheduler sync; задача фактически gated появлением production mutation boundary.
 
 ### P3 — нагрузочная гигиена
 
-11. `2.7.8` — измерить synchronized job burst и при необходимости ввести стабильный per-monitor stagger без изменения intervalSec.
+10. `2.7.8` — измерить synchronized job burst и при необходимости ввести стабильный per-monitor stagger без изменения intervalSec.
+
+## Перенесённая integration-gate находка
+
+- **S11 / live scheduler sync:** helper `updateMonitorConfigAndSync()` уже существует, но production edit mutation boundary ещё нет. Это не текущий runtime-дефект фазы 2. Находка сохранена как `5.2.4 — Live scheduler sync после редактирования монитора`, чтобы первый реальный editor path не мог сохранить конфигурацию в обход schedule reconciliation.
 
 ## Что сознательно не превращено в bugfix сейчас
 
@@ -45,3 +48,4 @@
 - Не добавлять phrase search, regex или morphology в term-contract remediation.
 - Не реализовывать epic `4.3` autopause через документационную задачу.
 - Не добавлять durable lock, пока characterization не доказал отсутствие достаточного process-independent инварианта у текущего pg-boss path.
+- Не реализовывать будущий monitor-editor mutation path внутри remediation эпика 2.7.
