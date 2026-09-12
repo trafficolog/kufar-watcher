@@ -88,12 +88,12 @@ describe('scheduled monitor retry disposition', () => {
     )
   })
 
-  it('journals description budget exhaustion as a retryable policy failure', async () => {
+  it('journals description budget exhaustion as a terminal no-retry policy failure', async () => {
     const failure = new DescriptionRequestBudgetExceededError()
     const runCycle = vi.fn().mockRejectedValue(failure)
     const { executor, runUpdate } = createExecutor(runCycle)
 
-    await expect(executor(17)).rejects.toBe(failure)
+    await expect(executor(17)).resolves.toEqual({ cycleKind: 'failed-no-retry' })
     expect(runCycle).toHaveBeenCalledOnce()
     expect(runUpdate).toHaveBeenCalledWith(
       expect.objectContaining({

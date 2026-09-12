@@ -27,6 +27,17 @@ const LISTING: Listing = {
   raw: { source: 'search' },
 }
 
+type CachedDescriptionRow = {
+  availability: 'unknown' | 'available' | 'unavailable'
+  description: string | null
+  descriptionLoadedAt: Date | null
+}
+
+interface DescriptionUpsertArgs {
+  create: Partial<CachedDescriptionRow>
+  update: Partial<CachedDescriptionRow>
+}
+
 async function fixture(name: string): Promise<Uint8Array> {
   return readFile(new URL(`../fixtures/kufar/${name}`, import.meta.url))
 }
@@ -57,11 +68,7 @@ function failure(
 }
 
 function makeService(
-  cached: {
-    availability: 'unknown' | 'available' | 'unavailable'
-    description: string | null
-    descriptionLoadedAt: Date | null
-  } | null,
+  cached: CachedDescriptionRow | null,
   getResult: KufarHttpResult | Promise<KufarHttpResult>,
 ) {
   const findUnique = vi.fn().mockResolvedValue(cached)
@@ -123,6 +130,52 @@ describe('ListingDescriptionCache', () => {
     })
     expect(update).not.toHaveProperty('accountId')
     expect(update).not.toHaveProperty('title')
+  })
+
+  it('reuses a description persisted by a prior run without consuming the next run budget', async () => {
+    const detail = await fixture('2026-09-07-electronics-negotiable-detail.json')
+    let persisted: CachedDescriptionRow | null = null
+    const findUnique = vi.fn(async () => persisted)
+    const upsert = vi.fn(async (args: DescriptionUpsertArgs) => {
+      const data = persisted === null ? args.create : args.update
+      persisted = {
+        availability: data.availability ?? 'unknown',
+        description: data.description ?? null,
+        descriptionLoadedAt: data.descriptionLoadedAt ?? null,
+      }
+    })
+    const prisma = { listing: { findUnique, upsert } } as unknown as PrismaClient
+    const firstGet = vi.fn().mockResolvedValue(success(detail))
+    const firstBudget = { consume: vi.fn() }
+    const firstCache = new ListingDescriptionCache(
+      prisma,
+      { get: firstGet } as unknown as Pick<KufarHttpClient, 'get'>,
+      () => NOW,
+    )
+
+    const firstResult = await firstCache.ensureDescription(LISTING, firstBudget)
+
+    expect(firstResult).toMatchObject({ kind: 'available', source: 'network' })
+    expect(firstGet).toHaveBeenCalledOnce()
+    expect(firstBudget.consume).toHaveBeenCalledOnce()
+
+    const secondGet = vi.fn().mockRejectedValue(new Error('cached description must avoid HTTP'))
+    const secondBudget = { consume: vi.fn() }
+    const secondCache = new ListingDescriptionCache(
+      prisma,
+      { get: secondGet } as unknown as Pick<KufarHttpClient, 'get'>,
+      () => new Date('2026-09-09T06:05:00.000Z'),
+    )
+
+    const secondResult = await secondCache.ensureDescription(LISTING, secondBudget)
+
+    expect(secondResult).toMatchObject({ kind: 'available', source: 'cache' })
+    if (firstResult.kind !== 'available' || secondResult.kind !== 'available') {
+      throw new Error('Expected available descriptions in both runs')
+    }
+    expect(secondResult.description).toBe(firstResult.description)
+    expect(secondGet).not.toHaveBeenCalled()
+    expect(secondBudget.consume).not.toHaveBeenCalled()
   })
 
   it('caches exact HTTP 404 plus ASR0006 as unavailable without throwing', async () => {
