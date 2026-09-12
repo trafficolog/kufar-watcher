@@ -16,36 +16,36 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base='https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040&rgn=7&query=ps5&size=30&sort=lst.d&lang=ru'
-          for variant in baseline cmp0 cmp1 cmptrue cmpfalse; do
-            case "$variant" in
-              baseline) url="$base" ;;
-              cmp0) url="$base&cmp=0" ;;
-              cmp1) url="$base&cmp=1" ;;
-              cmptrue) url="$base&cmp=true" ;;
-              cmpfalse) url="$base&cmp=false" ;;
+          electronics='https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=5040&rgn=7&query=ps5&size=30&sort=lst.d&lang=ru'
+          realestate='https://api.kufar.by/search-api/v2/search/rendered-paginated?cat=1010&gtsy=country-belarus~province-minsk~locality-minsk&typ=sell&size=30&sort=lst.d&lang=ru'
+          for scope in electronics realestate; do
+            case "$scope" in
+              electronics) base="$electronics" ;;
+              realestate) base="$realestate" ;;
             esac
-            status=$(curl --silent --show-error --location --connect-timeout 10 --max-time 30 \
-              --user-agent 'KufarMonitor/2.3.1-recon' \
-              --output "/tmp/${variant}.json" --write-out '%{http_code}' "$url")
-            echo "=== ${variant} status=${status} ==="
-            VARIANT="$variant" STATUS="$status" node <<'NODE'
+            for variant in baseline cmp0 cmp1; do
+              case "$variant" in
+                baseline) url="$base" ;;
+                cmp0) url="$base&cmp=0" ;;
+                cmp1) url="$base&cmp=1" ;;
+              esac
+              key="${scope}-${variant}"
+              status=$(curl --silent --show-error --location --connect-timeout 10 --max-time 30 \
+                --user-agent 'KufarMonitor/2.3.1-recon' \
+                --output "/tmp/${key}.json" --write-out '%{http_code}' "$url")
+              echo "=== ${key} status=${status} ==="
+              KEY="$key" STATUS="$status" node <<'NODE'
           const fs = require('node:fs')
-          const variant = process.env.VARIANT
+          const key = process.env.KEY
           const status = process.env.STATUS
-          const raw = fs.readFileSync(`/tmp/${variant}.json`, 'utf8')
-          let body
-          try {
-            body = JSON.parse(raw)
-          } catch {
-            console.log(JSON.stringify({ variant, status, parseError: true, bodyPrefix: raw.slice(0, 200) }))
-            process.exit(0)
-          }
+          const raw = fs.readFileSync(`/tmp/${key}.json`, 'utf8')
+          const body = JSON.parse(raw)
           const ads = Array.isArray(body.ads) ? body.ads : []
           const company = ads.filter((ad) => ad?.company_ad === true).length
           const privateCount = ads.filter((ad) => ad?.company_ad === false).length
-          console.log(JSON.stringify({ variant, status, total: body.total ?? null, ads: ads.length, company, private: privateCount }))
+          console.log(JSON.stringify({ key, status, total: body.total ?? null, ads: ads.length, company, private: privateCount }))
           NODE
+            done
           done
 
       - name: Inspect current user-layer seller semantics
@@ -67,10 +67,10 @@ jobs:
           const fs = require('node:fs')
           const variant = process.env.VARIANT
           const raw = fs.readFileSync(`/tmp/page-${variant}.html`, 'utf8')
-          for (const needle of ['bez-posrednikov', 'cmp', 'company_ad', 'sellerType']) {
+          for (const needle of ['bez-posrednikov', 'cmp', 'company_ad']) {
             const indexes = []
             let from = 0
-            while (indexes.length < 8) {
+            while (indexes.length < 4) {
               const index = raw.indexOf(needle, from)
               if (index === -1) break
               indexes.push(index)
