@@ -15,7 +15,6 @@ export interface MonitorConfigPatch {
   intervalSec?: number
   keywords?: readonly string[]
   searchInDescription?: boolean
-  sellerType?: string | null
   state?: 'active' | 'paused' | 'archived'
 }
 
@@ -175,7 +174,6 @@ export async function updateMonitorConfigTransaction(
   if (patch.intervalSec !== undefined) data.intervalSec = patch.intervalSec
   if (patch.keywords !== undefined) data.keywords = [...patch.keywords]
   if (patch.searchInDescription !== undefined) data.searchInDescription = patch.searchInDescription
-  if (patch.sellerType !== undefined) data.sellerType = patch.sellerType
   if (patch.state !== undefined) data.state = patch.state
 
   await tx.monitor.update({
