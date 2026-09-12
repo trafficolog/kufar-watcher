@@ -3,7 +3,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { SourceDegradationEvent } from '../../electron/worker/kufar-resilient-source'
 import { KufarSourceRequestError } from '../../electron/worker/kufar-source-request-error'
 import { createPrismaClient } from '../../electron/worker/prisma-client'
-import { createScheduledMonitorRunExecutor } from '../../electron/worker/scheduled-monitor-run'
+import {
+  createScheduledMonitorRunExecutor,
+  type ScheduledMonitorRunExecutorOptions,
+} from '../../electron/worker/scheduled-monitor-run'
 import type { SourceAdapter } from '../../shared/source-adapter'
 import { createSourceAdapterRegistry } from '../../shared/source-adapter-registry'
 
@@ -30,6 +33,7 @@ const degradationEvent: SourceDegradationEvent = {
 function executorFor(
   prisma: ReturnType<typeof createPrismaClient>,
   fetchPage: SourceAdapter['fetchPage'],
+  runCycle?: Parameters<typeof createScheduledMonitorRunExecutor>[0]['runCycle'],
 ) {
   const adapter = { fetchPage } as SourceAdapter
   const adapters = createSourceAdapterRegistry({
@@ -41,6 +45,7 @@ function executorFor(
     createRunAdapters: () => adapters,
     maxPages: 2,
     descriptionLoader: { ensureDescription: vi.fn() },
+    runCycle,
   })
 }
 
@@ -227,5 +232,72 @@ integration('scheduled Run journal', () => {
     })
     expect(runs).toHaveLength(2)
     expect(runs.map(({ outcome }) => outcome)).toEqual(['success', 'skipped'])
+  })
+
+  it('prevents overlap across independent executor and database contexts', async () => {
+    const secondPrisma = createPrismaClient()
+    await secondPrisma.$connect()
+    let releaseFirst!: () => void
+    let firstEntered!: () => void
+    const release = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    const entered = new Promise<void>((resolve) => {
+      firstEntered = resolve
+    })
+    let traversalCalls = 0
+    const runCycle: NonNullable<ScheduledMonitorRunExecutorOptions['runCycle']> = vi.fn(
+      async ({ prisma: cyclePrisma, runId, startedAt }) => {
+        if (runId === undefined || startedAt === undefined) {
+          throw new Error('Scheduled run metadata is required')
+        }
+        traversalCalls += 1
+        if (traversalCalls === 1) {
+          firstEntered()
+          await release
+        }
+        const finishedAt = new Date()
+        await cyclePrisma.run.update({
+          where: { id: runId },
+          data: {
+            finishedAt,
+            durationMs: Math.max(0, finishedAt.getTime() - startedAt.getTime()),
+            outcome: 'success',
+            seen: 0,
+            matched: 0,
+          },
+        })
+        return {
+          cycleKind: 'cold-start' as const,
+          baselineCount: 0,
+          pagesRead: 1,
+          nextWatermark: { boundaryTime: startedAt.toISOString(), boundaryIds: [] },
+        }
+      },
+    )
+    const fetchPage = vi.fn().mockResolvedValue({ listings: [], nextCursor: null })
+    const firstExecutor = executorFor(prisma, fetchPage, runCycle)
+    const secondExecutor = executorFor(secondPrisma, fetchPage, runCycle)
+    const first = firstExecutor(MONITOR_ID)
+    await entered
+
+    try {
+      await expect(secondExecutor(MONITOR_ID)).resolves.toEqual({
+        cycleKind: 'skipped-overlap',
+      })
+      expect(runCycle).toHaveBeenCalledTimes(1)
+      expect(fetchPage).not.toHaveBeenCalled()
+    } finally {
+      releaseFirst()
+      await first
+      await secondPrisma.$disconnect()
+    }
+
+    const runs = await prisma.run.findMany({
+      where: { monitorId: MONITOR_ID },
+      orderBy: { id: 'asc' },
+    })
+    expect(runs).toHaveLength(2)
+    expect(runs.map(({ outcome }) => outcome).sort()).toEqual(['skipped', 'success'])
   })
 })
