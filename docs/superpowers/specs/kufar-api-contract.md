@@ -90,6 +90,31 @@ Fixtures:
 | `cursor` | та же opaque pagination-механика: `label == "next"` → `token` → следующий `cursor` |
 | `lang` | `lang=ru` принят API |
 
+### Seller type (`2.3.1`, live recon 2026-09-12)
+
+Текущий Search API использует bool-фильтр `company_ad` с URL/API-именем `cmp`.
+Live recon на `rendered-paginated` подтвердил одинаковую семантику для уже
+поддерживаемых electronics и real-estate mappings:
+
+- `cmp=0` и `cmp=false` возвращают только объявления частников
+  (`company_ad=false`);
+- `cmp=1` и `cmp=true` возвращают только объявления компаний
+  (`company_ad=true`);
+- user-layer marker `bez-posrednikov` эквивалентен private-семантике и
+  канонизируется в `SellerType = 'private'`;
+- company-семантика канонизируется в `SellerType = 'company'`;
+- outbound API mapping обязан передавать `cmp=0` для `private` и `cmp=1` для
+  `company`, а не фильтровать уже полученные записи по `company_ad`.
+
+Electronics probe 2026-09-12: baseline `1256`; `cmp=0` -> `802` и 30/30
+`company_ad=false` в первой странице; `cmp=1` -> `454` и 30/30
+`company_ad=true`. Real-estate probe: baseline `12036`; `cmp=0` -> `816` и
+30/30 private; `cmp=1` -> `11222` и 30/30 company. Подтверждающий Actions run:
+`probe-2-3-1-seller-type #3`, run id `34680955449`.
+
+Invalid или конфликтующие повторные `cmp` не являются opaque extras: parser
+должен отклонять такой URL как неоднозначную seller semantics.
+
 Параметры `ar`, `cur`, `cnd`, `otype`/исторический `ot` не входят в минимальный
 **electronics** request contract `1.0.1`. Их нельзя автоматически добавлять или
 интерпретировать как обязательные там до отдельного требования. Response-side

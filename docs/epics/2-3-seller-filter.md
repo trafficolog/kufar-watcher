@@ -4,7 +4,7 @@ phase: 2
 status: in_progress
 sync_state: drifted
 last_reviewed: 2026-09-12
-status_note: "Нативный тип продавца в работе; персональный blacklist следует отдельной задачей."
+status_note: "Нативный тип продавца закрыт в 2.3.1; персональный blacklist остаётся задачей 2.3.2."
 roles:
   - BACK
   - DB
@@ -24,11 +24,12 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.3-tasks -->
-**Задач:** 1 · **done:** 0
+**Задач:** 2 · **done:** 1
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
-| `2.3.1` | [Тип продавца как параметр запроса](../tasks/2-3-1-seller-type-request.md) | 🔄 in_progress | 🟡 drifted |
+| `2.3.1` | [Тип продавца как параметр запроса](../tasks/2-3-1-seller-type-request.md) | ✅ done | 🟢 aligned |
+| `2.3.2` | [Персональный чёрный список аккаунтов](../tasks/2-3-2-personal-seller-blacklist.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-2.3-tasks -->
 
 ## Критерии приёмки эпика

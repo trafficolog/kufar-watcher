@@ -2,8 +2,8 @@
 id: "2.3.1"
 phase: 2
 epic: "2.3"
-status: in_progress
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-12
 roles: [BACK, QA]
 depends_on: ["1.1.2"]
@@ -14,7 +14,7 @@ tags: [seller, kufar-api, url-parser, tdd]
 
 # Задача 2.3.1 — Тип продавца как параметр запроса
 
-> Эпик 2.3 · Фаза 2 · 🟡 in_progress · зависит от: 1.1.2 · оценка: 2-3 ч
+> Эпик 2.3 · Фаза 2 · ✅ done · зависит от: 1.1.2 · оценка: 2-3 ч
 
 ## Цель
 
@@ -46,13 +46,25 @@ Recon 2026-09-12 подтвердил текущую семантику `cmp` н
 
 ## Критерии приёмки
 
-- [ ] `CanonicalQuery.sellerType` типизирован как `SellerType | null`, где `SellerType = 'private' | 'company'`.
-- [ ] Parser корректно нормализует private/company формы и не оставляет `cmp` в `extraParams`.
-- [ ] Invalid/conflicting `cmp` приводит к явной parse error.
-- [ ] Listing URL round-trip стабилен для private и company.
-- [ ] API URL содержит `cmp=0` для private и `cmp=1` для company в electronics и real-estate mappings.
-- [ ] Legacy persisted marker `bez-posrednikov` читается как `private` без DB migration.
-- [ ] Новые тесты проходят RED → GREEN, canonical CI полностью зелёный.
+- [x] `CanonicalQuery.sellerType` типизирован как `SellerType | null`, где `SellerType = 'private' | 'company'`.
+- [x] Parser корректно нормализует private/company формы и не оставляет `cmp` в `extraParams`.
+- [x] Invalid/conflicting `cmp` приводит к явной parse error.
+- [x] Listing URL round-trip стабилен для private и company.
+- [x] API URL содержит `cmp=0` для private и `cmp=1` для company в electronics и real-estate mappings.
+- [x] Legacy persisted marker `bez-posrednikov` читается как `private` без DB migration.
+- [x] Новые тесты проходят RED → GREEN, canonical CI полностью зелёный.
+
+## Результат
+
+- RED: `verify #1034` дошёл до unit suite и дал 12 ожидаемых failures на
+  seller parser/build/persistence contract до production-реализации.
+- GREEN implementation: `verify #1038`, run id `34681646942`, exact SHA
+  `e5b8905e08dd4f1bd7d521a63b833bca44fe1ef8` — dependency audit, docs,
+  483 unit tests, typecheck, lint, formatting, PostgreSQL integration, build и
+  development/production Electron smoke прошли успешно.
+- Compile-time regression выявила дублирующий persisted-query parser в
+  incremental path; он удалён, cold-start и incremental теперь используют общий
+  `parsePersistedCanonicalQuery`, включая legacy normalization.
 
 ## Не делать
 
