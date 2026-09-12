@@ -1,4 +1,5 @@
 import type { PrismaClient } from '../../generated/prisma/client'
+import { RUN_OUTCOME } from '../../shared/run-outcome'
 import type { WorkerEvent } from '../../shared/runtime'
 import type { WorkerConfig } from './config'
 import {
@@ -48,6 +49,28 @@ const defaultDependencies: WorkerApplicationDependencies = {
 
 export function formatWorkerError(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+async function recoverInterruptedRuns(prisma: PrismaClient): Promise<void> {
+  const recoveredAt = new Date()
+  await prisma.$executeRaw`
+    UPDATE "Run"
+    SET
+      "finishedAt" = ${recoveredAt}::timestamp,
+      "durationMs" = LEAST(
+        2147483647,
+        GREATEST(
+          0,
+          FLOOR(EXTRACT(EPOCH FROM (${recoveredAt}::timestamp - "startedAt")) * 1000)
+        )
+      )::integer,
+      "outcome" = ${RUN_OUTCOME.INTERRUPTED}::text,
+      "error" = 'Worker process interrupted before Run completion',
+      "errorCategory" = 'internal',
+      "errorCode" = 'worker-interrupted'
+    WHERE "outcome" = ${RUN_OUTCOME.RUNNING}::text
+      AND "finishedAt" IS NULL
+  `
 }
 
 export function createWorkerApplication(
@@ -100,6 +123,7 @@ export function createWorkerApplication(
   return {
     scheduler,
     async start() {
+      await recoverInterruptedRuns(prisma)
       await scheduler.start()
     },
     async stop() {

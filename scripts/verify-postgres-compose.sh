@@ -10,6 +10,7 @@ test_db_start_clean
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/listing-description-cache.test.ts
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-run-persistence.test.ts
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/run-journal.test.ts
+KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/run-lifecycle-recovery.test.ts
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-config-persistence.test.ts
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-run-stale-config.test.ts
 KUFAR_POSTGRES_INTEGRATION=1 npx vitest run tests/integration/monitor-scheduler.test.ts
@@ -27,7 +28,7 @@ future_model_count="$({ docker compose exec -T postgres psql -U "$POSTGRES_USER"
 test "$future_model_count" = "0"
 
 migration_count="$({ docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc 'SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL;'; } | tr -d '[:space:]')"
-test "$migration_count" = "7"
+test "$migration_count" = "8"
 
 run_journal_column_count="$({ docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'Run' AND column_name IN ('durationMs', 'errorCategory', 'errorCode');"; } | tr -d '[:space:]')"
 test "$run_journal_column_count" = "3"
@@ -117,4 +118,4 @@ test "$sentinel_table_count" = "0"
 test "$(seed_counts)" = "2|6|4"
 
 reset_migration_count="$({ docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc 'SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL;'; } | tr -d '[:space:]')"
-test "$reset_migration_count" = "7"
+test "$reset_migration_count" = "8"

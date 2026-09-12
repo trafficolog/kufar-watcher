@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../../generated/prisma/client'
 import { routeKufarQuery } from '../../shared/kufar-routing'
+import { RUN_OUTCOME } from '../../shared/run-outcome'
 import type { SourceAdapterRegistry } from '../../shared/source-adapter-registry'
 import { DescriptionRequestBudgetExceededError } from './description-request-budget'
 import type { DescriptionLoader } from './incremental-monitor-run'
@@ -124,7 +125,7 @@ export function createScheduledMonitorRunExecutor(
           monitorId,
           startedAt: recordedAt,
           finishedAt: recordedAt,
-          outcome: 'skipped',
+          outcome: RUN_OUTCOME.SKIPPED,
           seen: 0,
           matched: 0,
           error: null,
@@ -142,7 +143,7 @@ export function createScheduledMonitorRunExecutor(
         data: {
           monitorId,
           startedAt,
-          outcome: 'running',
+          outcome: RUN_OUTCOME.RUNNING,
         },
         select: { id: true },
       })
@@ -184,7 +185,7 @@ export function createScheduledMonitorRunExecutor(
           data: {
             finishedAt,
             durationMs: Math.max(0, finishedAt.getTime() - startedAt.getTime()),
-            outcome: 'error',
+            outcome: RUN_OUTCOME.ERROR,
             seen: 0,
             matched: 0,
             ...journal,

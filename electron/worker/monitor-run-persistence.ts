@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client'
 import type { Listing } from '../../shared/listing'
+import { RUN_OUTCOME } from '../../shared/run-outcome'
 import type { WatermarkTraversalResult } from '../../shared/watermark'
 import { listingCreateData, listingSearchUpdateData } from './listing-persistence-data'
 
@@ -141,6 +142,7 @@ export async function persistSuccessfulRun(
   input: MonitorRunPersistenceInput,
 ): Promise<void> {
   const isCatchup = input.traversal.kind === 'incomplete'
+  const outcome = isCatchup ? RUN_OUTCOME.CATCHUP : RUN_OUTCOME.SUCCESS
 
   if (input.runId !== undefined) {
     await tx.run.update({
@@ -148,7 +150,7 @@ export async function persistSuccessfulRun(
       data: {
         finishedAt: input.finishedAt,
         durationMs: Math.max(0, input.finishedAt.getTime() - input.startedAt.getTime()),
-        outcome: isCatchup ? 'catchup' : 'success',
+        outcome,
         seen: input.candidates.length,
         matched: input.selected.length,
         error: null,
@@ -165,7 +167,7 @@ export async function persistSuccessfulRun(
       monitorId: input.monitorId,
       startedAt: input.startedAt,
       finishedAt: input.finishedAt,
-      outcome: isCatchup ? 'catchup' : 'success',
+      outcome,
       seen: input.candidates.length,
       matched: input.selected.length,
       error: null,
