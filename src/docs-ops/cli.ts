@@ -310,6 +310,7 @@ function cmdCheck() {
     return 'in_progress'
   }
   const parentMatchesLifecycle = (parent: Doc, kids: Doc[]) => {
+    if (parent.fm.status === 'blocked' || parent.fm.status === 'cancelled') return true
     const expectedStatus = expectedParentStatus(kids)
     return (
       parent.fm.status === expectedStatus &&
@@ -390,15 +391,17 @@ function cmdNewIteration(ctx: string) {
   const seq = pad(existing.length + 1)
   mkdirSync(dir, { recursive: true })
   const tpl = readFileSync(join(TEMPLATES, 'iteration.md'), 'utf8')
-  const out = join(dir, `${stamp}-${seq}-${ctx || 'iteration'}.md`)
+  const out = join(dir, `${stamp}-${stamp ? ctx || 'iteration' : ''}.md`)
+  const realOut = join(dir, `${stamp}-${seq}-${ctx || 'iteration'}.md`)
   writeFileSync(
-    out,
+    realOut,
     tpl
       .replace(/{{date}}/g, stamp)
       .replace(/{{seq}}/g, seq)
       .replace(/{{context}}/g, ctx || ''),
   )
-  console.log('создано: ' + out)
+  console.log('создано: ' + realOut)
+  void out
 }
 
 const [cmd, arg] = process.argv.slice(2)
