@@ -212,7 +212,9 @@ describe('Telegram bot service', () => {
     await harness.service.configure('telegram-token')
     await harness.service.stop()
 
-    const failure = await harness.service.sendMessage('1001', 'notification').catch((error) => error)
+    const failure = await harness.service
+      .sendMessage('1001', 'notification')
+      .catch((error) => error)
 
     expect(failure).toBeInstanceOf(TelegramSendFailure)
     expect(failure).toMatchObject({ kind: 'transient', message: 'Telegram send failed' })
@@ -222,7 +224,9 @@ describe('Telegram bot service', () => {
     const harness = createHarness('1001')
     await harness.service.configure('telegram-token')
 
-    const failure = await harness.service.sendMessage('2002', 'notification').catch((error) => error)
+    const failure = await harness.service
+      .sendMessage('2002', 'notification')
+      .catch((error) => error)
 
     expect(failure).toBeInstanceOf(TelegramSendFailure)
     expect(failure).toMatchObject({ kind: 'permanent', message: 'Telegram send failed' })
