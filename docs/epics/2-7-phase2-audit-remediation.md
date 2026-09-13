@@ -4,7 +4,7 @@ phase: 2
 status: in_progress
 sync_state: drifted
 last_reviewed: 2026-09-13
-status_note: "P0/P1 и snippet remediation 2.7.7 закрыты: 2.7.1–2.7.7 и 2.7.11 done; остаются P2 2.7.9 и измерительный P3 2.7.8."
+status_note: "P0/P1/P2 remediation закрыта; остаётся только измерительный P3 2.7.8."
 roles: [BACK, DB, QA]
 ---
 
@@ -34,7 +34,7 @@ roles: [BACK, DB, QA]
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.7-tasks -->
-**Задач:** 10 · **done:** 8
+**Задач:** 10 · **done:** 9
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
@@ -47,7 +47,7 @@ roles: [BACK, DB, QA]
 | `2.7.6` | [Process-independent запрет пересечения обходов](../tasks/2-7-6-durable-monitor-no-overlap.md) | ✅ done | 🟢 aligned |
 | `2.7.7` | [Snippet только для совпадения в описании](../tasks/2-7-7-description-only-snippet.md) | ✅ done | 🟢 aligned |
 | `2.7.8` | [Детерминированное разнесение стартов мониторов](../tasks/2-7-8-scheduler-start-stagger.md) | ⬜ todo | 🟡 drifted |
-| `2.7.9` | [Конфигурируемый monitorMaxPages](../tasks/2-7-9-configurable-monitor-page-cap.md) | ⬜ todo | 🟡 drifted |
+| `2.7.9` | [Конфигурируемый monitorMaxPages](../tasks/2-7-9-configurable-monitor-page-cap.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-2.7-tasks -->
 
 ## Критерии приёмки эпика
