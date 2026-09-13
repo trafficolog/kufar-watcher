@@ -1,9 +1,9 @@
 ---
 id: "3"
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-05
-status_note: "Фаза 3: бот, форматтер и кнопки, тихие часы, часовой мониторинг цен. Карточки написаны для 3.1 и 3.2."
+last_reviewed: 2026-09-13
+status_note: "Фаза 3 начата: 3.1.1 bot bootstrap и безопасная привязка чата завершены; остальной Telegram/favorites scope остаётся по release slices."
 ---
 
 # Фаза 3 — Telegram и избранное
