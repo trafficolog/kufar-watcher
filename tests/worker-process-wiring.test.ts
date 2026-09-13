@@ -40,4 +40,17 @@ describe('Telegram worker secret wiring', () => {
     expect(source).not.toContain('TELEGRAM_BOT_TOKEN')
     expect(source).not.toContain('telegramToken:')
   })
+
+  it('projects Telegram worker state and binds only the current main-process candidate', async () => {
+    const source = await readMainSource()
+
+    expect(source).toContain('let telegramState: TelegramDesktopState = {')
+    expect(source).toContain('routeWorkerTelegramEvent(event, telegramState, broadcastTelegramState)')
+    expect(source).toContain('registerTelegramIpcHandlers(')
+    expect(source).toContain('getTelegramState: () => telegramState')
+    expect(source).toContain('const candidate = telegramState.candidate')
+    expect(source).toContain("if (!candidate) return 'no-candidate'")
+    expect(source).toContain('return supervisor.bindTelegramCandidate(candidate.chatId)')
+    expect(source).not.toContain('bindTelegramCandidate(chatId')
+  })
 })
