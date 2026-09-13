@@ -40,6 +40,10 @@ jobs:
         run: npm run docs:ops:check
       - name: Unit tests
         run: npm test
+      - name: Dockerode production-path integration
+        env:
+          KUFAR_DOCKERODE_INTEGRATION: '1'
+        run: npx vitest run tests/integration/dockerode-postgres-runtime.test.ts
       - name: CI failure-mode self-check
         run: bash scripts/verify-ci-failure-modes.sh
       - name: Typecheck
