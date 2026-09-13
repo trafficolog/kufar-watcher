@@ -55,7 +55,7 @@ function selectSnippetField(
     return 'description'
   }
 
-  return hits.some(({ field }) => field === 'title') ? 'title' : null
+  return null
 }
 
 export function createMatchingCandidateSelector(input: {
