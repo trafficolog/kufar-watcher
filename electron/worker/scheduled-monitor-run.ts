@@ -11,8 +11,14 @@ import {
   type SourceFailureStage,
 } from './kufar-resilient-source'
 import { KufarSourceRequestError } from './kufar-source-request-error'
+import {
+  createLocalMonitorRunLeaseAcquirer,
+  createPostgresMonitorRunLeaseAcquirer,
+  type AcquireMonitorRunLease,
+} from './monitor-run-lease'
 import { parsePersistedCanonicalQuery } from './monitor-config-persistence'
 import { runMonitorCycle, type MonitorCycleResult } from './monitor-cycle'
+import { getPrismaClientConnectionString } from './prisma-client'
 
 export interface ScheduledMonitorRunExecutorOptions {
   prisma: PrismaClient
@@ -20,6 +26,7 @@ export interface ScheduledMonitorRunExecutorOptions {
   maxPages: number
   descriptionLoader: DescriptionLoader
   runCycle?: typeof runMonitorCycle
+  acquireMonitorRunLease?: AcquireMonitorRunLease
   onSourceDegradation?: (monitorId: number, event: SourceDegradationEvent) => void | Promise<void>
   onPauseRequired?: (monitorId: number, stage: SourceFailureStage) => void | Promise<void>
 }
@@ -54,6 +61,23 @@ function assertMonitorPageCap(maxPages: number): void {
   if (!Number.isInteger(maxPages) || maxPages < 1) {
     throw new Error(`Invalid monitor page cap: ${maxPages}`)
   }
+}
+
+async function recordSkippedOverlap(prisma: PrismaClient, monitorId: number): Promise<void> {
+  const recordedAt = new Date()
+  await prisma.run.create({
+    data: {
+      monitorId,
+      startedAt: recordedAt,
+      finishedAt: recordedAt,
+      outcome: RUN_OUTCOME.SKIPPED,
+      seen: 0,
+      matched: 0,
+      error: null,
+      httpStatus: null,
+      degradedLevel: null,
+    },
+  })
 }
 
 function sourceRequestFailureJournal(error: KufarSourceRequestError): RunFailureJournal {
@@ -115,28 +139,20 @@ export function createScheduledMonitorRunExecutor(
 ): ScheduledMonitorRunExecutor {
   assertMonitorPageCap(options.maxPages)
   const runCycle = options.runCycle ?? runMonitorCycle
-  const activeMonitorIds = new Set<number>()
+  const connectionString = getPrismaClientConnectionString(options.prisma)
+  const acquireMonitorRunLease =
+    options.acquireMonitorRunLease ??
+    (connectionString
+      ? createPostgresMonitorRunLeaseAcquirer(connectionString)
+      : createLocalMonitorRunLeaseAcquirer())
 
   return async (monitorId) => {
-    if (activeMonitorIds.has(monitorId)) {
-      const recordedAt = new Date()
-      await options.prisma.run.create({
-        data: {
-          monitorId,
-          startedAt: recordedAt,
-          finishedAt: recordedAt,
-          outcome: RUN_OUTCOME.SKIPPED,
-          seen: 0,
-          matched: 0,
-          error: null,
-          httpStatus: null,
-          degradedLevel: null,
-        },
-      })
+    const lease = await acquireMonitorRunLease(monitorId)
+    if (!lease) {
+      await recordSkippedOverlap(options.prisma, monitorId)
       return { cycleKind: 'skipped-overlap' }
     }
 
-    activeMonitorIds.add(monitorId)
     try {
       const startedAt = new Date()
       const journalRun = await options.prisma.run.create({
@@ -208,7 +224,7 @@ export function createScheduledMonitorRunExecutor(
         throw error
       }
     } finally {
-      activeMonitorIds.delete(monitorId)
+      await lease.release()
     }
   }
 }
