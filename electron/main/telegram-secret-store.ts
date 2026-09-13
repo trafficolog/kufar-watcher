@@ -14,10 +14,15 @@ export interface TelegramSecretStore {
   read(): Promise<TelegramSecretReadResult>
 }
 
+export interface TelegramSafeStorageDecryptResult {
+  result: string
+  shouldReEncrypt: boolean
+}
+
 export interface TelegramSafeStorage {
   isAsyncEncryptionAvailable(): Promise<boolean>
   getSelectedStorageBackend(): string
-  decryptStringAsync(value: Buffer): Promise<string>
+  decryptStringAsync(value: Buffer): Promise<TelegramSafeStorageDecryptResult>
 }
 
 export interface TelegramSecretStoreDependencies {
@@ -60,7 +65,7 @@ export function createTelegramSecretStore(
       }
 
       try {
-        const token = await dependencies.safeStorage.decryptStringAsync(
+        const { result: token } = await dependencies.safeStorage.decryptStringAsync(
           Buffer.from(encoded.trim(), 'base64'),
         )
         return { state: 'protected', token }
