@@ -1,10 +1,10 @@
 ---
 id: "3.1"
 phase: 3
-status: in_progress
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-13
-status_note: "3.1.1 bot bootstrap и 3.1.2 reconnect завершены; durable outbound queue остаётся в 3.1.3."
+status_note: "3.1.1 bot bootstrap, 3.1.2 reconnect и 3.1.3 durable outbound queue завершены."
 roles:
   - BACK
 ---
@@ -35,9 +35,9 @@ roles:
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
-- [ ] `sync_state: aligned` (код соответствует карточкам)
-- [ ] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+- [x] Все дочерние задачи в статусе `done`
+- [x] `sync_state: aligned` (код соответствует карточкам)
+- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
 
 ## Связанные документы
 
