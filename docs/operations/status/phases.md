@@ -9,6 +9,6 @@ _Сгенерировано 2026-09-13_
 | `0` | Фундамент | 🔄 in_progress | 🟡 drifted |
 | `1` | Ядро парсинга Kufar | ✅ done | 🟢 aligned |
 | `2` | Правила, матчинг, планировщик | 🔄 in_progress | 🟡 drifted |
-| `3` | Telegram и избранное | ⬜ todo | 🟡 drifted |
+| `3` | Telegram и избранное | 🔄 in_progress | 🟡 drifted |
 | `4` | Здоровье и адаптивность | ⬜ todo | 🟡 drifted |
 | `5` | Панель управления и приёмка | ⬜ todo | 🟡 drifted |

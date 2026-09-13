@@ -1,15 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import {
-  app,
-  BrowserWindow,
-  ipcMain,
-  protocol,
-  safeStorage,
-  shell,
-  utilityProcess,
-} from 'electron'
+import { app, BrowserWindow, ipcMain, protocol, safeStorage, shell, utilityProcess } from 'electron'
 import { IPC, type BootState } from '../../shared/ipc'
 import type { TelegramDesktopState } from '../../shared/telegram'
 import workerPath from '../worker/index?modulePath'
