@@ -41,8 +41,8 @@ function dependenciesFor(
   const telegramBotFactory = vi.fn() as unknown as TelegramBotFactory
   const telegramService: TelegramBotService = {
     configure: vi.fn(async () => undefined),
-    bindCandidate: vi.fn(async () => 'no-candidate'),
-    getState: vi.fn(() => 'not-configured'),
+    bindCandidate: vi.fn(async () => 'no-candidate' as const),
+    getState: vi.fn(() => 'not-configured' as const),
     getCandidate: vi.fn(() => null),
     getBoundChatId: vi.fn(() => null),
     stop: vi.fn(async () => undefined),
