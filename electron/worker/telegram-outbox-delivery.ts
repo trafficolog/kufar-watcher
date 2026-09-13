@@ -1,16 +1,8 @@
 import type { TelegramOutboxHandler } from './telegram-outbox-queue'
+import { TelegramSendFailure } from './telegram-send-failure'
 
-export type TelegramSendFailureKind = 'transient' | 'permanent'
-
-export class TelegramSendFailure extends Error {
-  constructor(
-    readonly kind: TelegramSendFailureKind,
-    message = 'Telegram send failed',
-  ) {
-    super(message)
-    this.name = 'TelegramSendFailure'
-  }
-}
+export { TelegramSendFailure } from './telegram-send-failure'
+export type { TelegramSendFailureKind } from './telegram-send-failure'
 
 export interface TelegramOutboxDeliveryRepository {
   getNotifiedAt(matchId: number): Promise<Date | null | undefined>
