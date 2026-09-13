@@ -1,5 +1,5 @@
 import { run } from '@grammyjs/runner'
-import { Bot } from 'grammy'
+import { Bot, GrammyError, HttpError } from 'grammy'
 
 import type { TelegramCandidate, TelegramChatType } from '../../shared/telegram'
 import type {
@@ -7,6 +7,7 @@ import type {
   TelegramBotHandlers,
   TelegramBotTransport,
 } from './telegram-bot-service'
+import { TelegramSendFailure } from './telegram-send-failure'
 
 export interface GrammyChatLike {
   id: number
@@ -87,6 +88,17 @@ function toCandidate(chat: GrammyChatLike): TelegramCandidate {
   return candidate
 }
 
+function normalizeSendFailure(error: unknown): TelegramSendFailure {
+  if (error instanceof HttpError) return new TelegramSendFailure('transient')
+  if (error instanceof GrammyError) {
+    if (error.error_code === 429 || error.error_code >= 500) {
+      return new TelegramSendFailure('transient')
+    }
+    if (error.error_code >= 400) return new TelegramSendFailure('permanent')
+  }
+  return new TelegramSendFailure('transient')
+}
+
 function createRealBot(token: string): GrammyBotLike {
   const bot = new Bot(token)
   return bot as unknown as GrammyBotLike
@@ -148,7 +160,11 @@ export function createGrammyTelegramBotFactory(
         if (currentRunner?.isRunning()) await currentRunner.stop()
       },
       async sendMessage(chatId: string, text: string): Promise<void> {
-        await bot.api.sendMessage(chatId, text)
+        try {
+          await bot.api.sendMessage(chatId, text)
+        } catch (error) {
+          throw normalizeSendFailure(error)
+        }
       },
     }
   }
