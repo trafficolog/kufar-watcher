@@ -6,11 +6,13 @@ function missingFileError(): Error & { code: string } {
   return Object.assign(new Error('missing'), { code: 'ENOENT' })
 }
 
-function createSafeStorage(overrides: Partial<{
-  isAsyncEncryptionAvailable(): boolean
-  getSelectedStorageBackend(): string
-  decryptStringAsync(value: Buffer): Promise<string>
-}> = {}) {
+function createSafeStorage(
+  overrides: Partial<{
+    isAsyncEncryptionAvailable(): boolean
+    getSelectedStorageBackend(): string
+    decryptStringAsync(value: Buffer): Promise<string>
+  }> = {},
+) {
   return {
     isAsyncEncryptionAvailable: vi.fn(() => true),
     getSelectedStorageBackend: vi.fn(() => 'gnome_libsecret'),
