@@ -27,6 +27,13 @@ import {
   type TelegramBotServiceOptions,
 } from './telegram-bot-service'
 import {
+  createTelegramOutboxDelivery,
+  type TelegramOutboxDeliveryOptions,
+  type TelegramOutboxDeliveryRepository,
+} from './telegram-outbox-delivery'
+import { createPrismaTelegramOutboxDeliveryRepository } from './telegram-outbox-delivery-repository'
+import { createPgBossTelegramOutboxQueue, type TelegramOutboxQueue } from './telegram-outbox-queue'
+import {
   createWorkerSourceRuntime,
   type WorkerSourceRuntime,
   type WorkerSourceRuntimeOptions,
@@ -46,6 +53,14 @@ export interface WorkerApplicationDependencies {
   createTelegramRepository(prisma: PrismaClient): TelegramBindingRepository
   createTelegramBotFactory(): TelegramBotFactory
   createTelegramBotService(options: TelegramBotServiceOptions): TelegramBotService
+  createTelegramOutboxQueue(
+    databaseUrl: string,
+    onError: (error: unknown) => void,
+  ): TelegramOutboxQueue
+  createTelegramOutboxDeliveryRepository(prisma: PrismaClient): TelegramOutboxDeliveryRepository
+  createTelegramOutboxDelivery(
+    options: TelegramOutboxDeliveryOptions,
+  ): ReturnType<typeof createTelegramOutboxDelivery>
 }
 
 const defaultDependencies: WorkerApplicationDependencies = {
@@ -60,6 +75,9 @@ const defaultDependencies: WorkerApplicationDependencies = {
   createTelegramRepository: createPrismaTelegramBindingRepository,
   createTelegramBotFactory: createGrammyTelegramBotFactory,
   createTelegramBotService,
+  createTelegramOutboxQueue: createPgBossTelegramOutboxQueue,
+  createTelegramOutboxDeliveryRepository: createPrismaTelegramOutboxDeliveryRepository,
+  createTelegramOutboxDelivery,
 }
 
 export function formatWorkerError(error: unknown): string {
@@ -151,12 +169,30 @@ export function createWorkerApplication(
       publish({ type: 'journal', level: 'error', message })
     },
   })
+  const telegramOutbox = dependencies.createTelegramOutboxQueue(config.databaseUrl, () => {
+    publish({
+      type: 'journal',
+      level: 'error',
+      message: 'Telegram outbox queue failed',
+    })
+  })
+  const telegramOutboxRepository = dependencies.createTelegramOutboxDeliveryRepository(prisma)
+  const deliverTelegramOutbox = dependencies.createTelegramOutboxDelivery({
+    repository: telegramOutboxRepository,
+    sendMessage(chatId, text) {
+      return telegram.sendMessage(chatId, text)
+    },
+    publishJournal(message) {
+      publish({ type: 'journal', level: 'error', message })
+    },
+  })
 
   return {
     scheduler,
     async start() {
       await recoverInterruptedRuns(prisma)
       await scheduler.start()
+      await telegramOutbox.start(deliverTelegramOutbox)
     },
     async configureTelegram(token) {
       await telegram.configure(token)
@@ -169,6 +205,7 @@ export function createWorkerApplication(
     },
     async stop() {
       await scheduler.stop()
+      await telegramOutbox.stop()
       await telegram.stop()
       await sourceRuntime.close()
       await prisma.$disconnect()

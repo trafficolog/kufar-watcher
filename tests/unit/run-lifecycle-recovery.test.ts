@@ -43,6 +43,7 @@ function dependenciesFor(
     configure: vi.fn(async () => undefined),
     resume: vi.fn(async () => undefined),
     bindCandidate: vi.fn(async () => 'no-candidate' as const),
+    sendMessage: vi.fn(async () => undefined),
     getState: vi.fn(() => 'not-configured' as const),
     getCandidate: vi.fn(() => null),
     getBoundChatId: vi.fn(() => null),
@@ -60,6 +61,16 @@ function dependenciesFor(
     createTelegramRepository: () => telegramRepository,
     createTelegramBotFactory: () => telegramBotFactory,
     createTelegramBotService: () => telegramService,
+    createTelegramOutboxQueue: () => ({
+      start: vi.fn(async () => undefined),
+      enqueue: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+    }),
+    createTelegramOutboxDeliveryRepository: () => ({
+      getNotifiedAt: vi.fn(async () => null),
+      markNotified: vi.fn(async () => undefined),
+    }),
+    createTelegramOutboxDelivery: () => vi.fn(async () => undefined),
   }
 }
 

@@ -8,6 +8,7 @@ import {
   type TelegramBotHandlers,
   type TelegramBotTransport,
 } from '../../electron/worker/telegram-bot-service'
+import { TelegramSendFailure } from '../../electron/worker/telegram-outbox-delivery'
 import type { TelegramCandidate } from '../../shared/telegram'
 
 const candidate: TelegramCandidate = {
@@ -195,6 +196,41 @@ describe('Telegram bot service', () => {
     expect(harness.service.getCandidate()).toBeNull()
     expect(harness.latestTransport().sendMessage).not.toHaveBeenCalled()
     expect(harness.publishCandidate).not.toHaveBeenCalled()
+  })
+
+  it('sends durable notifications only to the currently bound chat', async () => {
+    const harness = createHarness('1001')
+    await harness.service.configure('telegram-token')
+
+    await harness.service.sendMessage('1001', 'notification')
+
+    expect(harness.latestTransport().sendMessage).toHaveBeenCalledWith('1001', 'notification')
+  })
+
+  it('treats a missing active transport as a transient send failure', async () => {
+    const harness = createHarness('1001')
+    await harness.service.configure('telegram-token')
+    await harness.service.stop()
+
+    const failure = await harness.service
+      .sendMessage('1001', 'notification')
+      .catch((error) => error)
+
+    expect(failure).toBeInstanceOf(TelegramSendFailure)
+    expect(failure).toMatchObject({ kind: 'transient', message: 'Telegram send failed' })
+  })
+
+  it('rejects a stale outbox chat as a permanent failure without sending', async () => {
+    const harness = createHarness('1001')
+    await harness.service.configure('telegram-token')
+
+    const failure = await harness.service
+      .sendMessage('2002', 'notification')
+      .catch((error) => error)
+
+    expect(failure).toBeInstanceOf(TelegramSendFailure)
+    expect(failure).toMatchObject({ kind: 'permanent', message: 'Telegram send failed' })
+    expect(harness.latestTransport().sendMessage).not.toHaveBeenCalled()
   })
 
   it('reconnects terminal polling sessions with exponential delays capped by policy', async () => {
