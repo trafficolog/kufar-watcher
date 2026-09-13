@@ -43,6 +43,7 @@ function createTelegramHarness(order?: string[]) {
     configure: vi.fn(async () => undefined),
     resume: vi.fn(async () => undefined),
     bindCandidate: vi.fn(async () => 'bound' as const),
+    sendMessage: vi.fn(async () => undefined),
     getState: vi.fn(() => 'not-configured' as const),
     getCandidate: vi.fn(() => null),
     getBoundChatId: vi.fn(() => null),
