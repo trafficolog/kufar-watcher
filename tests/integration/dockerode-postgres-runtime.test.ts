@@ -51,37 +51,33 @@ integrationDescribe('production Dockerode PostgreSQL runtime', () => {
     await cleanup()
   })
 
-  it(
-    'creates, validates, reuses, and health-checks an isolated PostgreSQL container',
-    async () => {
-      await cleanup()
-      await runtime.ping()
-      await ensurePostgresContainer(runtime, config)
-      await waitForPostgresHealthy(runtime, containerName, {
-        timeoutMs: 60_000,
-        pollIntervalMs: 1_000,
-        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      })
+  it('creates, validates, reuses, and health-checks an isolated PostgreSQL container', async () => {
+    await cleanup()
+    await runtime.ping()
+    await ensurePostgresContainer(runtime, config)
+    await waitForPostgresHealthy(runtime, containerName, {
+      timeoutMs: 60_000,
+      pollIntervalMs: 1_000,
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    })
 
-      await expect(runtime.inspectHealth(containerName)).resolves.toBe('healthy')
-      await expect(runtime.inspectContainer(containerName)).resolves.toEqual({
-        running: true,
-        image: config.image,
-        volumeName: config.volumeName,
-        host: config.host,
-        port: config.port,
-        user: config.user,
-        password: config.password,
-        database: config.database,
-      })
+    await expect(runtime.inspectHealth(containerName)).resolves.toBe('healthy')
+    await expect(runtime.inspectContainer(containerName)).resolves.toEqual({
+      running: true,
+      image: config.image,
+      volumeName: config.volumeName,
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      password: config.password,
+      database: config.database,
+    })
 
-      await ensurePostgresContainer(runtime, config)
-      await expect(runtime.inspectContainer(containerName)).resolves.toMatchObject({
-        running: true,
-        image: config.image,
-        volumeName: config.volumeName,
-      })
-    },
-    120_000,
-  )
+    await ensurePostgresContainer(runtime, config)
+    await expect(runtime.inspectContainer(containerName)).resolves.toMatchObject({
+      running: true,
+      image: config.image,
+      volumeName: config.volumeName,
+    })
+  }, 120_000)
 })
