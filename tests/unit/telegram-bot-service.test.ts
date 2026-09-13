@@ -53,7 +53,7 @@ function createHarness(
     gate: ReturnType<typeof deferred>
     transport: TelegramBotTransport
   }> = []
-  const createBot: TelegramBotFactory = vi.fn((_token, nextHandlers, nextOnError) => {
+  const createBot = vi.fn<TelegramBotFactory>((_token, nextHandlers, nextOnError) => {
     if (options.throwOnCreate) throw new Error('SECRET_SENTINEL_3_1_2_CREATE')
 
     latestHandlers = nextHandlers
