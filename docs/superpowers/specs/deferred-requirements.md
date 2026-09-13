@@ -56,6 +56,6 @@
 | Правила по цене на всех находках | по решению пользователя цена отслеживается только у помеченных объявлений |
 | Автоматическое предложение патча при дрейфе схемы | принято решение ограничиться детектом и отчётом |
 | Разбор DOM как третий уровень деградации | двух уровней достаточно |
-| Расширение Kufar beyond current `igry-i-pristavki` / `kvartiru` routing perimeter | текущий `1.0.0` scope зафиксирован в `docs/superpowers/specs/kufar-mvp-routing-perimeter.md`; каждая дополнительная category/route требует отдельного routing/contract/acceptance evidence |
+| Расширение Kufar beyond current request-buildable `1.0.0` perimeter | текущий scope зафиксирован в `docs/superpowers/specs/kufar-mvp-routing-perimeter.md`; любая дополнительная category/route/region/operation combination или иной URL shape требует отдельного routing/request-builder/contract/acceptance evidence |
 | Другие площадки | низкая популярность в интересующих категориях; при необходимости — отдельный проект |
 | Категория «Авто» | прямо исключена пользователем из зоны интересов |
