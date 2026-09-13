@@ -18,11 +18,13 @@ roles:
 Это приёмка релиза `1.0.0`, а не среза MVP-1: сон и тихие часы приходят только в `0.4.0`. Приёмка самого MVP-1 — задача `5.0.4`, она проще и выполняется раньше.
 
 Из пяти реальных мониторов финального прогона минимум один должен использовать
-поддерживаемый mapping `kufar.by` / `www.kufar.by` + `igry-i-pristavki` и минимум
-один — `re.kufar.by` + `kvartiru`. Adapter kinds `electronics` и `real-estate`
-не расширяют этот gate на всю электронику или всю недвижимость. Финальный gate
-обязан повторно подтвердить оба реально routed mappings: успех раннего MVP-1
-gate `5.0.4` не заменяет проверку perimeter в релизе `1.0.0`.
+request-buildable Minsk `igry-i-pristavki` shape (`r~minsk`, без operation и
+path filters), и минимум один — request-buildable Minsk
+`kupit/kvartiru` shape на `re.kufar.by` (без path filters и search query).
+Adapter kinds `electronics` и `real-estate` не расширяют этот gate на всю
+электронику или всю недвижимость. Финальный gate обязан повторно подтвердить
+оба shape, которые проходят полную production-цепочку `parse → route → build API
+request`; успех раннего MVP-1 gate `5.0.4` не заменяет эту проверку в `1.0.0`.
 
 ## Планируемые задачи
 
@@ -44,15 +46,16 @@ gate `5.0.4` не заменяет проверку perimeter в релизе `1
 - [ ] Все дочерние задачи в статусе `done`
 - [ ] `sync_state: aligned` (код соответствует карточкам)
 - [ ] Тесты по эпику зелёные (unit/integration/e2e где применимо)
-- [ ] Финальный ручной прогон включает минимум один монитор на
-      `igry-i-pristavki` и минимум один монитор на `re.kufar.by/.../kvartiru`;
-      чек-лист `1.0.0` фиксирует успешный результат по обоим поддерживаемым
-      route/category mappings
-- [ ] Итоговая приёмка не объявляет поддержку `/elektronika`, домов или других
-      Kufar categories без отдельного production routing + contract evidence
+- [ ] Финальный ручной прогон включает минимум один монитор на Minsk
+      `r~minsk/igry-i-pristavki` shape и минимум один монитор на
+      `re.kufar.by/l/minsk/kupit/kvartiru`; чек-лист `1.0.0` фиксирует успешный
+      результат по обоим request-buildable shape
+- [ ] Итоговая приёмка не объявляет поддержку `igry-i-pristavki` без Минска,
+      electronics другого региона, rental `snyat/kvartiru`, `/elektronika`,
+      домов или других semantics, которые текущий request builder не подтверждает
 
 ## Связанные документы
 
 - Фаза: `docs/phases/5-*.md`
 - Контракт площадки: `docs/superpowers/specs/kufar-api-contract.md`
-- Current release routing perimeter: `docs/superpowers/specs/kufar-mvp-routing-perimeter.md`
+- Current release request-buildable perimeter: `docs/superpowers/specs/kufar-mvp-routing-perimeter.md`
