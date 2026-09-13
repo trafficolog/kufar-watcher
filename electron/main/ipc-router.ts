@@ -1,5 +1,6 @@
 import { IPC, type BootState } from '../../shared/ipc'
 import type { WorkerEvent } from '../../shared/runtime'
+import type { TelegramBindResult, TelegramDesktopState } from '../../shared/telegram'
 import { APP_HOST, APP_SCHEME } from './app-protocol'
 
 export interface SystemIpcServices {
@@ -7,6 +8,11 @@ export interface SystemIpcServices {
   retryBoot(): void | Promise<void>
   openJournal(): void | Promise<void>
   exit(): void | Promise<void>
+}
+
+export interface TelegramIpcServices {
+  getTelegramState(): TelegramDesktopState | Promise<TelegramDesktopState>
+  bindTelegramCandidate(): TelegramBindResult | Promise<TelegramBindResult>
 }
 
 interface IpcInvokeEventLike {
@@ -35,6 +41,32 @@ export function routeWorkerBootEvent(
     ),
   }
   forwardBootState(nextState, send)
+  return nextState
+}
+
+export function routeWorkerTelegramEvent(
+  event: WorkerEvent,
+  state: TelegramDesktopState,
+  send: (state: TelegramDesktopState) => void,
+): TelegramDesktopState {
+  let nextState: TelegramDesktopState
+
+  if (event.type === 'telegram-state') {
+    nextState = {
+      ...state,
+      runtime: event.state,
+      boundChatId: event.boundChatId,
+    }
+  } else if (event.type === 'telegram-candidate') {
+    nextState = {
+      ...state,
+      candidate: event.candidate,
+    }
+  } else {
+    return state
+  }
+
+  send(nextState)
   return nextState
 }
 
@@ -95,5 +127,21 @@ export function registerSystemIpcHandlers(
   ipcMain.handle(IPC.appExit, (event) => {
     assertTrustedRenderer(event, devRendererUrl)
     return services.exit()
+  })
+}
+
+export function registerTelegramIpcHandlers(
+  ipcMain: IpcMainLike,
+  services: TelegramIpcServices,
+  devRendererUrl?: string,
+): void {
+  ipcMain.handle(IPC.telegramStateGet, (event) => {
+    assertTrustedRenderer(event, devRendererUrl)
+    return services.getTelegramState()
+  })
+
+  ipcMain.handle(IPC.telegramBindCandidate, (event) => {
+    assertTrustedRenderer(event, devRendererUrl)
+    return services.bindTelegramCandidate()
   })
 }
