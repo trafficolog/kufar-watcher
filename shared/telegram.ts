@@ -8,7 +8,11 @@ export const TELEGRAM_RUNTIME_STATES = [
 
 export type TelegramRuntimeState = (typeof TELEGRAM_RUNTIME_STATES)[number]
 
-export const TELEGRAM_BIND_RESULTS = ['bound', 'candidate-mismatch', 'no-candidate'] as const
+export const TELEGRAM_BIND_RESULTS = [
+  'bound',
+  'candidate-mismatch',
+  'no-candidate',
+] as const
 
 export type TelegramBindResult = (typeof TELEGRAM_BIND_RESULTS)[number]
 
