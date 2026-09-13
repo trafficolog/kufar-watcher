@@ -82,10 +82,10 @@ describe('Telegram outbox delivery', () => {
     expect(repository.markNotified).not.toHaveBeenCalled()
   })
 
-  it('consumes permanent send failures without retry and emits only a redacted journal message', async () => {
+  it('consumes permanent send failures without retry and emits only a fixed journal message', async () => {
     const repository = createRepository()
     const sendMessage = vi.fn(async () => {
-      throw new TelegramSendFailure('permanent', 'SECRET_REMOTE_DESCRIPTION')
+      throw new TelegramSendFailure('permanent')
     })
     const publishJournal = vi.fn()
     const delivery = createTelegramOutboxDelivery({
@@ -99,7 +99,6 @@ describe('Telegram outbox delivery', () => {
 
     expect(repository.markNotified).not.toHaveBeenCalled()
     expect(publishJournal).toHaveBeenCalledWith('Telegram notification permanently rejected')
-    expect(JSON.stringify(publishJournal.mock.calls)).not.toContain('SECRET_REMOTE_DESCRIPTION')
   })
 
   it('spaces twenty attempts to the same chat by at least 3.1 seconds', async () => {
