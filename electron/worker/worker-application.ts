@@ -2,6 +2,7 @@ import type { PrismaClient } from '../../generated/prisma/client'
 import { RUN_OUTCOME } from '../../shared/run-outcome'
 import type { WorkerEvent } from '../../shared/runtime'
 import type { WorkerConfig } from './config'
+import { createGrammyTelegramBotFactory } from './grammy-telegram-bot'
 import {
   MonitorScheduler,
   type MonitorScheduleQueue,
@@ -17,6 +18,14 @@ import {
   type ScheduledMonitorRunExecutor,
   type ScheduledMonitorRunExecutorOptions,
 } from './scheduled-monitor-run'
+import { createPrismaTelegramBindingRepository } from './telegram-binding-repository'
+import {
+  createTelegramBotService,
+  type TelegramBindingRepository,
+  type TelegramBotFactory,
+  type TelegramBotService,
+  type TelegramBotServiceOptions,
+} from './telegram-bot-service'
 import {
   createWorkerSourceRuntime,
   type WorkerSourceRuntime,
@@ -34,6 +43,9 @@ export interface WorkerApplicationDependencies {
   createSourceRuntime(options: WorkerSourceRuntimeOptions): WorkerSourceRuntime
   createRunExecutor(options: ScheduledMonitorRunExecutorOptions): ScheduledMonitorRunExecutor
   createScheduler(options: MonitorSchedulerOptions): MonitorScheduler
+  createTelegramRepository(prisma: PrismaClient): TelegramBindingRepository
+  createTelegramBotFactory(): TelegramBotFactory
+  createTelegramBotService(options: TelegramBotServiceOptions): TelegramBotService
 }
 
 const defaultDependencies: WorkerApplicationDependencies = {
@@ -45,6 +57,9 @@ const defaultDependencies: WorkerApplicationDependencies = {
   createScheduler(options) {
     return new MonitorScheduler(options)
   },
+  createTelegramRepository: createPrismaTelegramBindingRepository,
+  createTelegramBotFactory: createGrammyTelegramBotFactory,
+  createTelegramBotService,
 }
 
 export function formatWorkerError(error: unknown): string {
@@ -119,6 +134,20 @@ export function createWorkerApplication(
       })
     },
   })
+  const telegramRepository = dependencies.createTelegramRepository(prisma)
+  const telegram = dependencies.createTelegramBotService({
+    repository: telegramRepository,
+    createBot: dependencies.createTelegramBotFactory(),
+    publishState(state, boundChatId) {
+      publish({ type: 'telegram-state', state, boundChatId })
+    },
+    publishCandidate(candidate) {
+      publish({ type: 'telegram-candidate', candidate })
+    },
+    publishJournal(message) {
+      publish({ type: 'journal', level: 'error', message })
+    },
+  })
 
   return {
     scheduler,
@@ -126,8 +155,15 @@ export function createWorkerApplication(
       await recoverInterruptedRuns(prisma)
       await scheduler.start()
     },
+    async configureTelegram(token) {
+      await telegram.configure(token)
+    },
+    async bindTelegramCandidate(chatId) {
+      return telegram.bindCandidate(chatId)
+    },
     async stop() {
       await scheduler.stop()
+      await telegram.stop()
       await sourceRuntime.close()
       await prisma.$disconnect()
     },
