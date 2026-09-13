@@ -112,10 +112,7 @@ describe('worker Telegram outbox composition', () => {
 
     const app = createWorkerApplication(config, publish, dependencies)
 
-    expect(createTelegramOutboxQueue).toHaveBeenCalledWith(
-      config.databaseUrl,
-      expect.any(Function),
-    )
+    expect(createTelegramOutboxQueue).toHaveBeenCalledWith(config.databaseUrl, expect.any(Function))
     expect(createTelegramOutboxDeliveryRepository).toHaveBeenCalledWith(prisma)
     expect(createTelegramOutboxDelivery).toHaveBeenCalledWith({
       repository: deliveryRepository,
