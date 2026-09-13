@@ -98,4 +98,44 @@ describe('utility worker runtime', () => {
     expect(exits).toEqual([0])
     expect(services.stop).toHaveBeenCalledTimes(1)
   })
+
+  it('routes Telegram configuration to runtime services', async () => {
+    const parentPort = new FakeParentPort()
+    const configureTelegram = vi.fn(async (_token: string | null) => undefined)
+    const services = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+      configureTelegram,
+      bindTelegramCandidate: vi.fn(async () => 'no-candidate' as const),
+    }
+
+    await startWorkerRuntime(parentPort, services, () => undefined)
+    parentPort.receive({ type: 'telegram-configure', token: 'SECRET_SENTINEL_3_1_1' })
+    await flushMicrotasks()
+
+    expect(configureTelegram).toHaveBeenCalledWith('SECRET_SENTINEL_3_1_1')
+    expect(parentPort.messages).toEqual([{ type: 'ready' }])
+  })
+
+  it('returns a request-correlated Telegram bind result', async () => {
+    const parentPort = new FakeParentPort()
+    const bindTelegramCandidate = vi.fn(async (_chatId: string) => 'bound' as const)
+    const services = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+      configureTelegram: vi.fn(async () => undefined),
+      bindTelegramCandidate,
+    }
+
+    await startWorkerRuntime(parentPort, services, () => undefined)
+    parentPort.receive({ type: 'telegram-bind-candidate', requestId: 'r1', chatId: '1001' })
+    await flushMicrotasks()
+
+    expect(bindTelegramCandidate).toHaveBeenCalledWith('1001')
+    expect(parentPort.messages).toContainEqual({
+      type: 'telegram-bind-result',
+      requestId: 'r1',
+      result: 'bound',
+    })
+  })
 })
