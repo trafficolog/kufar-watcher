@@ -61,6 +61,16 @@ function dependenciesFor(
     createTelegramRepository: () => telegramRepository,
     createTelegramBotFactory: () => telegramBotFactory,
     createTelegramBotService: () => telegramService,
+    createTelegramOutboxQueue: () => ({
+      start: vi.fn(async () => undefined),
+      enqueue: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+    }),
+    createTelegramOutboxDeliveryRepository: () => ({
+      getNotifiedAt: vi.fn(async () => null),
+      markNotified: vi.fn(async () => undefined),
+    }),
+    createTelegramOutboxDelivery: () => vi.fn(async () => undefined),
   }
 }
 
