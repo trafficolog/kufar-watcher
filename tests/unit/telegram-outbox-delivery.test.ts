@@ -5,9 +5,9 @@ import {
   createTelegramOutboxDelivery,
 } from '../../electron/worker/telegram-outbox-delivery'
 
-function createRepository(notifiedAt: Date | null | undefined = null) {
+function createRepository(notifiedAt: Date | null = null) {
   return {
-    getNotifiedAt: vi.fn(async () => notifiedAt),
+    getNotifiedAt: vi.fn(async (): Promise<Date | null | undefined> => notifiedAt),
     markNotified: vi.fn(async () => undefined),
   }
 }
@@ -52,7 +52,8 @@ describe('Telegram outbox delivery', () => {
   })
 
   it('treats a deleted Match as an idempotent no-op', async () => {
-    const repository = createRepository(undefined)
+    const repository = createRepository()
+    repository.getNotifiedAt.mockResolvedValue(undefined)
     const sendMessage = vi.fn(async () => undefined)
     const delivery = createTelegramOutboxDelivery({
       repository,
