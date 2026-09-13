@@ -21,7 +21,10 @@ export interface GrammyContextLike {
 }
 
 export interface GrammyBotLike {
-  on(filter: 'message' | 'callback_query', handler: (context: GrammyContextLike) => Promise<void>): void
+  on(
+    filter: 'message' | 'callback_query',
+    handler: (context: GrammyContextLike) => Promise<void>,
+  ): void
   catch(handler: () => void): void
   start(): Promise<void>
   stop(): Promise<void>
