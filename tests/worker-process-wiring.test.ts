@@ -23,7 +23,9 @@ describe('Telegram worker secret wiring', () => {
 
     expect(source).toContain("import { readFile } from 'node:fs/promises'")
     expect(source).toContain('safeStorage')
-    expect(source).toContain("import { configureTelegramFromSecret } from './telegram-main-runtime'")
+    expect(source).toContain(
+      "import { configureTelegramFromSecret } from './telegram-main-runtime'",
+    )
     expect(source).toContain("import { createTelegramSecretStore } from './telegram-secret-store'")
     expect(source).toContain('const telegramSecretStore = createTelegramSecretStore(userDataDir, {')
     expect(source).toContain('platform: process.platform')
@@ -45,7 +47,9 @@ describe('Telegram worker secret wiring', () => {
     const source = await readMainSource()
 
     expect(source).toContain('let telegramState: TelegramDesktopState = {')
-    expect(source).toContain('routeWorkerTelegramEvent(event, telegramState, broadcastTelegramState)')
+    expect(source).toContain(
+      'routeWorkerTelegramEvent(event, telegramState, broadcastTelegramState)',
+    )
     expect(source).toContain('registerTelegramIpcHandlers(')
     expect(source).toContain('getTelegramState: () => telegramState')
     expect(source).toContain('const candidate = telegramState.candidate')
