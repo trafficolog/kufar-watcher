@@ -38,6 +38,7 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "7.10.0",
     "dockerode": "5.0.1",
+    "grammy": "1.46.0",
     "nuxt": "4.5.2",
     "pg": "^8.23.0",
     "pg-boss": "12.30.0",
