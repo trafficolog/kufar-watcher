@@ -64,27 +64,31 @@ integration('Dockerode PostgreSQL runtime', () => {
   beforeEach(cleanup)
   afterEach(cleanup)
 
-  it('creates, starts, inspects, and health-checks PostgreSQL through the production runtime', async () => {
-    const expected = config()
+  it(
+    'creates, starts, inspects, and health-checks PostgreSQL through the production runtime',
+    async () => {
+      const expected = config()
 
-    await runtime.ping()
-    await ensurePostgresContainer(runtime, expected)
-    await waitForPostgresHealthy(runtime, expected.containerName, {
-      timeoutMs: 60_000,
-      pollIntervalMs: 1_000,
-      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    })
+      await runtime.ping()
+      await ensurePostgresContainer(runtime, expected)
+      await waitForPostgresHealthy(runtime, expected.containerName, {
+        timeoutMs: 60_000,
+        pollIntervalMs: 1_000,
+        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      })
 
-    expect(await runtime.inspectHealth(expected.containerName)).toBe('healthy')
-    expect(await runtime.inspectContainer(expected.containerName)).toEqual({
-      running: true,
-      image: expected.image,
-      volumeName: expected.volumeName,
-      host: expected.host,
-      port: expected.port,
-      user: expected.user,
-      password: expected.password,
-      database: expected.database,
-    })
-  })
+      expect(await runtime.inspectHealth(expected.containerName)).toBe('healthy')
+      expect(await runtime.inspectContainer(expected.containerName)).toEqual({
+        running: true,
+        image: expected.image,
+        volumeName: expected.volumeName,
+        host: expected.host,
+        port: expected.port,
+        user: expected.user,
+        password: expected.password,
+        database: expected.database,
+      })
+    },
+    90_000,
+  )
 })
