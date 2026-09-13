@@ -191,6 +191,47 @@ describe('incremental matcher pipeline', () => {
     expect(dependencyMocks.commitMonitorRun).not.toHaveBeenCalled()
   })
 
+  it('persists a snippet from description for a description-only match', async () => {
+    const prisma = prismaWithKeywordRule({ include: ['needle'], exclude: [] }, true)
+    const adapter = {} as SourceAdapter
+    const descriptionOnlyListing = listing('description-only', 'Объявление без ключевого слова')
+    const description =
+      'Первый длинный фрагмент объявления с дополнительными словами до совпадения. ' +
+      'Здесь находится Needle, которое объясняет причину совпадения. ' +
+      'После него продолжается длинное описание с характеристиками, комплектом, гарантией и условиями продажи.'
+    const descriptionLoader = {
+      ensureDescription: vi.fn().mockResolvedValue({
+        kind: 'available' as const,
+        description,
+        source: 'network' as const,
+      }),
+    }
+    dependencyMocks.traverseWatermark.mockResolvedValue({
+      ...traversalResult(),
+      newListings: [descriptionOnlyListing],
+      nextWatermark: {
+        boundaryTime: descriptionOnlyListing.listTime,
+        boundaryIds: [descriptionOnlyListing.listId],
+      },
+    })
+
+    await runIncrementalMonitor({
+      prisma,
+      monitorId: MONITOR_ID,
+      adapter,
+      maxPages: 1,
+      descriptionLoader,
+    })
+
+    const selected = dependencyMocks.commitMonitorRun.mock.calls[0]?.[1].selected
+    expect(selected).toHaveLength(1)
+    expect(selected[0]?.selection.matchedTerms).toEqual(['needle'])
+    expect(selected[0]?.selection.matchedIn).toEqual(['description'])
+    expect(selected[0]?.selection.snippet).toContain('Needle')
+    expect(selected[0]?.selection.snippet).not.toContain(descriptionOnlyListing.title)
+    expect(selected[0]?.selection.snippet?.length).toBeLessThanOrEqual(160)
+  })
+
   it('persists title and description hits with a snippet around the description hit', async () => {
     const prisma = prismaWithKeywordRule({ include: ['candidate', 'needle'], exclude: [] }, true)
     const adapter = {} as SourceAdapter
