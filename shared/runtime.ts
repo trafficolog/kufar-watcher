@@ -1,4 +1,13 @@
-export type WorkerControlMessage = { type: 'shutdown' }
+import type {
+  TelegramBindResult,
+  TelegramCandidate,
+  TelegramRuntimeState,
+} from './telegram'
+
+export type WorkerControlMessage =
+  | { type: 'shutdown' }
+  | { type: 'telegram-configure'; token: string | null }
+  | { type: 'telegram-bind-candidate'; requestId: string; chatId: string }
 
 export type WorkerEvent =
   | { type: 'ready' }
@@ -8,6 +17,17 @@ export type WorkerEvent =
       type: 'monitor-pause-required'
       monitorId: number
       stage: 'primary' | 'html-fallback' | 'degradation-event'
+    }
+  | {
+      type: 'telegram-state'
+      state: TelegramRuntimeState
+      boundChatId: string | null
+    }
+  | { type: 'telegram-candidate'; candidate: TelegramCandidate | null }
+  | {
+      type: 'telegram-bind-result'
+      requestId: string
+      result: TelegramBindResult
     }
 
 export interface WorkerProcessHandle {
