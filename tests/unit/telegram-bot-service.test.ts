@@ -160,8 +160,6 @@ describe('Telegram bot service', () => {
 
     expect(harness.service.getState()).toBe('degraded')
     expect(harness.publishJournal).toHaveBeenCalledWith('Telegram polling failed')
-    expect(JSON.stringify(harness.publishJournal.mock.calls)).not.toContain(
-      'SECRET_SENTINEL_3_1_1',
-    )
+    expect(JSON.stringify(harness.publishJournal.mock.calls)).not.toContain('SECRET_SENTINEL_3_1_1')
   })
 })
