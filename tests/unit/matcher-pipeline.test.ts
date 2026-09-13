@@ -128,6 +128,37 @@ describe('incremental matcher pipeline', () => {
     )
   })
 
+  it('does not persist a snippet for a title-only match when the title exceeds the snippet limit', async () => {
+    const prisma = prismaWithKeywordRule({ include: ['candidate'], exclude: [] })
+    const adapter = {} as SourceAdapter
+    const longTitleListing = listing(
+      'long-title',
+      'Продам почти новый смартфон в полном комплекте с коробкой, документами и гарантией. ' +
+        'Модель Candidate находится в середине длинного заголовка, после чего идут дополнительные характеристики, состояние корпуса, комплект поставки и условия продажи.',
+    )
+    dependencyMocks.traverseWatermark.mockResolvedValue({
+      ...traversalResult(),
+      newListings: [longTitleListing],
+      nextWatermark: {
+        boundaryTime: longTitleListing.listTime,
+        boundaryIds: [longTitleListing.listId],
+      },
+    })
+
+    await runIncrementalMonitor({ prisma, monitorId: MONITOR_ID, adapter, maxPages: 1 })
+
+    expect(dependencyMocks.commitMonitorRun.mock.calls[0]?.[1].selected).toEqual([
+      {
+        listing: longTitleListing,
+        selection: {
+          matchedTerms: ['candidate'],
+          matchedIn: ['title'],
+          snippet: null,
+        },
+      },
+    ])
+  })
+
   it('treats a legacy string array as an include-only keyword rule', async () => {
     const prisma = prismaWithKeywordRule(['candidate'])
     const adapter = {} as SourceAdapter
