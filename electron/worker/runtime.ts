@@ -82,6 +82,10 @@ export async function startWorkerRuntime(
       })
       .catch(() => {
         parentPort.postMessage({
+          type: 'telegram-bind-error',
+          requestId: data.requestId,
+        })
+        parentPort.postMessage({
           type: 'journal',
           level: 'error',
           message: 'Telegram candidate binding failed',
