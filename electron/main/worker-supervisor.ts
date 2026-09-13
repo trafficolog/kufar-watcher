@@ -121,6 +121,11 @@ function parseWorkerEvent(message: unknown): WorkerEvent | undefined {
     }
   }
 
+  if (type === 'telegram-bind-error') {
+    const requestId = Reflect.get(message, 'requestId')
+    if (typeof requestId === 'string') return { type, requestId }
+  }
+
   return undefined
 }
 
@@ -212,11 +217,15 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
       const event = parseWorkerEvent(message)
       if (!event) return
 
-      if (event.type === 'telegram-bind-result') {
+      if (event.type === 'telegram-bind-result' || event.type === 'telegram-bind-error') {
         const pending = pendingTelegramBinds.get(event.requestId)
         if (!pending) return
         pendingTelegramBinds.delete(event.requestId)
-        pending.resolve(event.result)
+        if (event.type === 'telegram-bind-result') {
+          pending.resolve(event.result)
+        } else {
+          pending.reject(new Error('Telegram candidate binding failed'))
+        }
         return
       }
 
