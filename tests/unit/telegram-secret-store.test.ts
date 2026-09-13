@@ -8,13 +8,13 @@ function missingFileError(): Error & { code: string } {
 
 function createSafeStorage(
   overrides: Partial<{
-    isAsyncEncryptionAvailable(): boolean
+    isAsyncEncryptionAvailable(): Promise<boolean>
     getSelectedStorageBackend(): string
     decryptStringAsync(value: Buffer): Promise<string>
   }> = {},
 ) {
   return {
-    isAsyncEncryptionAvailable: vi.fn(() => true),
+    isAsyncEncryptionAvailable: vi.fn(async () => true),
     getSelectedStorageBackend: vi.fn(() => 'gnome_libsecret'),
     decryptStringAsync: vi.fn(async () => 'telegram-token'),
     ...overrides,
@@ -61,7 +61,7 @@ describe('Telegram secret store', () => {
   it('reports unavailable when async encryption is unavailable', async () => {
     const readFile = vi.fn(async () => Buffer.from('cipher').toString('base64'))
     const safeStorage = createSafeStorage({
-      isAsyncEncryptionAvailable: vi.fn(() => false),
+      isAsyncEncryptionAvailable: vi.fn(async () => false),
     })
     const store = createTelegramSecretStore('/user-data', {
       platform: 'win32',
@@ -78,25 +78,20 @@ describe('Telegram secret store', () => {
 
   it('awaits async encryption availability before decrypting', async () => {
     const readFile = vi.fn(async () => Buffer.from('cipher').toString('base64'))
-    const decryptStringAsync = vi.fn(async () => 'telegram-token')
-    const safeStorage = {
+    const safeStorage = createSafeStorage({
       isAsyncEncryptionAvailable: vi.fn(async () => false),
-      getSelectedStorageBackend: vi.fn(() => 'gnome_libsecret'),
-      decryptStringAsync,
-    }
+    })
     const store = createTelegramSecretStore('/user-data', {
       platform: 'win32',
       readFile,
-      safeStorage: safeStorage as unknown as Parameters<
-        typeof createTelegramSecretStore
-      >[1]['safeStorage'],
+      safeStorage,
     })
 
     await expect(store.read()).resolves.toEqual({
       state: 'unavailable',
       reason: 'encryption-unavailable',
     })
-    expect(decryptStringAsync).not.toHaveBeenCalled()
+    expect(safeStorage.decryptStringAsync).not.toHaveBeenCalled()
   })
 
   it('treats the Linux basic_text backend as unprotected', async () => {
