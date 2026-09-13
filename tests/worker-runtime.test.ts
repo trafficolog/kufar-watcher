@@ -138,4 +138,30 @@ describe('utility worker runtime', () => {
       result: 'bound',
     })
   })
+
+  it('returns a request-correlated failure when Telegram binding throws', async () => {
+    const parentPort = new FakeParentPort()
+    const services = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+      configureTelegram: vi.fn(async () => undefined),
+      bindTelegramCandidate: vi.fn(async () => {
+        throw new Error('database unavailable')
+      }),
+    }
+
+    await startWorkerRuntime(parentPort, services, () => undefined)
+    parentPort.receive({ type: 'telegram-bind-candidate', requestId: 'r-fail', chatId: '1001' })
+    await flushMicrotasks()
+
+    expect(parentPort.messages).toContainEqual({
+      type: 'telegram-bind-error',
+      requestId: 'r-fail',
+    })
+    expect(parentPort.messages).toContainEqual({
+      type: 'journal',
+      level: 'error',
+      message: 'Telegram candidate binding failed',
+    })
+  })
 })
