@@ -5,6 +5,7 @@ import type {
   TelegramRuntimeState,
 } from '../../shared/telegram'
 import { createTelegramReconnectPolicy } from './telegram-reconnect-policy'
+import { TelegramSendFailure } from './telegram-send-failure'
 
 export const TELEGRAM_BINDING_ACKNOWLEDGEMENT =
   'Запрос на привязку получен. Подтвердите привязку в приложении Kufar Monitor.'
@@ -37,6 +38,7 @@ export interface TelegramBotService {
   configure(token: string | null): Promise<void>
   resume(): Promise<void>
   bindCandidate(chatId: string): Promise<TelegramBindResult>
+  sendMessage(chatId: string, text: string): Promise<void>
   getState(): TelegramRuntimeState
   getCandidate(): TelegramCandidate | null
   getBoundChatId(): string | null
@@ -231,6 +233,13 @@ export function createTelegramBotService(options: TelegramBotServiceOptions): Te
       clearCandidate()
       publishState('ready')
       return 'bound'
+    },
+
+    async sendMessage(chatId, text): Promise<void> {
+      if (boundChatId !== chatId) throw new TelegramSendFailure('permanent')
+      const currentTransport = transport
+      if (!currentTransport) throw new TelegramSendFailure('transient')
+      await currentTransport.sendMessage(chatId, text)
     },
 
     getState(): TelegramRuntimeState {
