@@ -256,17 +256,7 @@ export class KufarHttpClient {
       }
 
       if (response.status >= 200 && response.status < 300) {
-        if (this.journal) {
-          try {
-            await this.journal.record({
-              requestUrl: request.url,
-              status: response.status,
-              body: response.body,
-            })
-          } catch {
-            this.onJournalWarning('Raw response snapshot could not be stored')
-          }
-        }
+        await this.journalResponse(request.url, response)
 
         return {
           ok: true,
@@ -286,6 +276,7 @@ export class KufarHttpClient {
         )
 
         this.limiter.imposeCooldown(retryAfterMs)
+        await this.journalResponse(request.url, response)
 
         return {
           ok: false,
@@ -305,6 +296,8 @@ export class KufarHttpClient {
           continue
         }
 
+        await this.journalResponse(request.url, response)
+
         return {
           ok: false,
           kind: 'temporary',
@@ -317,6 +310,8 @@ export class KufarHttpClient {
       }
 
       if (response.status >= 400 && response.status < 500) {
+        await this.journalResponse(request.url, response)
+
         return {
           ok: false,
           kind: 'permanent',
@@ -327,6 +322,8 @@ export class KufarHttpClient {
           body: response.body,
         }
       }
+
+      await this.journalResponse(request.url, response)
 
       return {
         ok: false,
@@ -344,6 +341,20 @@ export class KufarHttpClient {
 
   async close(): Promise<void> {
     await this.transport.close()
+  }
+
+  private async journalResponse(requestUrl: URL, response: KufarTransportResponse): Promise<void> {
+    if (!this.journal) return
+
+    try {
+      await this.journal.record({
+        requestUrl,
+        status: response.status,
+        body: response.body,
+      })
+    } catch {
+      this.onJournalWarning('Raw response snapshot could not be stored')
+    }
   }
 
   private retryDelayMs(attempt: number): number {
