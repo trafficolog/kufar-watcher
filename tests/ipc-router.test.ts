@@ -104,6 +104,7 @@ describe('typed IPC routing', () => {
     const send = vi.fn()
     const initial: TelegramDesktopState = {
       runtime: 'waiting-for-binding',
+      channel: 'connected',
       boundChatId: null,
       candidate: null,
       secret: 'protected',
@@ -131,6 +132,7 @@ describe('typed IPC routing', () => {
     expect(withCandidate.candidate?.chatId).toBe('1001')
     expect(ready).toEqual({
       runtime: 'ready',
+      channel: 'connected',
       boundChatId: '1001',
       candidate: withCandidate.candidate,
       secret: 'protected',
@@ -144,6 +146,7 @@ describe('typed IPC routing', () => {
     const send = vi.fn()
     const state: TelegramDesktopState = {
       runtime: 'not-configured',
+      channel: 'disconnected',
       boundChatId: null,
       candidate: null,
       secret: 'missing',
@@ -202,6 +205,7 @@ describe('typed IPC routing', () => {
     const ipcMain = new FakeIpcMain()
     const state: TelegramDesktopState = {
       runtime: 'waiting-for-binding',
+      channel: 'connected',
       boundChatId: null,
       candidate: {
         chatId: '1001',
