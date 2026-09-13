@@ -72,8 +72,8 @@ mappings: `kufar.by` / `www.kufar.by` + `igry-i-pristavki` через adapter ki
 ## Подсказки
 
 - Общий контекст — в карточке эпика и в `docs/AGENTS.md`
-- Граница поддерживаемых категорий — в
-  `docs/superpowers/specs/deferred-requirements.md`
+- Current release routing perimeter — в
+  `docs/superpowers/specs/kufar-mvp-routing-perimeter.md`
 
 ## Не делать
 
