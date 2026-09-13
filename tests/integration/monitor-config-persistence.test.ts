@@ -199,6 +199,28 @@ integrationDescribe('monitor config persistence', () => {
     expect(cursor.catchupLastListId).toBe(CATCHUP_LAST_LIST_ID)
   })
 
+  it('rejects invalid keyword terms before commit without mutating cursor state', async () => {
+    await expect(
+      updateMonitorConfig(prisma, MONITOR_ID, {
+        keywords: ['phone', 'playstation 5'],
+      }),
+    ).rejects.toThrow(/matching term/i)
+
+    const monitor = await prisma.monitor.findUniqueOrThrow({ where: { id: MONITOR_ID } })
+    expect(monitor.keywords).toEqual(['phone'])
+
+    const cursor = await prisma.monitorCursor.findUniqueOrThrow({
+      where: { monitorId: MONITOR_ID },
+    })
+    expect(cursor.boundaryTime?.toISOString()).toBe(BOUNDARY_TIME.toISOString())
+    expect(cursor.boundaryIds).toEqual(BOUNDARY_IDS)
+    expect(cursor.catchupCursor).toBe('page-2')
+    expect(cursor.catchupBoundaryTime?.toISOString()).toBe(CATCHUP_BOUNDARY_TIME.toISOString())
+    expect(cursor.catchupBoundaryIds).toEqual(CATCHUP_BOUNDARY_IDS)
+    expect(cursor.catchupLastListTime?.toISOString()).toBe(CATCHUP_LAST_LIST_TIME.toISOString())
+    expect(cursor.catchupLastListId).toBe(CATCHUP_LAST_LIST_ID)
+  })
+
   it('deletes cursor and catch-up checkpoint when archived monitor becomes active', async () => {
     await prisma.monitor.update({
       where: { id: MONITOR_ID },
