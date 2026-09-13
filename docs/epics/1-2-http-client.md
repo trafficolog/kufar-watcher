@@ -1,10 +1,10 @@
 ---
 id: "1.2"
 phase: 1
-status: in_progress
+status: done
 sync_state: aligned
 last_reviewed: 2026-09-14
-status_note: "4/5 done: global limiter, resilient HTTP client, raw-response journal and stable application-level User-Agent are implemented; 1.2.5 terminal HTTP response journaling is in TDD after RED verify #1432."
+status_note: "5/5 done: global limiter, resilient HTTP client, raw-response journal, stable application-level User-Agent and terminal HTTP response journaling are implemented and verified; 1.2.5 RED #1432 / GREEN #1434."
 roles:
   - BACK
 ---
@@ -26,7 +26,7 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-1.2-tasks -->
-**Задач:** 5 · **done:** 4
+**Задач:** 5 · **done:** 5
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
@@ -34,28 +34,25 @@ roles:
 | `1.2.2` | [Клиент: таймауты, ретраи, обработка ошибок](../tasks/1-2-2-http-client.md) | ✅ done | 🟢 aligned |
 | `1.2.3` | [Журнал сырых ответов для отладки дрейфа](../tasks/1-2-3-raw-log.md) | ✅ done | 🟢 aligned |
 | `1.2.4` | [Stable Kufar User-Agent](../tasks/1-2-4-stable-user-agent.md) | ✅ done | 🟢 aligned |
-| `1.2.5` | [Журналирование terminal HTTP responses](../tasks/1-2-5-terminal-http-journal.md) | 🔄 in_progress | 🟢 aligned |
+| `1.2.5` | [Журналирование terminal HTTP responses](../tasks/1-2-5-terminal-http-journal.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-1.2-tasks -->
 
 ## Критерии приёмки эпика
 
-- [ ] Все дочерние задачи в статусе `done`
+- [x] Все дочерние задачи в статусе `done`
 - [x] `sync_state: aligned` (код соответствует карточкам)
-- [ ] Тесты по эпику зелёные (unit/integration/e2e где применимо)
+- [x] Тесты по эпику зелёные (unit/integration/e2e где применимо)
 
-## Базовый результат — 2026-09-11
+## Результат — 2026-09-14
 
 - Все Kufar HTTP attempts проходят через единый глобальный limiter с cadence 2–5 секунд и временным cooldown для `429`.
 - HTTP-клиент использует bounded retries для network/timeout/`5xx`, не ретраит permanent `4xx`/unexpected statuses и возвращает typed result вместо raw network exceptions.
 - `429` возвращается отдельным `rate-limited` outcome, уважает `Retry-After`, замедляет глобальный limiter и не запускает retry/fallback.
-- Успешные `2xx` bodies могут сохраняться в bounded filesystem journal: пять последних snapshots на endpoint, с exact-byte fixture export и platform-correct `userData` storage config.
+- Terminal HTTP response bodies (`2xx`, `429`, permanent `4xx`, exhausted `5xx`, unexpected status) могут сохраняться в bounded filesystem journal: пять последних snapshots на endpoint, с exact-byte fixture export и platform-correct `userData` storage config.
+- Промежуточные retryable `5xx` и transport/network/timeout failures без HTTP response не создают raw snapshots.
 - Каждый запрос через `KufarHttpClient` получает стабильный application-level `User-Agent: kufar-watcher`, если caller не передал собственный; explicit case-insensitive override сохраняется без дубликата и без browser spoofing/rotation.
-- TDD-история задач `1.2.1`–`1.2.4` подтверждена exact-SHA CI-проверками; schema comparison, traversal-level retries, fallback и UI экспорта остаются в своих последующих задачах.
-
-## Текущая ремедиация — 2026-09-14
-
-- `1.2.5` расширяет уже существующий raw-response journal на terminal non-2xx HTTP responses, не меняя retry/error/cooldown policy.
-- RED verify #1432 подтвердил gap: terminal bodies возвращаются caller, но journal hook вызывается только для `2xx`.
+- Journal failure остаётся non-blocking и не меняет HTTP outcome, retry count/backoff или `429` cooldown.
+- TDD-история задач `1.2.1`–`1.2.5` подтверждена exact-SHA CI-проверками; `1.2.5`: RED verify #1432, GREEN verify #1434.
 
 ## Связанные документы
 
