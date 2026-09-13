@@ -3,8 +3,8 @@ id: "2.7"
 phase: 2
 status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-12
-status_note: "P0 remediation в работе: 2.7.1–2.7.3 закрыты; 2.7.11 закрывает docs lifecycle/drift semantics; P1/P2/P3 остаются очередью."
+last_reviewed: 2026-09-13
+status_note: "P0/P1 remediation закрыта: 2.7.1–2.7.6 и 2.7.11 done; остаются P2 2.7.7/2.7.9 и измерительный P3 2.7.8."
 roles: [BACK, DB, QA]
 ---
 
@@ -34,7 +34,7 @@ roles: [BACK, DB, QA]
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.7-tasks -->
-**Задач:** 10 · **done:** 6
+**Задач:** 10 · **done:** 7
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
@@ -44,7 +44,7 @@ roles: [BACK, DB, QA]
 | `2.7.3` | [Terminal disposition при исчерпании description budget](../tasks/2-7-3-description-budget-terminal-disposition.md) | ✅ done | 🟢 aligned |
 | `2.7.4` | [Целостность жизненного цикла Run](../tasks/2-7-4-run-lifecycle-integrity.md) | ✅ done | 🟢 aligned |
 | `2.7.5` | [Единый источник истины для sellerType](../tasks/2-7-5-seller-type-single-source.md) | ✅ done | 🟢 aligned |
-| `2.7.6` | [Process-independent запрет пересечения обходов](../tasks/2-7-6-durable-monitor-no-overlap.md) | ⬜ todo | 🟡 drifted |
+| `2.7.6` | [Process-independent запрет пересечения обходов](../tasks/2-7-6-durable-monitor-no-overlap.md) | ✅ done | 🟢 aligned |
 | `2.7.7` | [Snippet только для совпадения в описании](../tasks/2-7-7-description-only-snippet.md) | ⬜ todo | 🟡 drifted |
 | `2.7.8` | [Детерминированное разнесение стартов мониторов](../tasks/2-7-8-scheduler-start-stagger.md) | ⬜ todo | 🟡 drifted |
 | `2.7.9` | [Конфигурируемый monitorMaxPages](../tasks/2-7-9-configurable-monitor-page-cap.md) | ⬜ todo | 🟡 drifted |
@@ -52,13 +52,13 @@ roles: [BACK, DB, QA]
 
 ## Критерии приёмки эпика
 
-- [ ] Все P0/P1 дефекты закрыты отдельными RED → GREEN циклами.
+- [x] Все P0/P1 дефекты закрыты отдельными RED → GREEN циклами.
 - [ ] P2/P3 либо реализованы, либо имеют подтверждённое решение о переносе с явным основанием.
-- [ ] Не осталось двух независимо изменяемых источников seller type.
-- [ ] Scheduler и Run lifecycle сохраняют инварианты при malformed data и restart.
+- [x] Не осталось двух независимо изменяемых источников seller type.
+- [x] Scheduler и Run lifecycle сохраняют инварианты при malformed data и restart.
 - [ ] Matcher соответствует собственной спецификации нормализации и snippet.
-- [ ] Docs lifecycle и формулировка `2.4.4` согласованы с фактическим runtime.
-- [ ] Будущий editor integration gate сохранён в `5.2.4`, но не считается условием закрытия remediation-фазы 2.
+- [x] Docs lifecycle и формулировка `2.4.4` согласованы с фактическим runtime.
+- [x] Будущий editor integration gate сохранён в `5.2.4`, но не считается условием закрытия remediation-фазы 2.
 
 ## Связанные документы
 
