@@ -37,7 +37,10 @@ export interface WorkerSupervisor {
   shutdown(): Promise<WorkerShutdownResult>
 }
 
-function includesString<const T extends readonly string[]>(values: T, value: unknown): value is T[number] {
+function includesString<const T extends readonly string[]>(
+  values: T,
+  value: unknown,
+): value is T[number] {
   return typeof value === 'string' && values.includes(value)
 }
 
@@ -72,7 +75,10 @@ function parseWorkerEvent(message: unknown): WorkerEvent | undefined {
   if (type === 'journal') {
     const level = Reflect.get(message, 'level')
     const text = Reflect.get(message, 'message')
-    if ((level === 'info' || level === 'warning' || level === 'error') && typeof text === 'string') {
+    if (
+      (level === 'info' || level === 'warning' || level === 'error') &&
+      typeof text === 'string'
+    ) {
       return { type, level, message: text }
     }
     return undefined
