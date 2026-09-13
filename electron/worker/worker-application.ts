@@ -32,10 +32,7 @@ import {
   type TelegramOutboxDeliveryRepository,
 } from './telegram-outbox-delivery'
 import { createPrismaTelegramOutboxDeliveryRepository } from './telegram-outbox-delivery-repository'
-import {
-  createPgBossTelegramOutboxQueue,
-  type TelegramOutboxQueue,
-} from './telegram-outbox-queue'
+import { createPgBossTelegramOutboxQueue, type TelegramOutboxQueue } from './telegram-outbox-queue'
 import {
   createWorkerSourceRuntime,
   type WorkerSourceRuntime,
@@ -60,12 +57,10 @@ export interface WorkerApplicationDependencies {
     databaseUrl: string,
     onError: (error: unknown) => void,
   ): TelegramOutboxQueue
-  createTelegramOutboxDeliveryRepository(
-    prisma: PrismaClient,
-  ): TelegramOutboxDeliveryRepository
-  createTelegramOutboxDelivery(options: TelegramOutboxDeliveryOptions): ReturnType<
-    typeof createTelegramOutboxDelivery
-  >
+  createTelegramOutboxDeliveryRepository(prisma: PrismaClient): TelegramOutboxDeliveryRepository
+  createTelegramOutboxDelivery(
+    options: TelegramOutboxDeliveryOptions,
+  ): ReturnType<typeof createTelegramOutboxDelivery>
 }
 
 const defaultDependencies: WorkerApplicationDependencies = {
@@ -174,18 +169,14 @@ export function createWorkerApplication(
       publish({ type: 'journal', level: 'error', message })
     },
   })
-  const telegramOutbox = dependencies.createTelegramOutboxQueue(
-    config.databaseUrl,
-    () => {
-      publish({
-        type: 'journal',
-        level: 'error',
-        message: 'Telegram outbox queue failed',
-      })
-    },
-  )
-  const telegramOutboxRepository =
-    dependencies.createTelegramOutboxDeliveryRepository(prisma)
+  const telegramOutbox = dependencies.createTelegramOutboxQueue(config.databaseUrl, () => {
+    publish({
+      type: 'journal',
+      level: 'error',
+      message: 'Telegram outbox queue failed',
+    })
+  })
+  const telegramOutboxRepository = dependencies.createTelegramOutboxDeliveryRepository(prisma)
   const deliverTelegramOutbox = dependencies.createTelegramOutboxDelivery({
     repository: telegramOutboxRepository,
     sendMessage(chatId, text) {
