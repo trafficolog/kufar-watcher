@@ -1,6 +1,15 @@
 import { existsSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { app, BrowserWindow, ipcMain, protocol, shell, utilityProcess } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  protocol,
+  safeStorage,
+  shell,
+  utilityProcess,
+} from 'electron'
 import { IPC, type BootState } from '../../shared/ipc'
 import workerPath from '../worker/index?modulePath'
 import { APP_HOST, APP_ORIGIN, APP_SCHEME, registerRendererProtocol } from './app-protocol'
@@ -20,6 +29,8 @@ import {
   routeWorkerBootEvent,
 } from './ipc-router'
 import { loadOrCreatePostgresCredentials, readPostgresRuntimeConfig } from './postgres-config'
+import { configureTelegramFromSecret } from './telegram-main-runtime'
+import { createTelegramSecretStore } from './telegram-secret-store'
 import { workerProcessEnvironment } from './worker-process-env'
 import { createWorkerSupervisor, type WorkerSupervisor } from './worker-supervisor'
 import { openRawResponseJournal, rawResponseJournalArg } from './worker-storage'
@@ -143,6 +154,13 @@ app.whenReady().then(async () => {
     },
   })
   workerSupervisor = supervisor
+
+  const telegramSecretStore = createTelegramSecretStore(userDataDir, {
+    platform: process.platform,
+    readFile,
+    safeStorage,
+  })
+  await configureTelegramFromSecret(telegramSecretStore, supervisor)
 
   const runBootstrap = async (): Promise<void> => {
     resolvedDatabaseUrl = undefined
