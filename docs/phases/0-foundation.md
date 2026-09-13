@@ -24,7 +24,7 @@ status_note: "Фаза 0 частично завершена: 0.1, 0.2 и 0.4 do
 | ID | Эпик | Статус | Sync | Ист. |
 |----|------|--------|------|------|
 | `0.1` | [Скелет Electron](../epics/0-1-electron-shell.md) | ✅ done | 🟢 aligned | 4/4 done: Electron shell, utilityProcess model, typed IPC contract and worker crash-streak reset are implemented and verified. |
-| `0.2` | [Postgres в Docker под Dockerode](../epics/0-2-docker-postgres.md) | ✅ done | 🟢 aligned | 6/6 done: compose Postgres, Dockerode supervision, recoverable bootstrap, existing-container validation and a single POSTGRES_* source-of-truth for runtime/Prisma tooling are implemented. |
+| `0.2` | [Postgres в Docker под Dockerode](../epics/0-2-docker-postgres.md) | ✅ done | 🟢 aligned | 7/7 done: compose Postgres, Dockerode supervision, recoverable bootstrap, existing-container validation, a single POSTGRES_* source-of-truth and a live CI gate for the production Dockerode runtime are implemented. |
 | `0.3` | [Prisma-схема и миграции](../epics/0-3-prisma-schema.md) | 🔄 in_progress | 🟡 drifted | 0.3.1–0.3.4 закрыты; schema-срезы 0.3.5 и 0.3.6 остаются запланированными для следующих релизных срезов. |
 | `0.4` | [docs-ops, линт и CI](../epics/0-4-docs-ops-ci.md) | ✅ done | 🟢 aligned | 4/4 done: docs-ops CLI, canonical CI/freshness enforcement and dependency advisory remediation with blocking high/critical audit gate are implemented; verify #1011 GREEN. |
 <!-- docs:ops:end phase-0-epics -->
