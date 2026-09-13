@@ -197,7 +197,8 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
   }
 
   const sendTelegramConfiguration = (worker: WorkerRuntimeHandle): void => {
-    if (!hasTelegramConfiguration || currentWorkerConfigurationSent || currentWorker !== worker) return
+    if (!hasTelegramConfiguration || currentWorkerConfigurationSent || currentWorker !== worker)
+      return
     worker.postMessage({ type: 'telegram-configure', token: telegramToken })
     currentWorkerConfigurationSent = true
   }
