@@ -60,7 +60,9 @@ export interface WorkerApplicationDependencies {
     databaseUrl: string,
     onError: (error: unknown) => void,
   ): TelegramOutboxQueue
-  createTelegramOutboxDeliveryRepository(prisma: PrismaClient): TelegramOutboxDeliveryRepository
+  createTelegramOutboxDeliveryRepository(
+    prisma: PrismaClient,
+  ): TelegramOutboxDeliveryRepository
   createTelegramOutboxDelivery(options: TelegramOutboxDeliveryOptions): ReturnType<
     typeof createTelegramOutboxDelivery
   >
@@ -172,14 +174,18 @@ export function createWorkerApplication(
       publish({ type: 'journal', level: 'error', message })
     },
   })
-  const telegramOutbox = dependencies.createTelegramOutboxQueue(config.databaseUrl, () => {
-    publish({
-      type: 'journal',
-      level: 'error',
-      message: 'Telegram outbox queue failed',
-    })
-  })
-  const telegramOutboxRepository = dependencies.createTelegramOutboxDeliveryRepository(prisma)
+  const telegramOutbox = dependencies.createTelegramOutboxQueue(
+    config.databaseUrl,
+    () => {
+      publish({
+        type: 'journal',
+        level: 'error',
+        message: 'Telegram outbox queue failed',
+      })
+    },
+  )
+  const telegramOutboxRepository =
+    dependencies.createTelegramOutboxDeliveryRepository(prisma)
   const deliverTelegramOutbox = dependencies.createTelegramOutboxDelivery({
     repository: telegramOutboxRepository,
     sendMessage(chatId, text) {
