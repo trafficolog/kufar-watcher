@@ -36,16 +36,24 @@ describe('worker Telegram outbox composition', () => {
     const publish = vi.fn<(event: WorkerEvent) => void>()
     const prisma = {
       $executeRaw: vi.fn(async () => 0),
-      $disconnect: vi.fn(async () => order.push('prisma')),
+      $disconnect: vi.fn(async () => {
+        order.push('prisma')
+      }),
     } as unknown as PrismaClient
     const scheduler = {
-      start: vi.fn(async () => order.push('scheduler:start')),
-      stop: vi.fn(async () => order.push('scheduler:stop')),
+      start: vi.fn(async () => {
+        order.push('scheduler:start')
+      }),
+      stop: vi.fn(async () => {
+        order.push('scheduler:stop')
+      }),
     } as unknown as MonitorScheduler
     const sourceRuntime = {
       createRunAdapters: vi.fn(() => ({}) as SourceAdapterRegistry),
       descriptionLoader: { ensureDescription: vi.fn() },
-      close: vi.fn(async () => order.push('source')),
+      close: vi.fn(async () => {
+        order.push('source')
+      }),
     } as WorkerSourceRuntime
     const telegram: TelegramBotService = {
       configure: vi.fn(async () => undefined),
@@ -55,7 +63,9 @@ describe('worker Telegram outbox composition', () => {
       getState: vi.fn(() => 'ready' as const),
       getCandidate: vi.fn(() => null),
       getBoundChatId: vi.fn(() => '1001'),
-      stop: vi.fn(async () => order.push('telegram')),
+      stop: vi.fn(async () => {
+        order.push('telegram')
+      }),
     }
     const deliveryRepository = {} as TelegramOutboxDeliveryRepository
     const deliveryHandler: TelegramOutboxHandler = vi.fn(async () => undefined)
@@ -66,7 +76,9 @@ describe('worker Telegram outbox composition', () => {
         order.push('outbox:start')
       }),
       enqueue: vi.fn(async () => undefined),
-      stop: vi.fn(async () => order.push('outbox:stop')),
+      stop: vi.fn(async () => {
+        order.push('outbox:stop')
+      }),
     }
     const createTelegramOutboxQueue = vi.fn(
       (_databaseUrl: string, onError: (error: unknown) => void) => {
