@@ -1,22 +1,29 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createTelegramSecretStore } from '../../electron/main/telegram-secret-store'
+import {
+  createTelegramSecretStore,
+  type TelegramSafeStorageDecryptResult,
+} from '../../electron/main/telegram-secret-store'
 
 function missingFileError(): Error & { code: string } {
   return Object.assign(new Error('missing'), { code: 'ENOENT' })
+}
+
+function decryptResult(result: string): TelegramSafeStorageDecryptResult {
+  return { result, shouldReEncrypt: false }
 }
 
 function createSafeStorage(
   overrides: Partial<{
     isAsyncEncryptionAvailable(): Promise<boolean>
     getSelectedStorageBackend(): string
-    decryptStringAsync(value: Buffer): Promise<string>
+    decryptStringAsync(value: Buffer): Promise<TelegramSafeStorageDecryptResult>
   }> = {},
 ) {
   return {
     isAsyncEncryptionAvailable: vi.fn(async () => true),
     getSelectedStorageBackend: vi.fn(() => 'gnome_libsecret'),
-    decryptStringAsync: vi.fn(async () => 'telegram-token'),
+    decryptStringAsync: vi.fn(async () => decryptResult('telegram-token')),
     ...overrides,
   }
 }
@@ -43,7 +50,7 @@ describe('Telegram secret store', () => {
     const safeStorage = createSafeStorage({
       decryptStringAsync: vi.fn(async (value: Buffer) => {
         expect(value).toEqual(ciphertext)
-        return 'telegram-token'
+        return decryptResult('telegram-token')
       }),
     })
     const store = createTelegramSecretStore('/user-data', {
