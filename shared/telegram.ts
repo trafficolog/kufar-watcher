@@ -8,21 +8,11 @@ export const TELEGRAM_RUNTIME_STATES = [
 
 export type TelegramRuntimeState = (typeof TELEGRAM_RUNTIME_STATES)[number]
 
-export const TELEGRAM_BIND_RESULTS = [
-  'bound',
-  'candidate-mismatch',
-  'no-candidate',
-] as const
+export const TELEGRAM_BIND_RESULTS = ['bound', 'candidate-mismatch', 'no-candidate'] as const
 
 export type TelegramBindResult = (typeof TELEGRAM_BIND_RESULTS)[number]
 
-export const TELEGRAM_CHAT_TYPES = [
-  'private',
-  'group',
-  'supergroup',
-  'channel',
-  'unknown',
-] as const
+export const TELEGRAM_CHAT_TYPES = ['private', 'group', 'supergroup', 'channel', 'unknown'] as const
 
 export type TelegramChatType = (typeof TELEGRAM_CHAT_TYPES)[number]
 
