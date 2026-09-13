@@ -1,10 +1,10 @@
 ---
 id: "2.7"
 phase: 2
-status: in_progress
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-13
-status_note: "P0/P1/P2 remediation закрыта; остаётся только измерительный P3 2.7.8."
+status_note: "10/10 done: P0/P1/P2 remediation реализована; P3 2.7.8 закрыта measurement-only — global limiter достаточно подавляет внешний burst, scheduler stagger не требуется; Phase 5 gate 5.2.4 сохранён."
 roles: [BACK, DB, QA]
 ---
 
@@ -34,7 +34,7 @@ roles: [BACK, DB, QA]
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.7-tasks -->
-**Задач:** 10 · **done:** 9
+**Задач:** 10 · **done:** 10
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
@@ -46,14 +46,14 @@ roles: [BACK, DB, QA]
 | `2.7.5` | [Единый источник истины для sellerType](../tasks/2-7-5-seller-type-single-source.md) | ✅ done | 🟢 aligned |
 | `2.7.6` | [Process-independent запрет пересечения обходов](../tasks/2-7-6-durable-monitor-no-overlap.md) | ✅ done | 🟢 aligned |
 | `2.7.7` | [Snippet только для совпадения в описании](../tasks/2-7-7-description-only-snippet.md) | ✅ done | 🟢 aligned |
-| `2.7.8` | [Детерминированное разнесение стартов мониторов](../tasks/2-7-8-scheduler-start-stagger.md) | ⬜ todo | 🟡 drifted |
+| `2.7.8` | [Детерминированное разнесение стартов мониторов](../tasks/2-7-8-scheduler-start-stagger.md) | ✅ done | 🟢 aligned |
 | `2.7.9` | [Конфигурируемый monitorMaxPages](../tasks/2-7-9-configurable-monitor-page-cap.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-2.7-tasks -->
 
 ## Критерии приёмки эпика
 
 - [x] Все P0/P1 дефекты закрыты отдельными RED → GREEN циклами.
-- [ ] P2/P3 либо реализованы, либо имеют подтверждённое решение о переносе с явным основанием.
+- [x] P2/P3 либо реализованы, либо имеют подтверждённое решение о переносе/measurement-only закрытии с явным основанием.
 - [x] Не осталось двух независимо изменяемых источников seller type.
 - [x] Scheduler и Run lifecycle сохраняют инварианты при malformed data и restart.
 - [x] Matcher соответствует собственной спецификации нормализации и snippet.
