@@ -2,8 +2,8 @@
 id: "2"
 status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-12
-status_note: "Фаза 2 в работе: эпики 2.1–2.4 закрыты; remediation 2.7 выполняется; power/catch-up 2.5 и morphology 2.6 остаются в очереди."
+last_reviewed: 2026-09-13
+status_note: "Фаза 2 в работе: эпики 2.1–2.4 и remediation 2.7 закрыты; power/catch-up 2.5 и morphology 2.6 остаются в очереди."
 ---
 
 # Фаза 2 — Правила, матчинг, планировщик
@@ -19,7 +19,7 @@ status_note: "Фаза 2 в работе: эпики 2.1–2.4 закрыты; r
 ## Эпики фазы
 
 <!-- docs:ops:begin phase-2-epics -->
-**Эпиков:** 7 · **done:** 4 · **в работе/план:** 3
+**Эпиков:** 7 · **done:** 5 · **в работе/план:** 2
 
 | ID | Эпик | Статус | Sync | Ист. |
 |----|------|--------|------|------|
@@ -29,7 +29,7 @@ status_note: "Фаза 2 в работе: эпики 2.1–2.4 закрыты; r
 | `2.4` | [Планировщик на pg-boss](../epics/2-4-scheduler.md) | ✅ done | 🟢 aligned | Эпик закрыт: 2.4.1–2.4.4 delivery scope done; remediation 2.4.5 закрепляет per-Run source degradation без изменения retry/watermark policy, verify #915 GREEN. |
 | `2.5` | [Питание и догоняющий обход](../epics/2-5-power-catchup.md) | ⬜ todo | 🟡 drifted | Корректная работа на машине, которая уходит в сон. |
 | `2.6` | [Морфология русского языка](../epics/2-6-morphology.md) | ⬜ todo | 🟡 drifted | Русский стеммер и правило выбора между маской и морфологией — срез 0.4.0. |
-| `2.7` | [Ремедиация повторного аудита фазы 2](../epics/2-7-phase2-audit-remediation.md) | 🔄 in_progress | 🟡 drifted | P0/P1/P2 remediation закрыта; остаётся только измерительный P3 2.7.8. |
+| `2.7` | [Ремедиация повторного аудита фазы 2](../epics/2-7-phase2-audit-remediation.md) | ✅ done | 🟢 aligned | 10/10 done: P0/P1/P2 remediation реализована; P3 2.7.8 закрыта measurement-only — global limiter достаточно подавляет внешний burst, scheduler stagger не требуется; Phase 5 gate 5.2.4 сохранён. |
 <!-- docs:ops:end phase-2-epics -->
 
 ## Связанные документы
