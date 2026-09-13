@@ -165,9 +165,7 @@ describe('grammY Telegram adapter', () => {
     await expect(pollingTask).rejects.toThrow()
     expect(harness.onError).toHaveBeenCalledWith('handler')
     expect(harness.onError).toHaveBeenCalledWith('polling')
-    expect(JSON.stringify(harness.onError.mock.calls)).not.toContain(
-      'SECRET_SENTINEL_3_1_2',
-    )
+    expect(JSON.stringify(harness.onError.mock.calls)).not.toContain('SECRET_SENTINEL_3_1_2')
   })
 
   it('delegates send and graceful runner stop', async () => {
@@ -187,9 +185,7 @@ describe('grammY Telegram adapter', () => {
       new HttpError('SECRET_HTTP_WRAPPER', new Error('SECRET_NETWORK_CAUSE')),
     )
 
-    const failure = await harness.transport
-      .sendMessage('1001', 'hello')
-      .catch((error) => error)
+    const failure = await harness.transport.sendMessage('1001', 'hello').catch((error) => error)
 
     expect(failure).toBeInstanceOf(TelegramSendFailure)
     expect(failure).toMatchObject({ kind: 'transient', message: 'Telegram send failed' })
@@ -210,9 +206,7 @@ describe('grammY Telegram adapter', () => {
         telegramApiError(code, `SECRET_REMOTE_${code}`),
       )
 
-      const failure = await harness.transport
-        .sendMessage('1001', 'hello')
-        .catch((error) => error)
+      const failure = await harness.transport.sendMessage('1001', 'hello').catch((error) => error)
 
       expect(failure).toBeInstanceOf(TelegramSendFailure)
       expect(failure).toMatchObject({ kind, message: 'Telegram send failed' })
