@@ -3,8 +3,8 @@ id: "0.2"
 phase: 0
 status: done
 sync_state: aligned
-last_reviewed: 2026-09-11
-status_note: "6/6 done: compose Postgres, Dockerode supervision, recoverable bootstrap, existing-container validation and a single POSTGRES_* source-of-truth for runtime/Prisma tooling are implemented."
+last_reviewed: 2026-09-13
+status_note: "7/7 done: compose Postgres, Dockerode supervision, recoverable bootstrap, existing-container validation, a single POSTGRES_* source-of-truth and a live CI gate for the production Dockerode runtime are implemented."
 roles:
   - BACK
   - DEVOPS
@@ -25,6 +25,7 @@ roles:
 - `0.2.4` — Восстановимый production bootstrap
 - `0.2.5` — Валидация конфигурации существующего Postgres-контейнера
 - `0.2.6` — Единый источник Postgres connection config
+- `0.2.7` — Live-проверка production Dockerode runtime в CI
 
 ## Дочерние карточки (rollup)
 
