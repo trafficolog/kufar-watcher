@@ -15,7 +15,7 @@ export interface TelegramSecretStore {
 }
 
 export interface TelegramSafeStorage {
-  isAsyncEncryptionAvailable(): boolean
+  isAsyncEncryptionAvailable(): Promise<boolean>
   getSelectedStorageBackend(): string
   decryptStringAsync(value: Buffer): Promise<string>
 }
@@ -48,7 +48,7 @@ export function createTelegramSecretStore(
         return { state: 'unavailable', reason: 'decrypt-failed' }
       }
 
-      if (!dependencies.safeStorage.isAsyncEncryptionAvailable()) {
+      if (!(await dependencies.safeStorage.isAsyncEncryptionAvailable())) {
         return { state: 'unavailable', reason: 'encryption-unavailable' }
       }
 
