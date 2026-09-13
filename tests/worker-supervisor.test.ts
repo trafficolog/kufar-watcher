@@ -174,7 +174,7 @@ describe('worker supervisor', () => {
     worker.emit('message', {
       type: 'telegram-bind-result',
       requestId: requests[1]!.requestId,
-      result: 'candidate-changed',
+      result: 'candidate-mismatch',
     })
     worker.emit('message', {
       type: 'telegram-bind-result',
@@ -183,7 +183,7 @@ describe('worker supervisor', () => {
     })
 
     await expect(first).resolves.toBe('bound')
-    await expect(second).resolves.toBe('candidate-changed')
+    await expect(second).resolves.toBe('candidate-mismatch')
   })
 
   it('rejects a Telegram bind request when no worker is active', async () => {
