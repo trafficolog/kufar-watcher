@@ -20,7 +20,7 @@ import type { WorkerEvent } from '../../shared/runtime'
 const config = {
   databaseUrl: 'postgresql://scheduler-db',
   rawResponseJournalDir: '/tmp/kufar-journal',
-  monitorMaxPages: 5,
+  monitorMaxPages: 17,
 }
 
 const degradationEvent: SourceDegradationEvent = {
