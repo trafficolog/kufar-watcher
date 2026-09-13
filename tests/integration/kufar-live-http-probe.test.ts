@@ -35,6 +35,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function paginationSummary(value: unknown): PaginationEntrySummary[] | null {
+  if (!isRecord(value)) return null
   if (!isRecord(value.props)) return null
   if (!isRecord(value.props.initialState)) return null
   if (!isRecord(value.props.initialState.listing)) return null
