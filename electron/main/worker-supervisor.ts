@@ -1,5 +1,6 @@
 import {
   TELEGRAM_BIND_RESULTS,
+  TELEGRAM_CHANNEL_STATES,
   TELEGRAM_CHAT_TYPES,
   TELEGRAM_RUNTIME_STATES,
   type TelegramBindResult,
@@ -33,6 +34,7 @@ export interface WorkerSupervisorOptions {
 export interface WorkerSupervisor {
   start(): void
   configureTelegram(token: string | null): void
+  resumeTelegram(): void
   bindTelegramCandidate(chatId: string): Promise<TelegramBindResult>
   shutdown(): Promise<WorkerShutdownResult>
 }
@@ -106,6 +108,11 @@ function parseWorkerEvent(message: unknown): WorkerEvent | undefined {
       return { type, state, boundChatId }
     }
     return undefined
+  }
+
+  if (type === 'telegram-channel-state') {
+    const state = Reflect.get(message, 'state')
+    return includesString(TELEGRAM_CHANNEL_STATES, state) ? { type, state } : undefined
   }
 
   if (type === 'telegram-candidate') {
@@ -284,6 +291,9 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
       if (!currentWorker) return
       currentWorkerConfigurationSent = false
       sendTelegramConfiguration(currentWorker)
+    },
+    resumeTelegram(): void {
+      currentWorker?.postMessage({ type: 'telegram-resume' })
     },
     bindTelegramCandidate(chatId: string): Promise<TelegramBindResult> {
       const worker = currentWorker

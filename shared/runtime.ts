@@ -1,8 +1,14 @@
-import type { TelegramBindResult, TelegramCandidate, TelegramRuntimeState } from './telegram'
+import type {
+  TelegramBindResult,
+  TelegramCandidate,
+  TelegramChannelState,
+  TelegramRuntimeState,
+} from './telegram'
 
 export type WorkerControlMessage =
   | { type: 'shutdown' }
   | { type: 'telegram-configure'; token: string | null }
+  | { type: 'telegram-resume' }
   | {
       type: 'telegram-bind-candidate'
       requestId: string
@@ -23,6 +29,7 @@ export type WorkerEvent =
       state: TelegramRuntimeState
       boundChatId: string | null
     }
+  | { type: 'telegram-channel-state'; state: TelegramChannelState }
   | { type: 'telegram-candidate'; candidate: TelegramCandidate | null }
   | {
       type: 'telegram-bind-result'

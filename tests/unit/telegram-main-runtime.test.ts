@@ -8,6 +8,7 @@ function createSupervisor() {
   return {
     start: vi.fn(),
     configureTelegram: vi.fn(),
+    resumeTelegram: vi.fn(),
     bindTelegramCandidate: vi.fn(),
     shutdown: vi.fn(async () => 'acknowledged' as const),
   } satisfies WorkerSupervisor

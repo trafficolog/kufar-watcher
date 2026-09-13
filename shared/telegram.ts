@@ -8,6 +8,15 @@ export const TELEGRAM_RUNTIME_STATES = [
 
 export type TelegramRuntimeState = (typeof TELEGRAM_RUNTIME_STATES)[number]
 
+export const TELEGRAM_CHANNEL_STATES = [
+  'disconnected',
+  'connected',
+  'reconnecting',
+  'error',
+] as const
+
+export type TelegramChannelState = (typeof TELEGRAM_CHANNEL_STATES)[number]
+
 export const TELEGRAM_BIND_RESULTS = ['bound', 'candidate-mismatch', 'no-candidate'] as const
 
 export type TelegramBindResult = (typeof TELEGRAM_BIND_RESULTS)[number]
@@ -25,6 +34,7 @@ export interface TelegramCandidate {
 
 export interface TelegramDesktopState {
   runtime: TelegramRuntimeState
+  channel: TelegramChannelState
   boundChatId: string | null
   candidate: TelegramCandidate | null
   secret: 'missing' | 'protected' | 'unavailable'

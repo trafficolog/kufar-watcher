@@ -1,8 +1,10 @@
 import type {
   TelegramBindResult,
   TelegramCandidate,
+  TelegramChannelState,
   TelegramRuntimeState,
 } from '../../shared/telegram'
+import { createTelegramReconnectPolicy } from './telegram-reconnect-policy'
 
 export const TELEGRAM_BINDING_ACKNOWLEDGEMENT =
   'Запрос на привязку получен. Подтвердите привязку в приложении Kufar Monitor.'
@@ -18,7 +20,7 @@ export interface TelegramBotHandlers {
 }
 
 export interface TelegramBotTransport {
-  start(): void
+  start(): Promise<void>
   stop(): Promise<void>
   sendMessage(chatId: string, text: string): Promise<void>
 }
@@ -33,6 +35,7 @@ export type TelegramBotFactory = (
 
 export interface TelegramBotService {
   configure(token: string | null): Promise<void>
+  resume(): Promise<void>
   bindCandidate(chatId: string): Promise<TelegramBindResult>
   getState(): TelegramRuntimeState
   getCandidate(): TelegramCandidate | null
@@ -44,6 +47,7 @@ export interface TelegramBotServiceOptions {
   repository: TelegramBindingRepository
   createBot: TelegramBotFactory
   publishState?(state: TelegramRuntimeState, boundChatId: string | null): void
+  publishChannelState?(state: TelegramChannelState): void
   publishCandidate?(candidate: TelegramCandidate | null): void
   publishJournal?(message: string): void
 }
@@ -53,14 +57,22 @@ function journalMessage(kind: TelegramBotErrorKind): string {
 }
 
 export function createTelegramBotService(options: TelegramBotServiceOptions): TelegramBotService {
+  const reconnectPolicy = createTelegramReconnectPolicy()
   let state: TelegramRuntimeState = 'not-configured'
   let candidate: TelegramCandidate | null = null
   let boundChatId: string | null = null
+  let activeToken: string | null = null
   let transport: TelegramBotTransport | undefined
+  let reconnectTimer: ReturnType<typeof setTimeout> | undefined
+  let lifecycleGeneration = 0
 
   const publishState = (nextState: TelegramRuntimeState): void => {
     state = nextState
     options.publishState?.(state, boundChatId)
+  }
+
+  const publishChannelState = (nextState: TelegramChannelState): void => {
+    options.publishChannelState?.(nextState)
   }
 
   const clearCandidate = (): void => {
@@ -69,13 +81,19 @@ export function createTelegramBotService(options: TelegramBotServiceOptions): Te
     options.publishCandidate?.(null)
   }
 
-  const markFailure = (kind: TelegramBotErrorKind): void => {
+  const markHandlerFailure = (): void => {
     publishState('degraded')
-    options.publishJournal?.(journalMessage(kind))
+    options.publishJournal?.(journalMessage('handler'))
+  }
+
+  const markConnectivity = (): void => {
+    reconnectPolicy.reset()
+    publishChannelState('connected')
   }
 
   const handlers: TelegramBotHandlers = {
     async onMessage(nextCandidate): Promise<void> {
+      markConnectivity()
       if (boundChatId !== null) return
 
       candidate = nextCandidate
@@ -83,13 +101,20 @@ export function createTelegramBotService(options: TelegramBotServiceOptions): Te
       try {
         await transport?.sendMessage(candidate.chatId, TELEGRAM_BINDING_ACKNOWLEDGEMENT)
       } catch {
-        markFailure('handler')
+        markHandlerFailure()
       }
     },
     async onCallbackQuery(_chatId): Promise<void> {
-      // Callback handling is intentionally empty in 3.1.1. Authorization is deny-by-default;
-      // product actions arrive only in later Telegram tasks and must check the bound chat first.
+      markConnectivity()
+      // Product callback actions arrive in later Telegram tasks. Receiving an update is still
+      // useful here because it proves that the current polling session has connectivity.
     },
+  }
+
+  const cancelReconnect = (): void => {
+    if (!reconnectTimer) return
+    clearTimeout(reconnectTimer)
+    reconnectTimer = undefined
   }
 
   const stopTransport = async (): Promise<void> => {
@@ -98,30 +123,103 @@ export function createTelegramBotService(options: TelegramBotServiceOptions): Te
     if (current) await current.stop()
   }
 
+  const scheduleReconnect = (generation: number, token: string): void => {
+    if (generation !== lifecycleGeneration || activeToken !== token) return
+    cancelReconnect()
+    publishChannelState('reconnecting')
+    options.publishJournal?.(journalMessage('polling'))
+    const delayMs = reconnectPolicy.nextDelayMs()
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = undefined
+      if (generation !== lifecycleGeneration || activeToken !== token) return
+      startTransport(generation, token)
+    }, delayMs)
+  }
+
+  const startTransport = (generation: number, token: string): void => {
+    if (generation !== lifecycleGeneration || activeToken !== token) return
+
+    let nextTransport: TelegramBotTransport
+    try {
+      nextTransport = options.createBot(token, handlers, (kind) => {
+        if (kind === 'handler') markHandlerFailure()
+      })
+    } catch {
+      transport = undefined
+      publishChannelState('error')
+      options.publishJournal?.(journalMessage('polling'))
+      return
+    }
+
+    transport = nextTransport
+    publishChannelState('connected')
+    let pollingTask: Promise<void>
+    try {
+      pollingTask = nextTransport.start()
+    } catch {
+      if (transport === nextTransport) transport = undefined
+      scheduleReconnect(generation, token)
+      return
+    }
+
+    void pollingTask.catch(() => {
+      if (
+        generation !== lifecycleGeneration ||
+        activeToken !== token ||
+        transport !== nextTransport
+      ) {
+        return
+      }
+      transport = undefined
+      scheduleReconnect(generation, token)
+    })
+  }
+
+  const restartCurrentTransport = async (): Promise<void> => {
+    const token = activeToken
+    if (token === null) {
+      publishChannelState('disconnected')
+      return
+    }
+
+    lifecycleGeneration += 1
+    const generation = lifecycleGeneration
+    cancelReconnect()
+    reconnectPolicy.reset()
+    await stopTransport()
+    if (generation !== lifecycleGeneration || activeToken !== token) return
+    startTransport(generation, token)
+  }
+
   return {
     async configure(token): Promise<void> {
+      lifecycleGeneration += 1
+      const generation = lifecycleGeneration
+      cancelReconnect()
+      reconnectPolicy.reset()
+      activeToken = token
       await stopTransport()
       clearCandidate()
+
+      if (generation !== lifecycleGeneration || activeToken !== token) return
 
       if (token === null) {
         boundChatId = null
         publishState('not-configured')
+        publishChannelState('disconnected')
         return
       }
 
       publishState('starting')
       boundChatId = await options.repository.getBoundChatId()
+      if (generation !== lifecycleGeneration || activeToken !== token) return
 
-      try {
-        transport = options.createBot(token, handlers, markFailure)
-        transport.start()
-      } catch {
-        transport = undefined
-        markFailure('polling')
-        return
-      }
-
+      startTransport(generation, token)
       publishState(boundChatId === null ? 'waiting-for-binding' : 'ready')
+    },
+
+    async resume(): Promise<void> {
+      await restartCurrentTransport()
     },
 
     async bindCandidate(chatId): Promise<TelegramBindResult> {
@@ -148,7 +246,12 @@ export function createTelegramBotService(options: TelegramBotServiceOptions): Te
     },
 
     async stop(): Promise<void> {
+      lifecycleGeneration += 1
+      activeToken = null
+      cancelReconnect()
+      reconnectPolicy.reset()
       await stopTransport()
+      publishChannelState('disconnected')
     },
   }
 }

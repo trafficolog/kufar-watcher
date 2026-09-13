@@ -11,6 +11,7 @@ class FakeIpcRenderer {
   bootState: BootState = { phase: 'starting', steps: [] }
   telegramState: TelegramDesktopState = {
     runtime: 'waiting-for-binding',
+    channel: 'connected',
     boundChatId: null,
     candidate: {
       chatId: '1001',
@@ -113,6 +114,7 @@ describe('preload desktop bridge', () => {
     unsubscribe()
     ipcRenderer.emitTelegramState({
       runtime: 'ready',
+      channel: 'connected',
       boundChatId: '1001',
       candidate: null,
       secret: 'protected',

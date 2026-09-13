@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   TELEGRAM_BINDING_ACKNOWLEDGEMENT,
@@ -17,9 +17,30 @@ const candidate: TelegramCandidate = {
   username: 'owner',
 }
 
-function createHarness(initialBoundChatId: string | null = null) {
-  let handlers: TelegramBotHandlers | undefined
-  let onError: ((kind: 'polling' | 'handler') => void) | undefined
+function deferred(): {
+  promise: Promise<void>
+  resolve(): void
+  reject(error: Error): void
+} {
+  let resolvePromise: (() => void) | undefined
+  let rejectPromise: ((error: Error) => void) | undefined
+  const promise = new Promise<void>((resolve, reject) => {
+    resolvePromise = resolve
+    rejectPromise = reject
+  })
+  return {
+    promise,
+    resolve: () => resolvePromise?.(),
+    reject: (error) => rejectPromise?.(error),
+  }
+}
+
+function createHarness(
+  initialBoundChatId: string | null = null,
+  options: { throwOnCreate?: boolean; failWhile?: () => boolean } = {},
+) {
+  let latestHandlers: TelegramBotHandlers | undefined
+  let latestOnError: ((kind: 'polling' | 'handler') => void) | undefined
   let persisted = initialBoundChatId
 
   const repository: TelegramBindingRepository = {
@@ -28,23 +49,40 @@ function createHarness(initialBoundChatId: string | null = null) {
       persisted = chatId
     }),
   }
-  const transport: TelegramBotTransport = {
-    start: vi.fn(),
-    stop: vi.fn(async () => undefined),
-    sendMessage: vi.fn(async () => undefined),
-  }
-  const createBot: TelegramBotFactory = vi.fn((_token, nextHandlers, nextOnError) => {
-    handlers = nextHandlers
-    onError = nextOnError
+  const sessions: Array<{
+    gate: ReturnType<typeof deferred>
+    transport: TelegramBotTransport
+  }> = []
+  const createBot = vi.fn<TelegramBotFactory>((_token, nextHandlers, nextOnError) => {
+    if (options.throwOnCreate) throw new Error('SECRET_SENTINEL_3_1_2_CREATE')
+
+    latestHandlers = nextHandlers
+    latestOnError = nextOnError
+    const gate = deferred()
+    const transport: TelegramBotTransport = {
+      start: vi.fn(() => {
+        if (options.failWhile?.()) {
+          return Promise.reject(new Error('SECRET_SENTINEL_3_1_2_POLLING'))
+        }
+        return gate.promise
+      }),
+      stop: vi.fn(async () => {
+        gate.resolve()
+      }),
+      sendMessage: vi.fn(async () => undefined),
+    }
+    sessions.push({ gate, transport })
     return transport
   })
   const publishState = vi.fn()
+  const publishChannelState = vi.fn()
   const publishCandidate = vi.fn()
   const publishJournal = vi.fn()
   const service = createTelegramBotService({
     repository,
     createBot,
     publishState,
+    publishChannelState,
     publishCandidate,
     publishJournal,
   })
@@ -52,35 +90,50 @@ function createHarness(initialBoundChatId: string | null = null) {
   return {
     service,
     repository,
-    transport,
+    sessions,
     createBot,
     publishState,
+    publishChannelState,
     publishCandidate,
     publishJournal,
     handlers: () => {
-      if (!handlers) throw new Error('Bot handlers are unavailable')
-      return handlers
+      if (!latestHandlers) throw new Error('Bot handlers are unavailable')
+      return latestHandlers
     },
     onError: () => {
-      if (!onError) throw new Error('Bot error handler is unavailable')
-      return onError
+      if (!latestOnError) throw new Error('Bot error handler is unavailable')
+      return latestOnError
+    },
+    latestTransport: () => {
+      const session = sessions.at(-1)
+      if (!session) throw new Error('Telegram transport is unavailable')
+      return session.transport
     },
     persisted: () => persisted,
   }
 }
 
+async function flushMicrotasks(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 describe('Telegram bot service', () => {
-  it('treats a missing token as a normal non-configured state', async () => {
+  it('treats a missing token as a normal disconnected state', async () => {
     const harness = createHarness()
 
     await harness.service.configure(null)
 
     expect(harness.service.getState()).toBe('not-configured')
     expect(harness.createBot).not.toHaveBeenCalled()
-    expect(harness.transport.start).not.toHaveBeenCalled()
+    expect(harness.publishChannelState).toHaveBeenLastCalledWith('disconnected')
   })
 
-  it('starts polling and waits for binding when no chat is persisted', async () => {
+  it('starts polling and publishes a connected channel while waiting for binding', async () => {
     const harness = createHarness()
 
     await harness.service.configure('telegram-token')
@@ -90,8 +143,9 @@ describe('Telegram bot service', () => {
       expect.any(Object),
       expect.any(Function),
     )
-    expect(harness.transport.start).toHaveBeenCalledOnce()
+    expect(harness.latestTransport().start).toHaveBeenCalledOnce()
     expect(harness.service.getState()).toBe('waiting-for-binding')
+    expect(harness.publishChannelState).toHaveBeenLastCalledWith('connected')
   })
 
   it('keeps a candidate in memory and sends only the neutral binding acknowledgement', async () => {
@@ -102,8 +156,8 @@ describe('Telegram bot service', () => {
 
     expect(harness.service.getCandidate()).toEqual(candidate)
     expect(harness.repository.setBoundChatId).not.toHaveBeenCalled()
-    expect(harness.transport.sendMessage).toHaveBeenCalledOnce()
-    expect(harness.transport.sendMessage).toHaveBeenCalledWith(
+    expect(harness.latestTransport().sendMessage).toHaveBeenCalledOnce()
+    expect(harness.latestTransport().sendMessage).toHaveBeenCalledWith(
       candidate.chatId,
       TELEGRAM_BINDING_ACKNOWLEDGEMENT,
     )
@@ -139,27 +193,123 @@ describe('Telegram bot service', () => {
     await harness.handlers().onCallbackQuery('2002')
 
     expect(harness.service.getCandidate()).toBeNull()
-    expect(harness.transport.sendMessage).not.toHaveBeenCalled()
+    expect(harness.latestTransport().sendMessage).not.toHaveBeenCalled()
     expect(harness.publishCandidate).not.toHaveBeenCalled()
   })
 
-  it('stops the active long-polling transport gracefully', async () => {
+  it('reconnects terminal polling sessions with exponential delays capped by policy', async () => {
+    vi.useFakeTimers()
+    const harness = createHarness()
+    await harness.service.configure('SECRET_SENTINEL_3_1_2')
+
+    harness.sessions[0]?.gate.reject(new Error('SECRET_SENTINEL_3_1_2'))
+    await flushMicrotasks()
+
+    expect(harness.publishChannelState).toHaveBeenLastCalledWith('reconnecting')
+    expect(harness.createBot).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(999)
+    expect(harness.createBot).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(harness.createBot).toHaveBeenCalledTimes(2)
+
+    harness.sessions[1]?.gate.reject(new Error('network still down'))
+    await flushMicrotasks()
+    await vi.advanceTimersByTimeAsync(1_999)
+    expect(harness.createBot).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(harness.createBot).toHaveBeenCalledTimes(3)
+
+    expect(JSON.stringify(harness.publishJournal.mock.calls)).not.toContain('SECRET_SENTINEL_3_1_2')
+  })
+
+  it('resets outer backoff after an inbound update proves connectivity', async () => {
+    vi.useFakeTimers()
     const harness = createHarness()
     await harness.service.configure('telegram-token')
 
-    await harness.service.stop()
+    harness.sessions[0]?.gate.reject(new Error('network down'))
+    await flushMicrotasks()
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(harness.createBot).toHaveBeenCalledTimes(2)
 
-    expect(harness.transport.stop).toHaveBeenCalledOnce()
+    await harness.handlers().onMessage(candidate)
+    harness.sessions[1]?.gate.reject(new Error('network down again'))
+    await flushMicrotasks()
+
+    await vi.advanceTimersByTimeAsync(999)
+    expect(harness.createBot).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(harness.createBot).toHaveBeenCalledTimes(3)
   })
 
-  it('maps transport failures to fixed redacted state and journal messages', async () => {
+  it('cancels a pending reconnect when stopped', async () => {
+    vi.useFakeTimers()
     const harness = createHarness()
-    await harness.service.configure('SECRET_SENTINEL_3_1_1')
+    await harness.service.configure('telegram-token')
 
-    harness.onError()('polling')
+    harness.sessions[0]?.gate.reject(new Error('network down'))
+    await flushMicrotasks()
+    await harness.service.stop()
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    expect(harness.createBot).toHaveBeenCalledTimes(1)
+    expect(harness.publishChannelState).toHaveBeenLastCalledWith('disconnected')
+  })
+
+  it('restarts polling immediately on resume without waiting for pending backoff', async () => {
+    vi.useFakeTimers()
+    const harness = createHarness()
+    await harness.service.configure('telegram-token')
+
+    harness.sessions[0]?.gate.reject(new Error('network down'))
+    await flushMicrotasks()
+    expect(harness.createBot).toHaveBeenCalledTimes(1)
+
+    await harness.service.resume()
+
+    expect(harness.createBot).toHaveBeenCalledTimes(2)
+    expect(harness.publishChannelState).toHaveBeenLastCalledWith('connected')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(harness.createBot).toHaveBeenCalledTimes(2)
+  })
+
+  it('recovers after a simulated five-minute network outage without restarting the service', async () => {
+    vi.useFakeTimers()
+    let offline = true
+    const harness = createHarness(null, { failWhile: () => offline })
+    await harness.service.configure('telegram-token')
+    await flushMicrotasks()
+
+    await vi.advanceTimersByTimeAsync(5 * 60_000)
+    expect(harness.createBot.mock.calls.length).toBeGreaterThan(5)
+
+    offline = false
+    await vi.advanceTimersByTimeAsync(30_000)
+
+    expect(harness.publishChannelState).toHaveBeenLastCalledWith('connected')
+    expect(harness.service.getState()).toBe('waiting-for-binding')
+  })
+
+  it('publishes a fixed error state when a transport cannot be created', async () => {
+    const harness = createHarness(null, { throwOnCreate: true })
+
+    await harness.service.configure('SECRET_SENTINEL_3_1_2_CREATE')
+
+    expect(harness.publishChannelState).toHaveBeenLastCalledWith('error')
+    expect(JSON.stringify(harness.publishJournal.mock.calls)).not.toContain(
+      'SECRET_SENTINEL_3_1_2_CREATE',
+    )
+  })
+
+  it('maps handler failures to fixed redacted runtime and journal messages', async () => {
+    const harness = createHarness()
+    await harness.service.configure('SECRET_SENTINEL_3_1_2')
+
+    harness.onError()('handler')
 
     expect(harness.service.getState()).toBe('degraded')
-    expect(harness.publishJournal).toHaveBeenCalledWith('Telegram polling failed')
-    expect(JSON.stringify(harness.publishJournal.mock.calls)).not.toContain('SECRET_SENTINEL_3_1_1')
+    expect(harness.publishJournal).toHaveBeenCalledWith('Telegram update handler failed')
+    expect(JSON.stringify(harness.publishJournal.mock.calls)).not.toContain('SECRET_SENTINEL_3_1_2')
   })
 })

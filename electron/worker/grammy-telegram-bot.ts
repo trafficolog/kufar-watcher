@@ -1,3 +1,4 @@
+import { run } from '@grammyjs/runner'
 import { Bot } from 'grammy'
 
 import type { TelegramCandidate, TelegramChatType } from '../../shared/telegram'
@@ -26,12 +27,32 @@ export interface GrammyBotLike {
     handler: (context: GrammyContextLike) => Promise<void>,
   ): void
   catch(handler: () => void): void
-  start(): Promise<void>
-  stop(): Promise<void>
   api: {
     sendMessage(chatId: string, text: string): Promise<unknown>
   }
 }
+
+export interface GrammyRunnerHandleLike {
+  task(): Promise<void> | undefined
+  isRunning(): boolean
+  stop(): Promise<void>
+}
+
+export interface GrammyRunnerOptionsLike {
+  runner: {
+    retryInterval: 'exponential'
+    maxRetryTime: number
+    silent: boolean
+  }
+  sink: {
+    concurrency: number
+  }
+}
+
+export type GrammyRunLike = (
+  bot: GrammyBotLike,
+  options: GrammyRunnerOptionsLike,
+) => GrammyRunnerHandleLike
 
 export type GrammyBotConstructor = (token: string) => GrammyBotLike
 
@@ -71,11 +92,17 @@ function createRealBot(token: string): GrammyBotLike {
   return bot as unknown as GrammyBotLike
 }
 
+function runRealBot(bot: GrammyBotLike, options: GrammyRunnerOptionsLike): GrammyRunnerHandleLike {
+  return run(bot as unknown as Bot, options) as unknown as GrammyRunnerHandleLike
+}
+
 export function createGrammyTelegramBotFactory(
   createBot: GrammyBotConstructor = createRealBot,
+  runBot: GrammyRunLike = runRealBot,
 ): TelegramBotFactory {
   return (token: string, handlers: TelegramBotHandlers, onError): TelegramBotTransport => {
     const bot = createBot(token)
+    let runner: GrammyRunnerHandleLike | undefined
 
     bot.on('message', async (context) => {
       if (!context.chat) return
@@ -91,13 +118,34 @@ export function createGrammyTelegramBotFactory(
     })
 
     return {
-      start(): void {
-        void bot.start().catch(() => {
-          onError('polling')
+      async start(): Promise<void> {
+        if (runner?.isRunning()) {
+          await runner.task()
+          return
+        }
+
+        runner = runBot(bot, {
+          runner: {
+            retryInterval: 'exponential',
+            maxRetryTime: 5_000,
+            silent: true,
+          },
+          sink: { concurrency: 1 },
         })
+        const task = runner.task()
+        if (!task) return
+
+        try {
+          await task
+        } catch {
+          onError('polling')
+          throw new Error('Telegram polling failed')
+        }
       },
       async stop(): Promise<void> {
-        await bot.stop()
+        const currentRunner = runner
+        runner = undefined
+        if (currentRunner?.isRunning()) await currentRunner.stop()
       },
       async sendMessage(chatId: string, text: string): Promise<void> {
         await bot.api.sendMessage(chatId, text)

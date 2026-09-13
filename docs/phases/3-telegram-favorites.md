@@ -3,7 +3,7 @@ id: "3"
 status: in_progress
 sync_state: drifted
 last_reviewed: 2026-09-13
-status_note: "Фаза 3 начата: 3.1.1 bot bootstrap и безопасная привязка чата завершены; остальной Telegram/favorites scope остаётся по release slices."
+status_note: "Фаза 3: 3.1.1 bot bootstrap и 3.1.2 reconnect завершены; 3.1.3 outbox и остальной Telegram/favorites scope остаются по release slices."
 ---
 
 # Фаза 3 — Telegram и избранное
@@ -23,7 +23,7 @@ status_note: "Фаза 3 начата: 3.1.1 bot bootstrap и безопасна
 
 | ID | Эпик | Статус | Sync | Ист. |
 |----|------|--------|------|------|
-| `3.1` | [Телеграм-бот и транспорт](../epics/3-1-telegram-transport.md) | 🔄 in_progress | 🟡 drifted | 3.1.1 bot bootstrap и безопасная привязка чата завершены; reconnect и outbox остаются в 3.1.2–3.1.3. |
+| `3.1` | [Телеграм-бот и транспорт](../epics/3-1-telegram-transport.md) | 🔄 in_progress | 🟡 drifted | 3.1.1 bot bootstrap и 3.1.2 reconnect завершены; durable outbound queue остаётся в 3.1.3. |
 | `3.2` | [Форматтер и кнопки](../epics/3-2-message-format.md) | ⬜ todo | 🟡 drifted | Формат уведомления о находке. |
 | `3.3` | [Тихие часы и очередь](../epics/3-3-quiet-hours.md) | ⬜ todo | 🟡 drifted | Уведомления не будят ночью и не теряются. |
 | `3.4` | [Мониторинг цен избранного](../epics/3-4-price-watch.md) | ⬜ todo | 🟡 drifted | Отслеживание цены по помеченным объявлениям. |

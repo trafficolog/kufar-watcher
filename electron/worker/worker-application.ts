@@ -141,6 +141,9 @@ export function createWorkerApplication(
     publishState(state, boundChatId) {
       publish({ type: 'telegram-state', state, boundChatId })
     },
+    publishChannelState(state) {
+      publish({ type: 'telegram-channel-state', state })
+    },
     publishCandidate(candidate) {
       publish({ type: 'telegram-candidate', candidate })
     },
@@ -157,6 +160,9 @@ export function createWorkerApplication(
     },
     async configureTelegram(token) {
       await telegram.configure(token)
+    },
+    async resumeTelegram() {
+      await telegram.resume()
     },
     async bindTelegramCandidate(chatId) {
       return telegram.bindCandidate(chatId)

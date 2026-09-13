@@ -117,6 +117,26 @@ describe('utility worker runtime', () => {
     expect(parentPort.messages).toEqual([{ type: 'ready' }])
   })
 
+  it('routes a Telegram resume signal without carrying credentials', async () => {
+    const parentPort = new FakeParentPort()
+    const resumeTelegram = vi.fn(async () => undefined)
+    const services = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+      configureTelegram: vi.fn(async () => undefined),
+      resumeTelegram,
+      bindTelegramCandidate: vi.fn(async () => 'no-candidate' as const),
+    }
+
+    await startWorkerRuntime(parentPort, services, () => undefined)
+    parentPort.receive({ type: 'telegram-resume' })
+    await flushMicrotasks()
+
+    expect(resumeTelegram).toHaveBeenCalledOnce()
+    expect(JSON.stringify(parentPort.messages)).not.toContain('token')
+    expect(parentPort.messages).toEqual([{ type: 'ready' }])
+  })
+
   it('returns a request-correlated Telegram bind result', async () => {
     const parentPort = new FakeParentPort()
     const bindTelegramCandidate = vi.fn(async (_chatId: string) => 'bound' as const)

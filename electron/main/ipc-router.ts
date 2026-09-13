@@ -57,6 +57,11 @@ export function routeWorkerTelegramEvent(
       runtime: event.state,
       boundChatId: event.boundChatId,
     }
+  } else if (event.type === 'telegram-channel-state') {
+    nextState = {
+      ...state,
+      channel: event.state,
+    }
   } else if (event.type === 'telegram-candidate') {
     nextState = {
       ...state,
