@@ -10,6 +10,7 @@ export interface WorkerRuntimeServices {
   start(): Promise<void>
   stop(): Promise<void>
   configureTelegram?(token: string | null): Promise<void>
+  resumeTelegram?(): Promise<void>
   bindTelegramCandidate?(chatId: string): Promise<TelegramBindResult>
 }
 
@@ -17,7 +18,7 @@ function isWorkerControlMessage(message: unknown): message is WorkerControlMessa
   if (!message || typeof message !== 'object') return false
 
   const type = Reflect.get(message, 'type')
-  if (type === 'shutdown') return true
+  if (type === 'shutdown' || type === 'telegram-resume') return true
   if (type === 'telegram-configure') {
     const token = Reflect.get(message, 'token')
     return token === null || typeof token === 'string'
@@ -65,6 +66,18 @@ export async function startWorkerRuntime(
           type: 'journal',
           level: 'error',
           message: 'Telegram configuration failed',
+        })
+      })
+      return
+    }
+
+    if (data.type === 'telegram-resume') {
+      if (!services.resumeTelegram) return
+      void services.resumeTelegram().catch(() => {
+        parentPort.postMessage({
+          type: 'journal',
+          level: 'error',
+          message: 'Telegram resume failed',
         })
       })
       return
