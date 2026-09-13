@@ -18,7 +18,7 @@ export interface TelegramBotHandlers {
 }
 
 export interface TelegramBotTransport {
-  start(): void
+  start(): Promise<void>
   stop(): Promise<void>
   sendMessage(chatId: string, text: string): Promise<void>
 }
@@ -114,7 +114,7 @@ export function createTelegramBotService(options: TelegramBotServiceOptions): Te
 
       try {
         transport = options.createBot(token, handlers, markFailure)
-        transport.start()
+        void transport.start().catch(() => undefined)
       } catch {
         transport = undefined
         markFailure('polling')
