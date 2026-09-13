@@ -1,10 +1,10 @@
 ---
 id: "3.1"
 phase: 3
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-09
-status_note: "Канал доставки уведомлений."
+last_reviewed: 2026-09-13
+status_note: "3.1.1 bot bootstrap и безопасная привязка чата завершены; reconnect и outbox остаются в 3.1.2–3.1.3."
 roles:
   - BACK
 ---
