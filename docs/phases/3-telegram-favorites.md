@@ -19,11 +19,11 @@ status_note: "Эпик 3.1 Telegram transport завершён; 3.2 message deli
 ## Эпики фазы
 
 <!-- docs:ops:begin phase-3-epics -->
-**Эпиков:** 4 · **done:** 0 · **в работе/план:** 4
+**Эпиков:** 4 · **done:** 1 · **в работе/план:** 3
 
 | ID | Эпик | Статус | Sync | Ист. |
 |----|------|--------|------|------|
-| `3.1` | [Телеграм-бот и транспорт](../epics/3-1-telegram-transport.md) | 🔄 in_progress | 🟡 drifted | 3.1.1 bot bootstrap и 3.1.2 reconnect завершены; durable outbound queue остаётся в 3.1.3. |
+| `3.1` | [Телеграм-бот и транспорт](../epics/3-1-telegram-transport.md) | ✅ done | 🟢 aligned | 3.1.1 bot bootstrap, 3.1.2 reconnect и 3.1.3 durable outbound queue завершены. |
 | `3.2` | [Форматтер и кнопки](../epics/3-2-message-format.md) | ⬜ todo | 🟡 drifted | Формат уведомления о находке. |
 | `3.3` | [Тихие часы и очередь](../epics/3-3-quiet-hours.md) | ⬜ todo | 🟡 drifted | Уведомления не будят ночью и не теряются. |
 | `3.4` | [Мониторинг цен избранного](../epics/3-4-price-watch.md) | ⬜ todo | 🟡 drifted | Отслеживание цены по помеченным объявлениям. |

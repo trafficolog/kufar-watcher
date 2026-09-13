@@ -24,13 +24,13 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-3.1-tasks -->
-**Задач:** 3 · **done:** 2
+**Задач:** 3 · **done:** 3
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `3.1.1` | [Бот на grammY и привязка чата](../tasks/3-1-1-bot-bootstrap.md) | ✅ done | 🟢 aligned |
 | `3.1.2` | [Устойчивое переподключение long-polling](../tasks/3-1-2-reconnect.md) | ✅ done | 🟢 aligned |
-| `3.1.3` | [Очередь исходящих с соблюдением лимитов](../tasks/3-1-3-outbox.md) | ⬜ todo | 🟡 drifted |
+| `3.1.3` | [Очередь исходящих с соблюдением лимитов](../tasks/3-1-3-outbox.md) | ✅ done | 🟢 aligned |
 <!-- docs:ops:end epic-3.1-tasks -->
 
 ## Критерии приёмки эпика
