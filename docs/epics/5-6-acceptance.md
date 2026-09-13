@@ -55,4 +55,4 @@ gate `5.0.4` не заменяет проверку perimeter в релизе `1
 
 - Фаза: `docs/phases/5-*.md`
 - Контракт площадки: `docs/superpowers/specs/kufar-api-contract.md`
-- Граница поддерживаемых категорий: `docs/superpowers/specs/deferred-requirements.md`
+- Current release routing perimeter: `docs/superpowers/specs/kufar-mvp-routing-perimeter.md`
