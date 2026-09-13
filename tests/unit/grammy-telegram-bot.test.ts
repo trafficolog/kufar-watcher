@@ -4,12 +4,44 @@ import {
   createGrammyTelegramBotFactory,
   type GrammyBotLike,
   type GrammyContextLike,
+  type GrammyRunnerHandleLike,
+  type GrammyRunLike,
 } from '../../electron/worker/grammy-telegram-bot'
 import type { TelegramBotHandlers } from '../../electron/worker/telegram-bot-service'
 
-function createHarness(startError?: Error) {
+function deferred(): {
+  promise: Promise<void>
+  resolve(): void
+  reject(error: Error): void
+} {
+  let resolvePromise: (() => void) | undefined
+  let rejectPromise: ((error: Error) => void) | undefined
+  const promise = new Promise<void>((resolve, reject) => {
+    resolvePromise = resolve
+    rejectPromise = reject
+  })
+  return {
+    promise,
+    resolve: () => resolvePromise?.(),
+    reject: (error) => rejectPromise?.(error),
+  }
+}
+
+function createHarness() {
   const listeners = new Map<string, (context: GrammyContextLike) => Promise<void>>()
   let errorHandler: (() => void) | undefined
+  const runnerTask = deferred()
+  let running = true
+  const runner: GrammyRunnerHandleLike = {
+    task: vi.fn(() => runnerTask.promise),
+    isRunning: vi.fn(() => running),
+    stop: vi.fn(async () => {
+      running = false
+      runnerTask.resolve()
+      await runnerTask.promise
+    }),
+  }
+  const runBot: GrammyRunLike = vi.fn(() => runner)
   const bot: GrammyBotLike = {
     on: vi.fn((filter, handler) => {
       listeners.set(filter, handler)
@@ -17,10 +49,6 @@ function createHarness(startError?: Error) {
     catch: vi.fn((handler) => {
       errorHandler = handler
     }),
-    start: vi.fn(async () => {
-      if (startError) throw startError
-    }),
-    stop: vi.fn(async () => undefined),
     api: {
       sendMessage: vi.fn(async () => undefined),
     },
@@ -31,8 +59,8 @@ function createHarness(startError?: Error) {
     onCallbackQuery: vi.fn(async () => undefined),
   }
   const onError = vi.fn()
-  const factory = createGrammyTelegramBotFactory(createBot)
-  const transport = factory('SECRET_SENTINEL_3_1_1', handlers, onError)
+  const factory = createGrammyTelegramBotFactory(createBot, runBot)
+  const transport = factory('SECRET_SENTINEL_3_1_2', handlers, onError)
 
   return {
     bot,
@@ -41,6 +69,9 @@ function createHarness(startError?: Error) {
     onError,
     transport,
     listeners,
+    runner,
+    runnerTask,
+    runBot,
     errorHandler: () => errorHandler,
   }
 }
@@ -93,26 +124,42 @@ describe('grammY Telegram adapter', () => {
     expect(harness.handlers.onCallbackQuery).toHaveBeenNthCalledWith(2, null)
   })
 
-  it('maps grammY handler and polling failures to redacted error kinds', async () => {
-    const harness = createHarness(new Error('SECRET_SENTINEL_3_1_1'))
+  it('runs polling through grammY runner with bounded exponential fetch retries and sequential updates', () => {
+    const harness = createHarness()
 
-    harness.errorHandler()?.()
-    harness.transport.start()
-    await Promise.resolve()
-    await Promise.resolve()
+    void harness.transport.start()
 
-    expect(harness.onError).toHaveBeenCalledWith('handler')
-    expect(harness.onError).toHaveBeenCalledWith('polling')
-    expect(JSON.stringify(harness.onError.mock.calls)).not.toContain('SECRET_SENTINEL_3_1_1')
+    expect(harness.runBot).toHaveBeenCalledWith(harness.bot, {
+      runner: {
+        retryInterval: 'exponential',
+        maxRetryTime: 5_000,
+        silent: true,
+      },
+      sink: { concurrency: 1 },
+    })
   })
 
-  it('delegates send and graceful stop to grammY', async () => {
+  it('maps handler and terminal polling failures to redacted error kinds', async () => {
     const harness = createHarness()
+
+    harness.errorHandler()?.()
+    const pollingTask = harness.transport.start()
+    harness.runnerTask.reject(new Error('SECRET_SENTINEL_3_1_2'))
+
+    await expect(pollingTask).rejects.toThrow()
+    expect(harness.onError).toHaveBeenCalledWith('handler')
+    expect(harness.onError).toHaveBeenCalledWith('polling')
+    expect(JSON.stringify(harness.onError.mock.calls)).not.toContain('SECRET_SENTINEL_3_1_2')
+  })
+
+  it('delegates send and graceful runner stop', async () => {
+    const harness = createHarness()
+    void harness.transport.start()
 
     await harness.transport.sendMessage('1001', 'hello')
     await harness.transport.stop()
 
     expect(harness.bot.api.sendMessage).toHaveBeenCalledWith('1001', 'hello')
-    expect(harness.bot.stop).toHaveBeenCalledOnce()
+    expect(harness.runner.stop).toHaveBeenCalledOnce()
   })
 })
