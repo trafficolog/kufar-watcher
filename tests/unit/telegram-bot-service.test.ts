@@ -53,29 +53,27 @@ function createHarness(
     gate: ReturnType<typeof deferred>
     transport: TelegramBotTransport
   }> = []
-  const createBot = vi.fn<TelegramBotFactory>(
-    (_token, nextHandlers, nextOnError) => {
-      if (options.throwOnCreate) throw new Error('SECRET_SENTINEL_3_1_2_CREATE')
+  const createBot = vi.fn<TelegramBotFactory>((_token, nextHandlers, nextOnError) => {
+    if (options.throwOnCreate) throw new Error('SECRET_SENTINEL_3_1_2_CREATE')
 
-      latestHandlers = nextHandlers
-      latestOnError = nextOnError
-      const gate = deferred()
-      const transport: TelegramBotTransport = {
-        start: vi.fn(() => {
-          if (options.failWhile?.()) {
-            return Promise.reject(new Error('SECRET_SENTINEL_3_1_2_POLLING'))
-          }
-          return gate.promise
-        }),
-        stop: vi.fn(async () => {
-          gate.resolve()
-        }),
-        sendMessage: vi.fn(async () => undefined),
-      }
-      sessions.push({ gate, transport })
-      return transport
-    },
-  )
+    latestHandlers = nextHandlers
+    latestOnError = nextOnError
+    const gate = deferred()
+    const transport: TelegramBotTransport = {
+      start: vi.fn(() => {
+        if (options.failWhile?.()) {
+          return Promise.reject(new Error('SECRET_SENTINEL_3_1_2_POLLING'))
+        }
+        return gate.promise
+      }),
+      stop: vi.fn(async () => {
+        gate.resolve()
+      }),
+      sendMessage: vi.fn(async () => undefined),
+    }
+    sessions.push({ gate, transport })
+    return transport
+  })
   const publishState = vi.fn()
   const publishChannelState = vi.fn()
   const publishCandidate = vi.fn()
@@ -222,9 +220,7 @@ describe('Telegram bot service', () => {
     await vi.advanceTimersByTimeAsync(1)
     expect(harness.createBot).toHaveBeenCalledTimes(3)
 
-    expect(JSON.stringify(harness.publishJournal.mock.calls)).not.toContain(
-      'SECRET_SENTINEL_3_1_2',
-    )
+    expect(JSON.stringify(harness.publishJournal.mock.calls)).not.toContain('SECRET_SENTINEL_3_1_2')
   })
 
   it('resets outer backoff after an inbound update proves connectivity', async () => {
@@ -314,8 +310,6 @@ describe('Telegram bot service', () => {
 
     expect(harness.service.getState()).toBe('degraded')
     expect(harness.publishJournal).toHaveBeenCalledWith('Telegram update handler failed')
-    expect(JSON.stringify(harness.publishJournal.mock.calls)).not.toContain(
-      'SECRET_SENTINEL_3_1_2',
-    )
+    expect(JSON.stringify(harness.publishJournal.mock.calls)).not.toContain('SECRET_SENTINEL_3_1_2')
   })
 })
