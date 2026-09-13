@@ -104,12 +104,62 @@ integration('Run lifecycle recovery', () => {
     await prisma.$disconnect()
   })
 
-  it('converts stale running rows to interrupted before scheduling resumes', async () => {
-    const startedAt = new Date(Date.now() - 1_000)
-    await prisma.run.create({
+  it('recovers only rows left running by the previous process before scheduler work begins', async () => {
+    const orphanStartedAt = new Date(Date.now() - 5_000)
+    const orphan = await prisma.run.create({
+      data: { monitorId: MONITOR_ID, startedAt: orphanStartedAt, outcome: 'running' },
+    })
+    const terminal = await prisma.run.create({
       data: {
         monitorId: MONITOR_ID,
-        startedAt,
+        startedAt: new Date(Date.now() - 4_000),
+        finishedAt: new Date(Date.now() - 3_000),
+        durationMs: 1_000,
+        outcome: 'success',
+      },
+    })
+    let currentRunId: number | undefined
+    const scheduler = {
+      start: vi.fn(async () => {
+        const current = await prisma.run.create({
+          data: { monitorId: MONITOR_ID, outcome: 'running' },
+        })
+        currentRunId = current.id
+      }),
+      stop: vi.fn(async () => undefined),
+    } as unknown as MonitorScheduler
+    const app = createWorkerApplication(config, vi.fn(), dependenciesFor(prisma, scheduler))
+
+    await app.start()
+
+    const recovered = await prisma.run.findUniqueOrThrow({ where: { id: orphan.id } })
+    expect(recovered.outcome).toBe('interrupted')
+    expect(recovered.finishedAt).not.toBeNull()
+    expect(recovered.durationMs ?? -1).toBeGreaterThanOrEqual(0)
+    expect(recovered.error).toBe('Worker process interrupted before Run completion')
+    expect(recovered.errorCategory).toBe('internal')
+    expect(recovered.errorCode).toBe('worker-interrupted')
+
+    expect(await prisma.run.findUniqueOrThrow({ where: { id: terminal.id } })).toMatchObject({
+      outcome: 'success',
+      durationMs: 1_000,
+      error: null,
+      errorCategory: null,
+      errorCode: null,
+    })
+
+    expect(currentRunId).toBeDefined()
+    expect(await prisma.run.findUniqueOrThrow({ where: { id: currentRunId } })).toMatchObject({
+      outcome: 'running',
+      finishedAt: null,
+    })
+  })
+
+  it('is idempotent when startup recovery runs again', async () => {
+    const orphan = await prisma.run.create({
+      data: {
+        monitorId: MONITOR_ID,
+        startedAt: new Date(Date.now() - 5_000),
         outcome: 'running',
       },
     })
@@ -117,67 +167,31 @@ integration('Run lifecycle recovery', () => {
       start: vi.fn(async () => undefined),
       stop: vi.fn(async () => undefined),
     } as unknown as MonitorScheduler
-    const app = createWorkerApplication(config, vi.fn(), dependenciesFor(prisma, scheduler))
 
-    await app.start()
+    const firstApp = createWorkerApplication(config, vi.fn(), dependenciesFor(prisma, scheduler))
+    await firstApp.start()
+    const first = await prisma.run.findUniqueOrThrow({ where: { id: orphan.id } })
 
-    const recovered = await prisma.run.findFirstOrThrow({
-      where: { monitorId: MONITOR_ID },
-      orderBy: { id: 'desc' },
+    const secondApp = createWorkerApplication(config, vi.fn(), dependenciesFor(prisma, scheduler))
+    await secondApp.start()
+    const second = await prisma.run.findUniqueOrThrow({ where: { id: orphan.id } })
+
+    expect(first.outcome).toBe('interrupted')
+    expect(second).toMatchObject({
+      outcome: first.outcome,
+      finishedAt: first.finishedAt,
+      durationMs: first.durationMs,
+      error: first.error,
+      errorCategory: first.errorCategory,
+      errorCode: first.errorCode,
     })
-    expect(recovered.outcome).toBe('interrupted')
-    expect(recovered.finishedAt).not.toBeNull()
-    expect(recovered.durationMs).not.toBeNull()
-    expect(recovered.errorCategory).toBe('internal')
-    expect(recovered.errorCode).toBe('worker-interrupted')
-    expect(scheduler.start).toHaveBeenCalledOnce()
   })
 
-  it('does not rewrite already-finished rows during startup recovery', async () => {
-    const startedAt = new Date(Date.now() - 2_000)
-    const finishedAt = new Date(Date.now() - 1_000)
-    const row = await prisma.run.create({
-      data: {
-        monitorId: MONITOR_ID,
-        startedAt,
-        finishedAt,
-        durationMs: 1_000,
-        outcome: 'completed',
-      },
-    })
-    const scheduler = {
-      start: vi.fn(async () => undefined),
-      stop: vi.fn(async () => undefined),
-    } as unknown as MonitorScheduler
-    const app = createWorkerApplication(config, vi.fn(), dependenciesFor(prisma, scheduler))
-
-    await app.start()
-
-    const unchanged = await prisma.run.findUniqueOrThrow({ where: { id: row.id } })
-    expect(unchanged.outcome).toBe('completed')
-    expect(unchanged.finishedAt).toEqual(finishedAt)
-    expect(unchanged.error).toBeNull()
-  })
-
-  it('recovers every stale running row in one startup pass', async () => {
-    await prisma.run.createMany({
-      data: [
-        { monitorId: MONITOR_ID, startedAt: new Date(Date.now() - 3_000), outcome: 'running' },
-        { monitorId: MONITOR_ID, startedAt: new Date(Date.now() - 2_000), outcome: 'running' },
-      ],
-    })
-    const scheduler = {
-      start: vi.fn(async () => undefined),
-      stop: vi.fn(async () => undefined),
-    } as unknown as MonitorScheduler
-    const app = createWorkerApplication(config, vi.fn(), dependenciesFor(prisma, scheduler))
-
-    await app.start()
-
-    const recovered = await prisma.run.findMany({
-      where: { monitorId: MONITOR_ID, outcome: 'interrupted' },
-    })
-    expect(recovered).toHaveLength(2)
-    expect(recovered.every((row) => row.finishedAt !== null)).toBe(true)
+  it('rejects arbitrary Run outcomes at the database boundary', async () => {
+    await expect(
+      prisma.run.create({
+        data: { monitorId: MONITOR_ID, outcome: 'made-up-outcome' },
+      }),
+    ).rejects.toThrow()
   })
 })
