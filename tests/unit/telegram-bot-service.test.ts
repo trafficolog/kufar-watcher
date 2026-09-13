@@ -29,7 +29,7 @@ function createHarness(initialBoundChatId: string | null = null) {
     }),
   }
   const transport: TelegramBotTransport = {
-    start: vi.fn(),
+    start: vi.fn(async () => undefined),
     stop: vi.fn(async () => undefined),
     sendMessage: vi.fn(async () => undefined),
   }
