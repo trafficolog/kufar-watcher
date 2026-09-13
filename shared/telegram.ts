@@ -34,6 +34,7 @@ export interface TelegramCandidate {
 
 export interface TelegramDesktopState {
   runtime: TelegramRuntimeState
+  channel: TelegramChannelState
   boundChatId: string | null
   candidate: TelegramCandidate | null
   secret: 'missing' | 'protected' | 'unavailable'
