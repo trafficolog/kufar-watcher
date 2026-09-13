@@ -20,6 +20,7 @@ describe('Telegram reconnect application wiring', () => {
       configure: vi.fn(async () => undefined),
       resume,
       bindCandidate: vi.fn(async () => 'no-candidate' as const),
+      sendMessage: vi.fn(async () => undefined),
       getState: vi.fn(() => 'not-configured' as const),
       getCandidate: vi.fn(() => null),
       getBoundChatId: vi.fn(() => null),
