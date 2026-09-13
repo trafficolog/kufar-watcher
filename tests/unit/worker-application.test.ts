@@ -41,8 +41,8 @@ function createTelegramHarness(order?: string[]) {
   const telegramBotFactory = vi.fn() as unknown as TelegramBotFactory
   const telegramService: TelegramBotService = {
     configure: vi.fn(async () => undefined),
-    bindCandidate: vi.fn(async () => 'bound'),
-    getState: vi.fn(() => 'not-configured'),
+    bindCandidate: vi.fn(async () => 'bound' as const),
+    getState: vi.fn(() => 'not-configured' as const),
     getCandidate: vi.fn(() => null),
     getBoundChatId: vi.fn(() => null),
     stop: vi.fn(async () => {
