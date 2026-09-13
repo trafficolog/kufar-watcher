@@ -17,7 +17,7 @@ describe('Telegram main runtime', () => {
   it('passes a protected token only to the worker supervisor', async () => {
     const token = 'SECRET_SENTINEL_3_1_1'
     const store: TelegramSecretStore = {
-      read: vi.fn(async () => ({ state: 'protected', token })),
+      read: vi.fn(async () => ({ state: 'protected' as const, token })),
     }
     const supervisor = createSupervisor()
 
