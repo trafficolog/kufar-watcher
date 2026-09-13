@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
-import { format } from 'prettier'
+import { format, resolveConfig } from 'prettier'
 
 function numbered(lines: string[], start: number, end: number): string {
   return lines
@@ -13,7 +13,8 @@ describe('Prettier diagnostic', () => {
   it('prints the formatter delta for the Telegram reconnect service test', async () => {
     const target = new URL('./telegram-bot-service.test.ts', import.meta.url)
     const source = await readFile(target, 'utf8')
-    const formatted = await format(source, { filepath: target.pathname })
+    const config = (await resolveConfig(target.pathname)) ?? {}
+    const formatted = await format(source, { ...config, filepath: target.pathname })
     const sourceLines = source.split('\n')
     const formattedLines = formatted.split('\n')
 
