@@ -23,7 +23,7 @@ status_note: "Фаза 1 закрыта: все 6 эпиков (1.0–1.5) done/
 
 | ID | Эпик | Статус | Sync | Ист. |
 |----|------|--------|------|------|
-| `1.0` | [Разведка контракта площадки](../epics/1-0-recon.md) | ✅ done | 🟢 aligned | 2/2 done: live electronics and real-estate contract reconnaissance is captured in fixtures and the API contract. |
+| `1.0` | [Разведка контракта площадки](../epics/1-0-recon.md) | ✅ done | 🟢 aligned | 3/3 done: live electronics and real-estate reconnaissance plus the production KufarHttpClient HTML/terminal probe are captured; verify #1417 confirmed HTTP 200, __NEXT_DATA__ and a terminal page without label=next. |
 | `1.1` | [URL-парсер и canonical query](../epics/1-1-url-parser.md) | ✅ done | 🟢 aligned | 4/4 done: canonical URL parse/build/routing plus real-estate regionless operation disambiguation are implemented and verified. |
 | `1.2` | [HTTP-клиент и лимитер](../epics/1-2-http-client.md) | ✅ done | 🟢 aligned | 4/4 done: global limiter, resilient HTTP client, raw-response journal and stable application-level User-Agent are implemented and verified. |
 | `1.3` | [Адаптеры выдачи Kufar](../epics/1-3-source-adapters.md) | ✅ done | 🟢 aligned | 5/5: общий SourceAdapter, electronics, real-estate, проверенный HTML fallback и terminal pagination token готовы. |

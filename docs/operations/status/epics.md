@@ -10,7 +10,7 @@ _Сгенерировано 2026-09-13_
 | `0.2` | Postgres в Docker под Dockerode | 0 | ✅ done | 🟢 aligned | 7/7 done: compose Postgres, Dockerode supervision, recoverable bootstrap, existing-container validation, a single POSTGRES_* source-of-truth and a live CI gate for the production Dockerode runtime are implemented. |
 | `0.3` | Prisma-схема и миграции | 0 | 🔄 in_progress | 🟡 drifted | 0.3.1–0.3.4 закрыты; schema-срезы 0.3.5 и 0.3.6 остаются запланированными для следующих релизных срезов. |
 | `0.4` | docs-ops, линт и CI | 0 | ✅ done | 🟢 aligned | 4/4 done: docs-ops CLI, canonical CI/freshness enforcement and dependency advisory remediation with blocking high/critical audit gate are implemented; verify #1011 GREEN. |
-| `1.0` | Разведка контракта площадки | 1 | ✅ done | 🟢 aligned | 2/2 done: live electronics and real-estate contract reconnaissance is captured in fixtures and the API contract. |
+| `1.0` | Разведка контракта площадки | 1 | ✅ done | 🟢 aligned | 3/3 done: live electronics and real-estate reconnaissance plus the production KufarHttpClient HTML/terminal probe are captured; verify #1417 confirmed HTTP 200, __NEXT_DATA__ and a terminal page without label=next. |
 | `1.1` | URL-парсер и canonical query | 1 | ✅ done | 🟢 aligned | 4/4 done: canonical URL parse/build/routing plus real-estate regionless operation disambiguation are implemented and verified. |
 | `1.2` | HTTP-клиент и лимитер | 1 | ✅ done | 🟢 aligned | 4/4 done: global limiter, resilient HTTP client, raw-response journal and stable application-level User-Agent are implemented and verified. |
 | `1.3` | Адаптеры выдачи Kufar | 1 | ✅ done | 🟢 aligned | 5/5: общий SourceAdapter, electronics, real-estate, проверенный HTML fallback и terminal pagination token готовы. |
