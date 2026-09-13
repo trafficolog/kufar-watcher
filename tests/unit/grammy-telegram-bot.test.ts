@@ -165,7 +165,9 @@ describe('grammY Telegram adapter', () => {
     await expect(pollingTask).rejects.toThrow()
     expect(harness.onError).toHaveBeenCalledWith('handler')
     expect(harness.onError).toHaveBeenCalledWith('polling')
-    expect(JSON.stringify(harness.onError.mock.calls)).not.toContain('SECRET_SENTINEL_3_1_2')
+    expect(JSON.stringify(harness.onError.mock.calls)).not.toContain(
+      'SECRET_SENTINEL_3_1_2',
+    )
   })
 
   it('delegates send and graceful runner stop', async () => {
