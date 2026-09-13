@@ -3,7 +3,7 @@ id: "3"
 status: in_progress
 sync_state: drifted
 last_reviewed: 2026-09-13
-status_note: "Фаза 3: 3.1.1 bot bootstrap и 3.1.2 reconnect завершены; 3.1.3 outbox и остальной Telegram/favorites scope остаются по release slices."
+status_note: "Эпик 3.1 Telegram transport завершён; 3.2 message delivery и последующие Telegram/favorites эпики остаются по release slices."
 ---
 
 # Фаза 3 — Telegram и избранное
