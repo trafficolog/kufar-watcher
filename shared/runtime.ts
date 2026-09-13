@@ -29,6 +29,7 @@ export type WorkerEvent =
       requestId: string
       result: TelegramBindResult
     }
+  | { type: 'telegram-bind-error'; requestId: string }
 
 export interface WorkerProcessHandle {
   postMessage(message: WorkerControlMessage): void
