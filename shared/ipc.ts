@@ -1,3 +1,5 @@
+import type { TelegramBindResult, TelegramDesktopState } from './telegram'
+
 export type BootStepId = 'docker' | 'database' | 'migrations' | 'scheduler' | 'telegram'
 
 export type BootStepState = 'pending' | 'running' | 'success' | 'skipped' | 'degraded' | 'error'
@@ -30,6 +32,11 @@ export interface KufarDesktopApi {
     exit(): Promise<void>
     onBootState(listener: (state: BootState) => void): () => void
   }
+  telegram: {
+    getState(): Promise<TelegramDesktopState>
+    bindCandidate(): Promise<TelegramBindResult>
+    onState(listener: (state: TelegramDesktopState) => void): () => void
+  }
 }
 
 export const IPC = {
@@ -38,4 +45,7 @@ export const IPC = {
   bootEvent: 'system:boot:event',
   journalOpen: 'system:journal:open',
   appExit: 'system:app:exit',
+  telegramStateGet: 'telegram:state:get',
+  telegramBindCandidate: 'telegram:candidate:bind',
+  telegramStateEvent: 'telegram:state:event',
 } as const
