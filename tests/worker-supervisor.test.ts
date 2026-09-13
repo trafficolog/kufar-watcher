@@ -186,6 +186,29 @@ describe('worker supervisor', () => {
     await expect(second).resolves.toBe('candidate-mismatch')
   })
 
+  it('rejects the correlated Telegram bind request when the worker reports a binding error', async () => {
+    const worker = new FakeWorker()
+    const createWorkerSupervisor = await loadCreateWorkerSupervisor()
+    const supervisor = createWorkerSupervisor!({ spawnWorker: () => worker })
+    supervisor.start()
+
+    const binding = supervisor.bindTelegramCandidate('1001')
+    const request = worker.messages.find(
+      (message): message is { type: string; requestId: string; chatId: string } =>
+        typeof message === 'object' &&
+        message !== null &&
+        Reflect.get(message, 'type') === 'telegram-bind-candidate',
+    )
+
+    expect(request).toBeDefined()
+    worker.emit('message', {
+      type: 'telegram-bind-error',
+      requestId: request!.requestId,
+    })
+
+    await expect(binding).rejects.toThrow('Telegram candidate binding failed')
+  })
+
   it('rejects a Telegram bind request when no worker is active', async () => {
     const createWorkerSupervisor = await loadCreateWorkerSupervisor()
     const supervisor = createWorkerSupervisor!({ spawnWorker: () => new FakeWorker() })
