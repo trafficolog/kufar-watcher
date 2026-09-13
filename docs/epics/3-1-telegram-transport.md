@@ -1,10 +1,10 @@
 ---
 id: "3.1"
 phase: 3
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-09
-status_note: "Канал доставки уведомлений."
+last_reviewed: 2026-09-13
+status_note: "3.1.1 bot bootstrap и безопасная привязка чата завершены; reconnect и outbox остаются в 3.1.2–3.1.3."
 roles:
   - BACK
 ---
@@ -24,11 +24,11 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-3.1-tasks -->
-**Задач:** 3 · **done:** 0
+**Задач:** 3 · **done:** 1
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
-| `3.1.1` | [Бот на grammY и привязка чата](../tasks/3-1-1-bot-bootstrap.md) | ⬜ todo | 🟡 drifted |
+| `3.1.1` | [Бот на grammY и привязка чата](../tasks/3-1-1-bot-bootstrap.md) | ✅ done | 🟢 aligned |
 | `3.1.2` | [Устойчивое переподключение long-polling](../tasks/3-1-2-reconnect.md) | ⬜ todo | 🟡 drifted |
 | `3.1.3` | [Очередь исходящих с соблюдением лимитов](../tasks/3-1-3-outbox.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-3.1-tasks -->

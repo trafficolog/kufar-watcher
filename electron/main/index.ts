@@ -1,7 +1,9 @@
 import { existsSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { app, BrowserWindow, ipcMain, protocol, shell, utilityProcess } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol, safeStorage, shell, utilityProcess } from 'electron'
 import { IPC, type BootState } from '../../shared/ipc'
+import type { TelegramDesktopState } from '../../shared/telegram'
 import workerPath from '../worker/index?modulePath'
 import { APP_HOST, APP_ORIGIN, APP_SCHEME, registerRendererProtocol } from './app-protocol'
 import { createBootstrapRetryController } from './bootstrap-retry'
@@ -17,9 +19,13 @@ import {
   forwardBootState,
   markWorkerBootFailed,
   registerSystemIpcHandlers,
+  registerTelegramIpcHandlers,
   routeWorkerBootEvent,
+  routeWorkerTelegramEvent,
 } from './ipc-router'
 import { loadOrCreatePostgresCredentials, readPostgresRuntimeConfig } from './postgres-config'
+import { configureTelegramFromSecret } from './telegram-main-runtime'
+import { createTelegramSecretStore } from './telegram-secret-store'
 import { workerProcessEnvironment } from './worker-process-env'
 import { createWorkerSupervisor, type WorkerSupervisor } from './worker-supervisor'
 import { openRawResponseJournal, rawResponseJournalArg } from './worker-storage'
@@ -45,6 +51,12 @@ let bootState: BootState = {
   phase: 'starting',
   steps: [],
 }
+let telegramState: TelegramDesktopState = {
+  runtime: 'not-configured',
+  boundChatId: null,
+  candidate: null,
+  secret: 'missing',
+}
 
 function loadDevelopmentEnvironment(): void {
   if (app.isPackaged || !existsSync('.env')) return
@@ -65,8 +77,16 @@ function sendBootState(window: BrowserWindow, state: BootState): void {
   forwardBootState(state, (payload) => window.webContents.send(IPC.bootEvent, payload))
 }
 
+function sendTelegramState(window: BrowserWindow, state: TelegramDesktopState): void {
+  window.webContents.send(IPC.telegramStateEvent, state)
+}
+
 function broadcastBootState(state: BootState): void {
   for (const window of BrowserWindow.getAllWindows()) sendBootState(window, state)
+}
+
+function broadcastTelegramState(state: TelegramDesktopState): void {
+  for (const window of BrowserWindow.getAllWindows()) sendTelegramState(window, state)
 }
 
 function publishBootState(state: BootState): void {
@@ -102,7 +122,10 @@ function createMainWindow(): BrowserWindow {
   window.webContents.on('will-navigate', (event, url) => {
     if (!isAllowedNavigation(url)) event.preventDefault()
   })
-  window.webContents.on('did-finish-load', () => sendBootState(window, bootState))
+  window.webContents.on('did-finish-load', () => {
+    sendBootState(window, bootState)
+    sendTelegramState(window, telegramState)
+  })
   window.once('ready-to-show', () => window.show())
 
   void window.loadURL(devRendererUrl ?? productionOrigin)
@@ -132,6 +155,7 @@ app.whenReady().then(async () => {
     },
     onEvent: (event) => {
       bootState = routeWorkerBootEvent(event, bootState, broadcastBootState)
+      telegramState = routeWorkerTelegramEvent(event, telegramState, broadcastTelegramState)
       if (event.type === 'ready') console.info('[worker] ready')
       if (event.type === 'journal') {
         console.info(`[worker:${event.level}] ${event.message}`)
@@ -143,6 +167,14 @@ app.whenReady().then(async () => {
     },
   })
   workerSupervisor = supervisor
+
+  const telegramSecretStore = createTelegramSecretStore(userDataDir, {
+    platform: process.platform,
+    readFile,
+    safeStorage,
+  })
+  const telegramSecretState = await configureTelegramFromSecret(telegramSecretStore, supervisor)
+  telegramState = { ...telegramState, secret: telegramSecretState }
 
   const runBootstrap = async (): Promise<void> => {
     resolvedDatabaseUrl = undefined
@@ -185,6 +217,19 @@ app.whenReady().then(async () => {
       retryBoot: () => retryController.retry(),
       openJournal: () => openRawResponseJournal(shell, userDataDir),
       exit: () => app.quit(),
+    },
+    devRendererUrl,
+  )
+
+  registerTelegramIpcHandlers(
+    ipcMain,
+    {
+      getTelegramState: () => telegramState,
+      bindTelegramCandidate: async () => {
+        const candidate = telegramState.candidate
+        if (!candidate) return 'no-candidate'
+        return supervisor.bindTelegramCandidate(candidate.chatId)
+      },
     },
     devRendererUrl,
   )

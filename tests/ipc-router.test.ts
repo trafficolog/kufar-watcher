@@ -4,15 +4,18 @@ import {
   isTrustedRendererUrl,
   markWorkerBootFailed,
   registerSystemIpcHandlers,
+  registerTelegramIpcHandlers,
   routeWorkerBootEvent,
+  routeWorkerTelegramEvent,
 } from '../electron/main/ipc-router'
 import { IPC, type BootState } from '../shared/ipc'
+import type { TelegramDesktopState } from '../shared/telegram'
 
 type FakeInvokeEvent = {
   senderFrame: { url: string } | null
 }
 
-type FakeInvokeHandler = (event: FakeInvokeEvent) => unknown
+type FakeInvokeHandler = (event: FakeInvokeEvent, ...args: unknown[]) => unknown
 
 class FakeIpcMain {
   handlers = new Map<string, FakeInvokeHandler>()
@@ -21,10 +24,10 @@ class FakeIpcMain {
     this.handlers.set(channel, handler)
   }
 
-  async invoke(channel: string, url: string): Promise<unknown> {
+  async invoke(channel: string, url: string, ...args: unknown[]): Promise<unknown> {
     const handler = this.handlers.get(channel)
     if (!handler) throw new Error(`Missing handler for ${channel}`)
-    return handler({ senderFrame: { url } })
+    return handler({ senderFrame: { url } }, ...args)
   }
 }
 
@@ -97,6 +100,59 @@ describe('typed IPC routing', () => {
     expect(send).toHaveBeenCalledWith(nextState)
   })
 
+  it('projects Telegram runtime and candidate worker events without exposing a token', () => {
+    const send = vi.fn()
+    const initial: TelegramDesktopState = {
+      runtime: 'waiting-for-binding',
+      boundChatId: null,
+      candidate: null,
+      secret: 'protected',
+    }
+
+    const withCandidate = routeWorkerTelegramEvent(
+      {
+        type: 'telegram-candidate',
+        candidate: {
+          chatId: '1001',
+          chatType: 'private',
+          displayName: 'Owner',
+          username: 'owner',
+        },
+      },
+      initial,
+      send,
+    )
+    const ready = routeWorkerTelegramEvent(
+      { type: 'telegram-state', state: 'ready', boundChatId: '1001' },
+      withCandidate,
+      send,
+    )
+
+    expect(withCandidate.candidate?.chatId).toBe('1001')
+    expect(ready).toEqual({
+      runtime: 'ready',
+      boundChatId: '1001',
+      candidate: withCandidate.candidate,
+      secret: 'protected',
+    })
+    expect(JSON.stringify(ready)).not.toContain('token')
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(send).toHaveBeenLastCalledWith(ready)
+  })
+
+  it('ignores non-Telegram worker events for Telegram desktop state', () => {
+    const send = vi.fn()
+    const state: TelegramDesktopState = {
+      runtime: 'not-configured',
+      boundChatId: null,
+      candidate: null,
+      secret: 'missing',
+    }
+
+    expect(routeWorkerTelegramEvent({ type: 'ready' }, state, send)).toBe(state)
+    expect(send).not.toHaveBeenCalled()
+  })
+
   it('rejects a renderer sender outside the application origin', () => {
     const devRendererUrl = 'http://127.0.0.1:3000'
     const trustedDevUrl = `${devRendererUrl}/settings`
@@ -140,5 +196,43 @@ describe('typed IPC routing', () => {
       bootState,
     )
     expect(services.getBootState).toHaveBeenCalledOnce()
+  })
+
+  it('exposes Telegram state and binding only to trusted renderer callers', async () => {
+    const ipcMain = new FakeIpcMain()
+    const state: TelegramDesktopState = {
+      runtime: 'waiting-for-binding',
+      boundChatId: null,
+      candidate: {
+        chatId: '1001',
+        chatType: 'private',
+        displayName: 'Owner',
+      },
+      secret: 'protected',
+    }
+    const services = {
+      getTelegramState: vi.fn(() => state),
+      bindTelegramCandidate: vi.fn(async () => 'bound' as const),
+    }
+    const devRendererUrl = 'http://127.0.0.1:3000'
+
+    registerTelegramIpcHandlers(ipcMain, services, devRendererUrl)
+
+    await expect(ipcMain.invoke(IPC.telegramStateGet, 'https://example.com')).rejects.toThrow(
+      'Untrusted renderer',
+    )
+    await expect(ipcMain.invoke(IPC.telegramBindCandidate, 'https://example.com')).rejects.toThrow(
+      'Untrusted renderer',
+    )
+    expect(services.getTelegramState).not.toHaveBeenCalled()
+    expect(services.bindTelegramCandidate).not.toHaveBeenCalled()
+
+    await expect(
+      ipcMain.invoke(IPC.telegramStateGet, `${devRendererUrl}/settings`),
+    ).resolves.toEqual(state)
+    await expect(
+      ipcMain.invoke(IPC.telegramBindCandidate, `${devRendererUrl}/settings`),
+    ).resolves.toBe('bound')
+    expect(services.bindTelegramCandidate).toHaveBeenCalledWith()
   })
 })

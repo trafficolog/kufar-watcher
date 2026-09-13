@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { TelegramBindResult } from '../shared/telegram'
 import {
   createRestartPolicy,
   requestWorkerShutdown,
@@ -22,6 +23,8 @@ class FakeWorker extends EventEmitter {
 
 interface TestSupervisor {
   start(): void
+  configureTelegram(token: string | null): void
+  bindTelegramCandidate(chatId: string): Promise<TelegramBindResult>
   shutdown(): Promise<string>
 }
 
@@ -110,6 +113,107 @@ describe('worker supervisor', () => {
         stage: 'primary',
       },
     ])
+  })
+
+  it('sends Telegram configuration only through the worker message channel', async () => {
+    const worker = new FakeWorker()
+    const createWorkerSupervisor = await loadCreateWorkerSupervisor()
+    const token = 'SECRET_SENTINEL_3_1_1'
+
+    const supervisor = createWorkerSupervisor!({ spawnWorker: () => worker })
+    supervisor.start()
+    worker.emit('message', { type: 'ready' })
+    supervisor.configureTelegram(token)
+
+    expect(worker.messages).toContainEqual({ type: 'telegram-configure', token })
+  })
+
+  it('replays the latest Telegram configuration to a replacement worker', async () => {
+    vi.useFakeTimers()
+    const firstWorker = new FakeWorker()
+    const secondWorker = new FakeWorker()
+    const workers = [firstWorker, secondWorker]
+    const createWorkerSupervisor = await loadCreateWorkerSupervisor()
+    let spawnCount = 0
+
+    const supervisor = createWorkerSupervisor!({
+      spawnWorker: () => workers[spawnCount++]!,
+    })
+    supervisor.start()
+    firstWorker.emit('message', { type: 'ready' })
+    supervisor.configureTelegram('SECRET_SENTINEL_3_1_1')
+    firstWorker.emit('exit', 1)
+
+    await vi.advanceTimersByTimeAsync(1_000)
+    secondWorker.emit('message', { type: 'ready' })
+
+    expect(secondWorker.messages).toContainEqual({
+      type: 'telegram-configure',
+      token: 'SECRET_SENTINEL_3_1_1',
+    })
+  })
+
+  it('correlates concurrent Telegram bind requests by requestId', async () => {
+    const worker = new FakeWorker()
+    const createWorkerSupervisor = await loadCreateWorkerSupervisor()
+    const supervisor = createWorkerSupervisor!({ spawnWorker: () => worker })
+    supervisor.start()
+
+    const first = supervisor.bindTelegramCandidate('1001')
+    const second = supervisor.bindTelegramCandidate('1002')
+    const requests = worker.messages.filter(
+      (message): message is { type: string; requestId: string; chatId: string } =>
+        typeof message === 'object' &&
+        message !== null &&
+        Reflect.get(message, 'type') === 'telegram-bind-candidate',
+    )
+
+    expect(requests).toHaveLength(2)
+    expect(requests[0]!.requestId).not.toBe(requests[1]!.requestId)
+
+    worker.emit('message', {
+      type: 'telegram-bind-result',
+      requestId: requests[1]!.requestId,
+      result: 'candidate-mismatch',
+    })
+    worker.emit('message', {
+      type: 'telegram-bind-result',
+      requestId: requests[0]!.requestId,
+      result: 'bound',
+    })
+
+    await expect(first).resolves.toBe('bound')
+    await expect(second).resolves.toBe('candidate-mismatch')
+  })
+
+  it('rejects the correlated Telegram bind request when the worker reports a binding error', async () => {
+    const worker = new FakeWorker()
+    const createWorkerSupervisor = await loadCreateWorkerSupervisor()
+    const supervisor = createWorkerSupervisor!({ spawnWorker: () => worker })
+    supervisor.start()
+
+    const binding = supervisor.bindTelegramCandidate('1001')
+    const request = worker.messages.find(
+      (message): message is { type: string; requestId: string; chatId: string } =>
+        typeof message === 'object' &&
+        message !== null &&
+        Reflect.get(message, 'type') === 'telegram-bind-candidate',
+    )
+
+    expect(request).toBeDefined()
+    worker.emit('message', {
+      type: 'telegram-bind-error',
+      requestId: request!.requestId,
+    })
+
+    await expect(binding).rejects.toThrow('Telegram candidate binding failed')
+  })
+
+  it('rejects a Telegram bind request when no worker is active', async () => {
+    const createWorkerSupervisor = await loadCreateWorkerSupervisor()
+    const supervisor = createWorkerSupervisor!({ spawnWorker: () => new FakeWorker() })
+
+    await expect(supervisor.bindTelegramCandidate('1001')).rejects.toThrow('Worker is unavailable')
   })
 
   it('restarts an unexpectedly exited worker and emits a journal event', async () => {
