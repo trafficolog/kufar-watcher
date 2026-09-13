@@ -128,6 +128,37 @@ describe('incremental matcher pipeline', () => {
     )
   })
 
+  it('does not persist a snippet for a title-only match when the title exceeds the snippet limit', async () => {
+    const prisma = prismaWithKeywordRule({ include: ['candidate'], exclude: [] })
+    const adapter = {} as SourceAdapter
+    const longTitleListing = listing(
+      'long-title',
+      'Продам почти новый смартфон в полном комплекте с коробкой, документами и гарантией. ' +
+        'Модель Candidate находится в середине длинного заголовка, после чего идут дополнительные характеристики, состояние корпуса, комплект поставки и условия продажи.',
+    )
+    dependencyMocks.traverseWatermark.mockResolvedValue({
+      ...traversalResult(),
+      newListings: [longTitleListing],
+      nextWatermark: {
+        boundaryTime: longTitleListing.listTime,
+        boundaryIds: [longTitleListing.listId],
+      },
+    })
+
+    await runIncrementalMonitor({ prisma, monitorId: MONITOR_ID, adapter, maxPages: 1 })
+
+    expect(dependencyMocks.commitMonitorRun.mock.calls[0]?.[1].selected).toEqual([
+      {
+        listing: longTitleListing,
+        selection: {
+          matchedTerms: ['candidate'],
+          matchedIn: ['title'],
+          snippet: null,
+        },
+      },
+    ])
+  })
+
   it('treats a legacy string array as an include-only keyword rule', async () => {
     const prisma = prismaWithKeywordRule(['candidate'])
     const adapter = {} as SourceAdapter
@@ -158,6 +189,47 @@ describe('incremental matcher pipeline', () => {
 
     expect(dependencyMocks.traverseWatermark).not.toHaveBeenCalled()
     expect(dependencyMocks.commitMonitorRun).not.toHaveBeenCalled()
+  })
+
+  it('persists a snippet from description for a description-only match', async () => {
+    const prisma = prismaWithKeywordRule({ include: ['needle'], exclude: [] }, true)
+    const adapter = {} as SourceAdapter
+    const descriptionOnlyListing = listing('description-only', 'Объявление без ключевого слова')
+    const description =
+      'Первый длинный фрагмент объявления с дополнительными словами до совпадения. ' +
+      'Здесь находится Needle, которое объясняет причину совпадения. ' +
+      'После него продолжается длинное описание с характеристиками, комплектом, гарантией и условиями продажи.'
+    const descriptionLoader = {
+      ensureDescription: vi.fn().mockResolvedValue({
+        kind: 'available' as const,
+        description,
+        source: 'network' as const,
+      }),
+    }
+    dependencyMocks.traverseWatermark.mockResolvedValue({
+      ...traversalResult(),
+      newListings: [descriptionOnlyListing],
+      nextWatermark: {
+        boundaryTime: descriptionOnlyListing.listTime,
+        boundaryIds: [descriptionOnlyListing.listId],
+      },
+    })
+
+    await runIncrementalMonitor({
+      prisma,
+      monitorId: MONITOR_ID,
+      adapter,
+      maxPages: 1,
+      descriptionLoader,
+    })
+
+    const selected = dependencyMocks.commitMonitorRun.mock.calls[0]?.[1].selected
+    expect(selected).toHaveLength(1)
+    expect(selected[0]?.selection.matchedTerms).toEqual(['needle'])
+    expect(selected[0]?.selection.matchedIn).toEqual(['description'])
+    expect(selected[0]?.selection.snippet).toContain('Needle')
+    expect(selected[0]?.selection.snippet).not.toContain(descriptionOnlyListing.title)
+    expect(selected[0]?.selection.snippet?.length).toBeLessThanOrEqual(160)
   })
 
   it('persists title and description hits with a snippet around the description hit', async () => {

@@ -129,8 +129,7 @@ integrationDescribe('matcher pipeline persistence', () => {
     expect(matches[0]?.listingId).toBe(MATCHED_LISTING.listId)
     expect(matches[0]?.matchedTerms).toEqual(['candidate'])
     expect(matches[0]?.matchedIn).toEqual(['title'])
-    expect(matches[0]?.snippet).toContain('Candidate')
-    expect(matches[0]?.snippet?.length).toBeLessThanOrEqual(160)
+    expect(matches[0]?.snippet).toBeNull()
 
     const cursor = await prisma.monitorCursor.findUniqueOrThrow({
       where: { monitorId: MONITOR_ID },
