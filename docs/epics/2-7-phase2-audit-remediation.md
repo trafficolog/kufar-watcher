@@ -4,7 +4,7 @@ phase: 2
 status: done
 sync_state: aligned
 last_reviewed: 2026-09-13
-status_note: "10/10 done: P0/P1/P2 remediation реализована; P3 2.7.8 закрыта measurement-only — global limiter достаточно подавляет внешний burst, scheduler stagger не требуется; Phase 5 gate 5.2.4 сохранён."
+status_note: "11/11 done: P0/P1/P2 remediation реализована; 2.7.10 закрыла keyword persistence-boundary validation; P3 2.7.8 закрыта measurement-only, Phase 5 gate 5.2.4 сохранён."
 roles: [BACK, DB, QA]
 ---
 
@@ -26,7 +26,7 @@ roles: [BACK, DB, QA]
 
 ## Приоритеты
 
-- **P0:** `2.7.1`, `2.7.2`, `2.7.3`, `2.7.11`.
+- **P0:** `2.7.1`, `2.7.2`, `2.7.3`, `2.7.10`, `2.7.11`.
 - **P1:** `2.7.4`, `2.7.5`, `2.7.6`.
 - **P2:** `2.7.7`, `2.7.9`.
 - **P3:** `2.7.8`.
@@ -34,11 +34,12 @@ roles: [BACK, DB, QA]
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.7-tasks -->
-**Задач:** 10 · **done:** 10
+**Задач:** 11 · **done:** 11
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `2.7.1` | [Валидация интервала и изоляция scheduler startup](../tasks/2-7-1-scheduler-interval-isolation.md) | ✅ done | 🟢 aligned |
+| `2.7.10` | [Валидация keywords на persistence boundary](../tasks/2-7-10-keyword-persistence-validation.md) | ✅ done | 🟢 aligned |
 | `2.7.11` | [Lifecycle-контракт docs и точная семантика drift pause signal](../tasks/2-7-11-docs-lifecycle-audit-contract.md) | ✅ done | 🟢 aligned |
 | `2.7.2` | [Контракт термов и симметричная нормализация](../tasks/2-7-2-matching-term-contract.md) | ✅ done | 🟢 aligned |
 | `2.7.3` | [Terminal disposition при исчерпании description budget](../tasks/2-7-3-description-budget-terminal-disposition.md) | ✅ done | 🟢 aligned |
@@ -56,6 +57,7 @@ roles: [BACK, DB, QA]
 - [x] P2/P3 либо реализованы, либо имеют подтверждённое решение о переносе/measurement-only закрытии с явным основанием.
 - [x] Не осталось двух независимо изменяемых источников seller type.
 - [x] Scheduler и Run lifecycle сохраняют инварианты при malformed data и restart.
+- [x] Matcher configuration нельзя сохранить в состоянии, которое нарушает собственный single-token compiler contract.
 - [x] Matcher соответствует собственной спецификации нормализации и snippet.
 - [x] Docs lifecycle и формулировка `2.4.4` согласованы с фактическим runtime.
 - [x] Будущий editor integration gate сохранён в `5.2.4`, но не считается условием закрытия remediation-фазы 2.
@@ -63,6 +65,7 @@ roles: [BACK, DB, QA]
 ## Связанные документы
 
 - План: `docs/superpowers/plans/2026-09-12-2-7-phase2-audit-remediation.md`
+- Дополнение: `docs/superpowers/plans/2026-09-13-2-7-10-keyword-persistence-validation.md`
 - Matching spec: `docs/superpowers/specs/matching-rules.md`
 - Data model: `docs/superpowers/specs/data-model.md`
 - Deferred requirements: `docs/superpowers/specs/deferred-requirements.md`
