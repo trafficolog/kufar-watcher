@@ -7,6 +7,11 @@ import type {
   MonitorScheduler,
 } from '../../electron/worker/monitor-scheduler'
 import type { ScheduledMonitorRunExecutor } from '../../electron/worker/scheduled-monitor-run'
+import type {
+  TelegramBindingRepository,
+  TelegramBotFactory,
+  TelegramBotService,
+} from '../../electron/worker/telegram-bot-service'
 import {
   createWorkerApplication,
   type WorkerApplicationDependencies,
@@ -29,6 +34,19 @@ function dependenciesFor(
     descriptionLoader: { ensureDescription: vi.fn() },
     close: vi.fn(async () => undefined),
   } as WorkerSourceRuntime
+  const telegramRepository: TelegramBindingRepository = {
+    getBoundChatId: vi.fn(async () => null),
+    setBoundChatId: vi.fn(async () => undefined),
+  }
+  const telegramBotFactory = vi.fn() as unknown as TelegramBotFactory
+  const telegramService: TelegramBotService = {
+    configure: vi.fn(async () => undefined),
+    bindCandidate: vi.fn(async () => 'no-candidate'),
+    getState: vi.fn(() => 'not-configured'),
+    getCandidate: vi.fn(() => null),
+    getBoundChatId: vi.fn(() => null),
+    stop: vi.fn(async () => undefined),
+  }
 
   return {
     createPrismaClient: () => prisma,
@@ -38,6 +56,9 @@ function dependenciesFor(
     createRunExecutor: () =>
       vi.fn(async () => ({ status: 'completed' })) as unknown as ScheduledMonitorRunExecutor,
     createScheduler: () => scheduler,
+    createTelegramRepository: () => telegramRepository,
+    createTelegramBotFactory: () => telegramBotFactory,
+    createTelegramBotService: () => telegramService,
   }
 }
 
