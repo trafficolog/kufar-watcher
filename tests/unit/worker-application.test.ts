@@ -155,6 +155,7 @@ describe('worker application', () => {
       repository: telegram.telegramRepository,
       createBot: telegram.telegramBotFactory,
       publishState: expect.any(Function),
+      publishChannelState: expect.any(Function),
       publishCandidate: expect.any(Function),
       publishJournal: expect.any(Function),
     })
