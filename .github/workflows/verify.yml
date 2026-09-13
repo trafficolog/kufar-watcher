@@ -48,6 +48,11 @@ jobs:
         run: npm run lint
       - name: Formatting
         run: npm run format:check
+      - name: Dockerode runtime integration
+        env:
+          KUFAR_DOCKERODE_INTEGRATION: '1'
+          KUFAR_DOCKERODE_POSTGRES_PORT: '55432'
+        run: npx vitest run tests/integration/dockerode-postgres-runtime.test.ts
       - name: Postgres compose integration
         run: bash scripts/verify-postgres-compose.sh
       - name: Prepare Electron Linux sandbox
