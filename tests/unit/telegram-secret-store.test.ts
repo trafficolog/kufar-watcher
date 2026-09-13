@@ -76,6 +76,29 @@ describe('Telegram secret store', () => {
     expect(safeStorage.decryptStringAsync).not.toHaveBeenCalled()
   })
 
+  it('awaits async encryption availability before decrypting', async () => {
+    const readFile = vi.fn(async () => Buffer.from('cipher').toString('base64'))
+    const decryptStringAsync = vi.fn(async () => 'telegram-token')
+    const safeStorage = {
+      isAsyncEncryptionAvailable: vi.fn(async () => false),
+      getSelectedStorageBackend: vi.fn(() => 'gnome_libsecret'),
+      decryptStringAsync,
+    }
+    const store = createTelegramSecretStore('/user-data', {
+      platform: 'win32',
+      readFile,
+      safeStorage: safeStorage as unknown as Parameters<
+        typeof createTelegramSecretStore
+      >[1]['safeStorage'],
+    })
+
+    await expect(store.read()).resolves.toEqual({
+      state: 'unavailable',
+      reason: 'encryption-unavailable',
+    })
+    expect(decryptStringAsync).not.toHaveBeenCalled()
+  })
+
   it('treats the Linux basic_text backend as unprotected', async () => {
     const readFile = vi.fn(async () => Buffer.from('cipher').toString('base64'))
     const safeStorage = createSafeStorage({
