@@ -65,6 +65,32 @@ function createTelegramHarness(order?: string[]) {
   }
 }
 
+function createOutboxHarness(order?: string[]) {
+  const outbox = {
+    start: vi.fn(async () => {
+      order?.push('outbox:start')
+    }),
+    enqueue: vi.fn(async () => undefined),
+    stop: vi.fn(async () => {
+      order?.push('outbox:stop')
+    }),
+  }
+  const deliveryRepository = {
+    getNotifiedAt: vi.fn(async () => null),
+    markNotified: vi.fn(async () => undefined),
+  }
+  const deliver = vi.fn(async () => undefined)
+
+  return {
+    outbox,
+    deliveryRepository,
+    deliver,
+    createTelegramOutboxQueue: vi.fn(() => outbox),
+    createTelegramOutboxDeliveryRepository: vi.fn(() => deliveryRepository),
+    createTelegramOutboxDelivery: vi.fn(() => deliver),
+  }
+}
+
 describe('worker application', () => {
   it('composes scheduler and Telegram stacks from one Prisma client and publishes safe events', async () => {
     const publish = vi.fn<(event: WorkerEvent) => void>()
@@ -87,6 +113,7 @@ describe('worker application', () => {
       stop: vi.fn(async () => undefined),
     } as unknown as MonitorScheduler
     const telegram = createTelegramHarness()
+    const outbox = createOutboxHarness()
 
     let queueError: ((error: unknown) => void) | undefined
     let sourceDegradation: ScheduledMonitorRunExecutorOptions['onSourceDegradation']
@@ -125,6 +152,9 @@ describe('worker application', () => {
       createTelegramRepository: telegram.createTelegramRepository,
       createTelegramBotFactory: telegram.createTelegramBotFactory,
       createTelegramBotService: telegram.createTelegramBotService,
+      createTelegramOutboxQueue: outbox.createTelegramOutboxQueue,
+      createTelegramOutboxDeliveryRepository: outbox.createTelegramOutboxDeliveryRepository,
+      createTelegramOutboxDelivery: outbox.createTelegramOutboxDelivery,
     })
 
     expect(createPrismaClient).toHaveBeenCalledOnce()
@@ -158,6 +188,16 @@ describe('worker application', () => {
       publishState: expect.any(Function),
       publishChannelState: expect.any(Function),
       publishCandidate: expect.any(Function),
+      publishJournal: expect.any(Function),
+    })
+    expect(outbox.createTelegramOutboxQueue).toHaveBeenCalledWith(
+      config.databaseUrl,
+      expect.any(Function),
+    )
+    expect(outbox.createTelegramOutboxDeliveryRepository).toHaveBeenCalledWith(prisma)
+    expect(outbox.createTelegramOutboxDelivery).toHaveBeenCalledWith({
+      repository: outbox.deliveryRepository,
+      sendMessage: expect.any(Function),
       publishJournal: expect.any(Function),
     })
     expect(app.scheduler).toBe(scheduler)
@@ -218,7 +258,7 @@ describe('worker application', () => {
     await expect(app.bindTelegramCandidate?.('1001')).resolves.toBe('bound')
   })
 
-  it('starts through the scheduler and stops Telegram before source and Prisma resources', async () => {
+  it('starts through the scheduler and stops outbox and Telegram before source and Prisma resources', async () => {
     const order: string[] = []
     const prisma = {
       $executeRaw: vi.fn(async () => 1),
@@ -242,6 +282,7 @@ describe('worker application', () => {
       }),
     } as unknown as MonitorScheduler
     const telegram = createTelegramHarness(order)
+    const outbox = createOutboxHarness(order)
 
     const app = createWorkerApplication(config, vi.fn(), {
       createPrismaClient: () => prisma,
@@ -254,12 +295,23 @@ describe('worker application', () => {
       createTelegramRepository: telegram.createTelegramRepository,
       createTelegramBotFactory: telegram.createTelegramBotFactory,
       createTelegramBotService: telegram.createTelegramBotService,
+      createTelegramOutboxQueue: outbox.createTelegramOutboxQueue,
+      createTelegramOutboxDeliveryRepository: outbox.createTelegramOutboxDeliveryRepository,
+      createTelegramOutboxDelivery: outbox.createTelegramOutboxDelivery,
     })
 
     await app.start()
-    expect(order).toEqual(['scheduler:start'])
+    expect(order).toEqual(['scheduler:start', 'outbox:start'])
 
     await app.stop()
-    expect(order).toEqual(['scheduler:start', 'scheduler:stop', 'telegram', 'source', 'prisma'])
+    expect(order).toEqual([
+      'scheduler:start',
+      'outbox:start',
+      'scheduler:stop',
+      'outbox:stop',
+      'telegram',
+      'source',
+      'prisma',
+    ])
   })
 })
