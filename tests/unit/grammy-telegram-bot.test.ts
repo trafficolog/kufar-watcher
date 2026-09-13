@@ -185,7 +185,9 @@ describe('grammY Telegram adapter', () => {
       new HttpError('SECRET_HTTP_WRAPPER', new Error('SECRET_NETWORK_CAUSE')),
     )
 
-    const failure = await harness.transport.sendMessage('1001', 'hello').catch((error) => error)
+    const failure = await harness.transport
+      .sendMessage('1001', 'hello')
+      .catch((error) => error)
 
     expect(failure).toBeInstanceOf(TelegramSendFailure)
     expect(failure).toMatchObject({ kind: 'transient', message: 'Telegram send failed' })
@@ -198,17 +200,22 @@ describe('grammY Telegram adapter', () => {
     [500, 'transient'],
     [400, 'permanent'],
     [403, 'permanent'],
-  ] as const)('maps Telegram API error %i to %s without leaking the response', async (code, kind) => {
-    const harness = createHarness()
-    vi.mocked(harness.bot.api.sendMessage).mockRejectedValueOnce(
-      telegramApiError(code, `SECRET_REMOTE_${code}`),
-    )
+  ] as const)(
+    'maps Telegram API error %i to %s without leaking the response',
+    async (code, kind) => {
+      const harness = createHarness()
+      vi.mocked(harness.bot.api.sendMessage).mockRejectedValueOnce(
+        telegramApiError(code, `SECRET_REMOTE_${code}`),
+      )
 
-    const failure = await harness.transport.sendMessage('1001', 'hello').catch((error) => error)
+      const failure = await harness.transport
+        .sendMessage('1001', 'hello')
+        .catch((error) => error)
 
-    expect(failure).toBeInstanceOf(TelegramSendFailure)
-    expect(failure).toMatchObject({ kind, message: 'Telegram send failed' })
-    expect(String(failure)).not.toContain(`SECRET_REMOTE_${code}`)
-    expect(String(failure)).not.toContain('SECRET_PAYLOAD')
-  })
+      expect(failure).toBeInstanceOf(TelegramSendFailure)
+      expect(failure).toMatchObject({ kind, message: 'Telegram send failed' })
+      expect(String(failure)).not.toContain(`SECRET_REMOTE_${code}`)
+      expect(String(failure)).not.toContain('SECRET_PAYLOAD')
+    },
+  )
 })
