@@ -53,27 +53,29 @@ function createHarness(
     gate: ReturnType<typeof deferred>
     transport: TelegramBotTransport
   }> = []
-  const createBot = vi.fn<TelegramBotFactory>((_token, nextHandlers, nextOnError) => {
-    if (options.throwOnCreate) throw new Error('SECRET_SENTINEL_3_1_2_CREATE')
+  const createBot = vi.fn<TelegramBotFactory>(
+    (_token, nextHandlers, nextOnError) => {
+      if (options.throwOnCreate) throw new Error('SECRET_SENTINEL_3_1_2_CREATE')
 
-    latestHandlers = nextHandlers
-    latestOnError = nextOnError
-    const gate = deferred()
-    const transport: TelegramBotTransport = {
-      start: vi.fn(() => {
-        if (options.failWhile?.()) {
-          return Promise.reject(new Error('SECRET_SENTINEL_3_1_2_POLLING'))
-        }
-        return gate.promise
-      }),
-      stop: vi.fn(async () => {
-        gate.resolve()
-      }),
-      sendMessage: vi.fn(async () => undefined),
-    }
-    sessions.push({ gate, transport })
-    return transport
-  })
+      latestHandlers = nextHandlers
+      latestOnError = nextOnError
+      const gate = deferred()
+      const transport: TelegramBotTransport = {
+        start: vi.fn(() => {
+          if (options.failWhile?.()) {
+            return Promise.reject(new Error('SECRET_SENTINEL_3_1_2_POLLING'))
+          }
+          return gate.promise
+        }),
+        stop: vi.fn(async () => {
+          gate.resolve()
+        }),
+        sendMessage: vi.fn(async () => undefined),
+      }
+      sessions.push({ gate, transport })
+      return transport
+    },
+  )
   const publishState = vi.fn()
   const publishChannelState = vi.fn()
   const publishCandidate = vi.fn()
