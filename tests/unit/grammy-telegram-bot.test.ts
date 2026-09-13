@@ -34,7 +34,15 @@ function createHarness(startError?: Error) {
   const factory = createGrammyTelegramBotFactory(createBot)
   const transport = factory('SECRET_SENTINEL_3_1_1', handlers, onError)
 
-  return { bot, createBot, handlers, onError, transport, listeners, errorHandler: () => errorHandler }
+  return {
+    bot,
+    createBot,
+    handlers,
+    onError,
+    transport,
+    listeners,
+    errorHandler: () => errorHandler,
+  }
 }
 
 describe('grammY Telegram adapter', () => {
