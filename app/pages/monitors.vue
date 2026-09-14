@@ -50,7 +50,9 @@ async function submit(): Promise<void> {
     <header class="page-header">
       <p class="eyebrow">Kufar Monitor / Мониторы</p>
       <h1>Новое правило</h1>
-      <p class="lede">Создайте монитор из ссылки на выдачу Kufar. Расписание подключится сразу после сохранения.</p>
+      <p class="lede">
+        Создайте монитор из ссылки на выдачу Kufar. Расписание подключится сразу после сохранения.
+      </p>
     </header>
 
     <form class="editor" novalidate @submit.prevent="submit">
@@ -76,7 +78,11 @@ async function submit(): Promise<void> {
         <p v-if="preview?.state === 'error'" class="message error" role="alert">
           {{ preview.message }}
         </p>
-        <dl v-else-if="preview?.state === 'valid'" class="url-preview" aria-label="Разобранная ссылка">
+        <dl
+          v-else-if="preview?.state === 'valid'"
+          class="url-preview"
+          aria-label="Разобранная ссылка"
+        >
           <div>
             <dt>Категория</dt>
             <dd>{{ preview.category }}</dd>
@@ -90,7 +96,9 @@ async function submit(): Promise<void> {
             <dd>{{ preview.query }}</dd>
           </div>
         </dl>
-        <p v-else class="help">Вставьте ссылку — покажем категорию, регион и поисковую строку до сохранения.</p>
+        <p v-else class="help">
+          Вставьте ссылку — покажем категорию, регион и поисковую строку до сохранения.
+        </p>
       </fieldset>
 
       <fieldset>
@@ -110,7 +118,9 @@ async function submit(): Promise<void> {
 
       <fieldset>
         <legend>Ключевые слова</legend>
-        <p class="help">Оставьте поля пустыми, чтобы получать всё, что попадает под фильтры ссылки.</p>
+        <p class="help">
+          Оставьте поля пустыми, чтобы получать всё, что попадает под фильтры ссылки.
+        </p>
 
         <label for="monitor-include">Включающие термы</label>
         <p class="help">
