@@ -5,6 +5,8 @@ import {
   createTelegramOutboxDelivery,
 } from '../../electron/worker/telegram-outbox-delivery'
 
+const OPEN_URL = 'https://www.kufar.by/item/123'
+
 function createRepository(notifiedAt: Date | null = null) {
   return {
     getNotifiedAt: vi.fn(async (): Promise<Date | null | undefined> => notifiedAt),
@@ -30,7 +32,7 @@ describe('Telegram outbox delivery', () => {
       sleep: async () => undefined,
     })
 
-    await delivery({ matchId: 11, chatId: '42', text: 'hello' })
+    await delivery({ matchId: 11, chatId: '42', text: 'hello', openUrl: OPEN_URL })
 
     expect(calls).toEqual(['send', 'mark'])
     expect(repository.markNotified).toHaveBeenCalledWith(11, deliveredAt)
@@ -45,7 +47,7 @@ describe('Telegram outbox delivery', () => {
       sleep: async () => undefined,
     })
 
-    await delivery({ matchId: 11, chatId: '42', text: 'hello' })
+    await delivery({ matchId: 11, chatId: '42', text: 'hello', openUrl: OPEN_URL })
 
     expect(sendMessage).not.toHaveBeenCalled()
     expect(repository.markNotified).not.toHaveBeenCalled()
@@ -61,7 +63,7 @@ describe('Telegram outbox delivery', () => {
       sleep: async () => undefined,
     })
 
-    await delivery({ matchId: 404, chatId: '42', text: 'stale job' })
+    await delivery({ matchId: 404, chatId: '42', text: 'stale job', openUrl: OPEN_URL })
 
     expect(sendMessage).not.toHaveBeenCalled()
   })
@@ -78,7 +80,9 @@ describe('Telegram outbox delivery', () => {
       sleep: async () => undefined,
     })
 
-    await expect(delivery({ matchId: 11, chatId: '42', text: 'hello' })).rejects.toBe(failure)
+    await expect(
+      delivery({ matchId: 11, chatId: '42', text: 'hello', openUrl: OPEN_URL }),
+    ).rejects.toBe(failure)
     expect(repository.markNotified).not.toHaveBeenCalled()
   })
 
@@ -95,7 +99,7 @@ describe('Telegram outbox delivery', () => {
       sleep: async () => undefined,
     })
 
-    await delivery({ matchId: 11, chatId: '42', text: 'hello' })
+    await delivery({ matchId: 11, chatId: '42', text: 'hello', openUrl: OPEN_URL })
 
     expect(repository.markNotified).not.toHaveBeenCalled()
     expect(publishJournal).toHaveBeenCalledWith('Telegram notification permanently rejected')
@@ -119,7 +123,12 @@ describe('Telegram outbox delivery', () => {
     })
 
     for (let index = 1; index <= 20; index += 1) {
-      await delivery({ matchId: index, chatId: '42', text: `message-${index}` })
+      await delivery({
+        matchId: index,
+        chatId: '42',
+        text: `message-${index}`,
+        openUrl: OPEN_URL,
+      })
     }
 
     expect(attempts).toHaveLength(20)
