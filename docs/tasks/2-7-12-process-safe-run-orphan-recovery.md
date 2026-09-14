@@ -2,8 +2,8 @@
 id: "2.7.12"
 phase: 2
 epic: "2.7"
-status: in_progress
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-14
 roles: [BACK, DB, QA]
 depends_on: ["2.7.4", "2.7.6"]
@@ -16,11 +16,11 @@ tags: [audit, run, lifecycle, recovery, postgres, locking, p1]
 
 ## Проблема
 
-Startup recovery из `2.7.4` делает blind `UPDATE` всех `Run(outcome='running', finishedAt=null)`. После `2.7.6` это небезопасно: другой живой worker process может владеть таким Run через canonical per-monitor PostgreSQL advisory lease, а второй worker при startup преждевременно переведёт live Run в `interrupted`.
+Startup recovery из `2.7.4` делал blind `UPDATE` всех `Run(outcome='running', finishedAt=null)`. После `2.7.6` это было небезопасно: другой живой worker process мог владеть таким Run через canonical per-monitor PostgreSQL advisory lease, а второй worker при startup преждевременно переводил live Run в `interrupted`.
 
-## Решение
+## Реализация
 
-Recovery обязан получить и удерживать тот же per-monitor lease, что scheduled executor, прежде чем считать `running` row orphan и переводить его в `interrupted`.
+Recovery получает и удерживает тот же per-monitor lease, что scheduled executor, прежде чем считать `running` row orphan и переводить его в `interrupted`.
 
 Canonical ownership proof:
 
@@ -30,22 +30,27 @@ Canonical ownership proof:
 4. при успешном acquisition удерживать lease через terminal `UPDATE`;
 5. release выполнять после mutation; infrastructure errors сохраняют fail-closed startup.
 
-Production recovery строит PostgreSQL lease acquirer явно из `config.databaseUrl`. Local in-memory lease допустим только как injected test dependency.
+Production recovery строит PostgreSQL lease acquirer явно из `config.databaseUrl` и переиспользует существующий `createPostgresMonitorRunLeaseAcquirer`; новый lock namespace, schema, TTL/heartbeat или worker registry не добавлялись. Local in-memory lease остаётся только injected test dependency.
 
 ## Критерии приёмки
 
-- [ ] Live Run, чей advisory lease удерживается другим PostgreSQL context, не изменяется startup recovery.
-- [ ] После release/crash owner session тот же orphan восстанавливается в `interrupted`.
-- [ ] Recovery удерживает canonical lease до завершения terminal UPDATE.
-- [ ] Busy lease не является общей startup failure; инфраструктурная lease/DB ошибка остаётся fail-closed.
-- [ ] Разные monitor IDs независимы; повторный recovery идемпотентен.
-- [ ] Несколько stale `running` rows одного monitor закрываются в одном доказанном ownership window.
-- [ ] PostgreSQL integration использует реальные независимые contexts и настоящий advisory lease.
+- [x] Live Run, чей advisory lease удерживается другим PostgreSQL context, не изменяется startup recovery.
+- [x] После release/crash owner session тот же orphan восстанавливается в `interrupted`.
+- [x] Recovery удерживает canonical lease до завершения terminal UPDATE.
+- [x] Busy lease не является общей startup failure; инфраструктурная lease/DB ошибка остаётся fail-closed.
+- [x] Разные monitor IDs независимы; повторный recovery идемпотентен.
+- [x] Несколько stale `running` rows одного monitor закрываются в одном доказанном ownership window.
+- [x] PostgreSQL integration использует реальные независимые contexts и настоящий advisory lease.
 
 ## TDD и проверка
 
-- Baseline design/plan head `ff4237ca31d440db14fe73e84d83e2df39a9a471`, verify **#1446** — полный GREEN до implementation lifecycle и RED tests.
-- RED/GREEN и final exact-head evidence будут добавлены после выполнения соответствующих шагов.
+- **Baseline:** design/plan head `ff4237ca31d440db14fe73e84d83e2df39a9a471`, verify **#1446** — полный GREEN до implementation lifecycle и RED tests.
+- **PostgreSQL RED:** head `48b11feaba88e09a71df25cce4c418560db8c182`, verify **#1452** — все предварительные gates GREEN, а PostgreSQL integration доказал gap: live lease-owned row ожидался `running/finishedAt=null`, но blind startup recovery завершил его как `interrupted`.
+- **Unit RED:** commit `245947658d9e8ace8f220720ab8dd71451dc0bb1`, verify **#1453** — новые behavioral tests упали ровно на отсутствии candidate-read/lease/release sequencing, busy-lease skip и fail-closed recovery dependencies.
+- **Minimal GREEN:** commit `2bce5fdd92594d2c9391bdcb4414121e651bb152`, tree `ed2c60d07d0720d56d571e67a7163c4e15424298`, verify **#1454** — полный GREEN, включая PostgreSQL compose integration, build и оба Electron smoke.
+- **Concurrency hardening:** production после GREEN не менялся. Integration coverage добавила реальный PostgreSQL ownership window, независимость разных monitor IDs, multi-row recovery и concurrent recovery contexts. Verify **#1455** остановился только на test formatting; verify **#1458** выявил нестабильный observer, привязанный к presentation текста Prisma SQL. Harness был заменён на PostgreSQL lock-graph proof через `pg_blocking_pids()` без изменения production semantics.
+- **Hardened GREEN:** head `f67af7954768a07853c61c35dbb48246621e06b6`, verify **#1459** — полный GREEN: dependency/docs checks, 602 unit tests, typecheck, lint, formatting, Dockerode integration, PostgreSQL compose integration с ownership-window tests, build/output verification и оба Electron smoke.
+- Final docs-only exact-head evidence фиксируется после синхронизации generated docs этой карточки.
 
 ## Связанные документы
 
