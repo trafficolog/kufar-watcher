@@ -6,6 +6,7 @@ import type {
   TelegramBotFactory,
   TelegramBotHandlers,
   TelegramBotTransport,
+  TelegramNotificationSendOptions,
 } from './telegram-bot-service'
 import { TelegramSendFailure } from './telegram-send-failure'
 
@@ -22,6 +23,13 @@ export interface GrammyContextLike {
   chat?: GrammyChatLike
 }
 
+interface GrammySendMessageOptionsLike {
+  parse_mode: 'HTML'
+  reply_markup: {
+    inline_keyboard: Array<Array<{ text: string; url: string }>>
+  }
+}
+
 export interface GrammyBotLike {
   on(
     filter: 'message' | 'callback_query',
@@ -29,7 +37,7 @@ export interface GrammyBotLike {
   ): void
   catch(handler: () => void): void
   api: {
-    sendMessage(chatId: string, text: string): Promise<unknown>
+    sendMessage(chatId: string, text: string, options?: GrammySendMessageOptionsLike): Promise<unknown>
   }
 }
 
@@ -108,6 +116,15 @@ function runRealBot(bot: GrammyBotLike, options: GrammyRunnerOptionsLike): Gramm
   return run(bot as unknown as Bot, options) as unknown as GrammyRunnerHandleLike
 }
 
+function notificationOptions(options: TelegramNotificationSendOptions): GrammySendMessageOptionsLike {
+  return {
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [[{ text: 'Открыть', url: options.openUrl }]],
+    },
+  }
+}
+
 export function createGrammyTelegramBotFactory(
   createBot: GrammyBotConstructor = createRealBot,
   runBot: GrammyRunLike = runRealBot,
@@ -159,9 +176,13 @@ export function createGrammyTelegramBotFactory(
         runner = undefined
         if (currentRunner?.isRunning()) await currentRunner.stop()
       },
-      async sendMessage(chatId: string, text: string): Promise<void> {
+      async sendMessage(chatId, text, options): Promise<void> {
         try {
-          await bot.api.sendMessage(chatId, text)
+          if (options) {
+            await bot.api.sendMessage(chatId, text, notificationOptions(options))
+          } else {
+            await bot.api.sendMessage(chatId, text)
+          }
         } catch (error) {
           throw normalizeSendFailure(error)
         }
