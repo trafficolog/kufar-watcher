@@ -54,7 +54,8 @@ describe('monitor create worker application', () => {
       createSourceRuntime: () => sourceRuntime,
       createRunExecutor: () => vi.fn(async () => ({ status: 'completed' })),
       createScheduler: () => scheduler,
-      createRunRecoveryLeaseAcquirer: () => createLocalMonitorRunLeaseAcquirer(),
+      createRunRecoveryLeaseAcquirer: () =>
+        createLocalMonitorRunLeaseAcquirer(),
       createTelegramRepository: () => ({}),
       createTelegramBotFactory: () => ({}),
       createTelegramBotService: () => telegram,
