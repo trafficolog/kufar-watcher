@@ -7,6 +7,7 @@ export type { TelegramSendFailureKind } from './telegram-send-failure'
 
 export interface TelegramOutboxDeliveryRepository {
   getNotifiedAt(matchId: number): Promise<Date | null | undefined>
+  markSending?(matchId: number, sendingAt: Date): Promise<void>
   markNotified(matchId: number, notifiedAt: Date): Promise<void>
 }
 
@@ -48,6 +49,7 @@ export function createTelegramOutboxDelivery(
     }
 
     lastAttemptAtByChat.set(payload.chatId, now().getTime())
+    await options.repository.markSending?.(payload.matchId, now())
 
     try {
       await options.sendMessage(payload.chatId, payload.text, { openUrl: payload.openUrl })
