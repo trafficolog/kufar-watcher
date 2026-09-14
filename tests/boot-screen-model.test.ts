@@ -17,7 +17,7 @@ function state(overrides: Partial<BootState> = {}): BootState {
 }
 
 function incompatibleContainerState(
-  mismatches: string[] = ['image', 'port'],
+  mismatches: string[] = ['host', 'port'],
 ): BootState {
   return {
     phase: 'error',
@@ -85,25 +85,41 @@ describe('buildBootScreenModel', () => {
     expect(model.error?.message).toContain('Docker Desktop')
   })
 
-  it('shows reversible Linux rename-and-retry guidance for an incompatible existing container', () => {
-    const model = buildBootScreenModel(incompatibleContainerState(['image', 'port']), 'linux')
+  it('shows reversible Linux stop-rename-retry guidance for binding-only mismatch', () => {
+    const model = buildBootScreenModel(incompatibleContainerState(['host', 'port']), 'linux')
 
     expect(model.error?.heading).toBe('Конфликт локального Postgres')
     expect(model.error?.message).toContain('kufar-watcher-postgres')
-    expect(model.error?.message).toContain('образ')
+    expect(model.error?.message).toContain('адрес')
     expect(model.error?.message).toContain('порт')
+    expect(model.error?.message).toContain('docker stop')
     expect(model.error?.message).toContain('docker rename')
     expect(model.error?.message).toContain('Повторить')
     expect(model.error?.message).toContain('volume')
     expect(model.error?.message).not.toContain('docker rm')
   })
 
-  it('mentions Docker Desktop for the reversible incompatible-container recovery path on Windows', () => {
-    const model = buildBootScreenModel(incompatibleContainerState(['password']), 'win32')
+  it('mentions Docker Desktop for the reversible binding-only recovery path on Windows', () => {
+    const model = buildBootScreenModel(incompatibleContainerState(['port']), 'win32')
 
     expect(model.error?.message).toContain('Docker Desktop')
-    expect(model.error?.message).toContain('пароль')
+    expect(model.error?.message).toContain('порт')
     expect(model.error?.message).toContain('docker rename')
+    expect(model.error?.message).not.toContain('docker rm')
+  })
+
+  it('blocks simple rename-and-retry for data-sensitive container mismatch', () => {
+    const model = buildBootScreenModel(
+      incompatibleContainerState(['image', 'password', 'database']),
+      'linux',
+    )
+
+    expect(model.error?.message).toContain('образ')
+    expect(model.error?.message).toContain('пароль')
+    expect(model.error?.message).toContain('база данных')
+    expect(model.error?.message).toContain('не нажимайте «Повторить»')
+    expect(model.error?.message).toContain('резервную копию')
+    expect(model.error?.message).toContain('docker inspect')
     expect(model.error?.message).not.toContain('docker rm')
   })
 
