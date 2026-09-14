@@ -201,7 +201,7 @@ integrationDescribe('Telegram outbox delivery repository', () => {
     })
   })
 
-  it('delivers after restart when the process dies after the durable marker but before send', async () => {
+  it('delivers after restart when crash happens after marker but before send', async () => {
     const match = await prisma.match.create({
       data: {
         monitorId: MONITOR_ID,
@@ -246,7 +246,7 @@ integrationDescribe('Telegram outbox delivery repository', () => {
     })
   })
 
-  it('allows one explained resend after Telegram acceptance when the final marker was not persisted', async () => {
+  it('allows one journaled resend when crash happens after Telegram acceptance', async () => {
     const match = await prisma.match.create({
       data: {
         monitorId: MONITOR_ID,
