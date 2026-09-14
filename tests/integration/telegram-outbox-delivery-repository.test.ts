@@ -95,7 +95,9 @@ integrationDescribe('Telegram outbox delivery repository', () => {
     const sendingAt = new Date('2026-09-13T12:05:30.000Z')
     const notifiedAt = new Date('2026-09-13T12:05:31.000Z')
 
-    if (!repository.markSending) throw new Error('Expected Prisma repository to support sending markers')
+    if (!repository.markSending) {
+      throw new Error('Expected Prisma repository to support sending markers')
+    }
     await repository.markSending(match.id, sendingAt)
     await repository.markNotified(match.id, notifiedAt)
 
