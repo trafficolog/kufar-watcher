@@ -31,7 +31,7 @@ export function createPrismaTelegramOutboxDeliveryRepository(
     async markNotified(matchId, notifiedAt): Promise<void> {
       await prisma.match.updateMany({
         where: { id: matchId, notifiedAt: null },
-        data: { notifiedAt },
+        data: { notifiedAt, notificationSendingAt: null },
       })
     },
   }
