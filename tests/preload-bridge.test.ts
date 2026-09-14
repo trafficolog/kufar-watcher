@@ -58,55 +58,58 @@ class FakeIpcRenderer {
 }
 
 describe('preload desktop bridge', () => {
-  it('exposes only explicit system, Telegram, and monitor methods on fixed IPC channels', async () => {
-    const ipcRenderer = new FakeIpcRenderer()
-    const api = createDesktopApi(ipcRenderer)
+  it(
+    'exposes only explicit system, Telegram, and monitor methods on fixed IPC channels',
+    async () => {
+      const ipcRenderer = new FakeIpcRenderer()
+      const api = createDesktopApi(ipcRenderer)
 
-    expect(Object.keys(api)).toEqual(['system', 'telegram', 'monitors'])
-    expect(Object.keys(api.system)).toEqual([
-      'getBootState',
-      'retryBoot',
-      'openJournal',
-      'exit',
-      'onBootState',
-    ])
-    expect(Object.keys(api.telegram)).toEqual(['getState', 'bindCandidate', 'onState'])
+      expect(Object.keys(api)).toEqual(['system', 'telegram', 'monitors'])
+      expect(Object.keys(api.system)).toEqual([
+        'getBootState',
+        'retryBoot',
+        'openJournal',
+        'exit',
+        'onBootState',
+      ])
+      expect(Object.keys(api.telegram)).toEqual(['getState', 'bindCandidate', 'onState'])
 
-    const monitors = Reflect.get(api, 'monitors') as
-      | { create(input: unknown): Promise<{ monitorId: number }> }
-      | undefined
-    const monitorCreateChannel = Reflect.get(IPC, 'monitorCreate')
-    expect(monitors).toBeDefined()
-    expect(Reflect.get(monitors ?? {}, 'create')).toBeTypeOf('function')
-    expect(monitorCreateChannel).toBe('monitors:create')
+      const monitors = Reflect.get(api, 'monitors') as
+        | { create(input: unknown): Promise<{ monitorId: number }> }
+        | undefined
+      const monitorCreateChannel = Reflect.get(IPC, 'monitorCreate')
+      expect(monitors).toBeDefined()
+      expect(Reflect.get(monitors ?? {}, 'create')).toBeTypeOf('function')
+      expect(monitorCreateChannel).toBe('monitors:create')
 
-    await expect(api.system.getBootState()).resolves.toEqual(ipcRenderer.bootState)
-    await api.system.retryBoot()
-    await api.system.openJournal()
-    await api.system.exit()
-    await expect(api.telegram.getState()).resolves.toEqual(ipcRenderer.telegramState)
-    await expect(api.telegram.bindCandidate()).resolves.toBe('bound')
+      await expect(api.system.getBootState()).resolves.toEqual(ipcRenderer.bootState)
+      await api.system.retryBoot()
+      await api.system.openJournal()
+      await api.system.exit()
+      await expect(api.telegram.getState()).resolves.toEqual(ipcRenderer.telegramState)
+      await expect(api.telegram.bindCandidate()).resolves.toBe('bound')
 
-    const input = {
-      name: 'PS5 Минск',
-      sourceUrl: 'https://www.kufar.by/l/igry-i-pristavki/r~minsk/q~playstation',
-      intervalSec: 300,
-      include: ['ps5', 'playstation*'],
-      exclude: ['ремонт'],
-    }
-    await expect(monitors!.create(input)).resolves.toEqual({ monitorId: 17 })
-    expect(ipcRenderer.calls).toContainEqual({ channel: 'monitors:create', args: [input] })
+      const input = {
+        name: 'PS5 Минск',
+        sourceUrl: 'https://www.kufar.by/l/igry-i-pristavki/r~minsk/q~playstation',
+        intervalSec: 300,
+        include: ['ps5', 'playstation*'],
+        exclude: ['ремонт'],
+      }
+      await expect(monitors!.create(input)).resolves.toEqual({ monitorId: 17 })
+      expect(ipcRenderer.calls).toContainEqual({ channel: 'monitors:create', args: [input] })
 
-    expect(ipcRenderer.invoked).toEqual([
-      IPC.bootGet,
-      IPC.bootRetry,
-      IPC.journalOpen,
-      IPC.appExit,
-      IPC.telegramStateGet,
-      IPC.telegramBindCandidate,
-      'monitors:create',
-    ])
-  })
+      expect(ipcRenderer.invoked).toEqual([
+        IPC.bootGet,
+        IPC.bootRetry,
+        IPC.journalOpen,
+        IPC.appExit,
+        IPC.telegramStateGet,
+        IPC.telegramBindCandidate,
+        'monitors:create',
+      ])
+    },
+  )
 
   it('forwards boot payloads without Electron event objects and unsubscribes', () => {
     const ipcRenderer = new FakeIpcRenderer()
