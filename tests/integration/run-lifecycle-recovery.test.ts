@@ -112,18 +112,15 @@ function scheduler(): MonitorScheduler {
 
 async function waitForBlockedRunUpdate(observer: Client): Promise<void> {
   for (let attempt = 0; attempt < 200; attempt += 1) {
-    const result = await observer.query<{ blocked: boolean }>(`
-      SELECT EXISTS (
-        SELECT 1
-        FROM pg_stat_activity activity
-        WHERE activity.datname = current_database()
-          AND activity.pid <> pg_backend_pid()
-          AND activity.state = 'active'
-          AND activity.query LIKE '%UPDATE "Run"%'
-          AND cardinality(pg_blocking_pids(activity.pid)) > 0
-      ) AS blocked
+    const result = await observer.query<{ query: string }>(`
+      SELECT activity.query
+      FROM pg_stat_activity activity
+      WHERE activity.datname = current_database()
+        AND activity.pid <> pg_backend_pid()
+        AND pg_backend_pid() = ANY(pg_blocking_pids(activity.pid))
+      LIMIT 1
     `)
-    if (result.rows[0]?.blocked) return
+    if (result.rows[0]) return
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
 
