@@ -242,11 +242,19 @@ integration('Run lifecycle recovery', () => {
       stop: vi.fn(async () => undefined),
     } as unknown as MonitorScheduler
 
-    const firstApp = createWorkerApplication(workerConfig(), vi.fn(), dependenciesFor(prisma, scheduler))
+    const firstApp = createWorkerApplication(
+      workerConfig(),
+      vi.fn(),
+      dependenciesFor(prisma, scheduler),
+    )
     await firstApp.start()
     const first = await prisma.run.findUniqueOrThrow({ where: { id: orphan.id } })
 
-    const secondApp = createWorkerApplication(workerConfig(), vi.fn(), dependenciesFor(prisma, scheduler))
+    const secondApp = createWorkerApplication(
+      workerConfig(),
+      vi.fn(),
+      dependenciesFor(prisma, scheduler),
+    )
     await secondApp.start()
     const second = await prisma.run.findUniqueOrThrow({ where: { id: orphan.id } })
 
