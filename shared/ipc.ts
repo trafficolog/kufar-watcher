@@ -10,9 +10,19 @@ export interface BootStep {
   detail: string
 }
 
+export type PostgresContainerMismatchField =
+  | 'image'
+  | 'volumeName'
+  | 'host'
+  | 'port'
+  | 'user'
+  | 'password'
+  | 'database'
+
 export type BootErrorCode =
   | 'docker-unavailable'
   | 'database-timeout'
+  | 'database-container-incompatible'
   | 'migration-failed'
   | 'worker-failed'
   | 'configuration-invalid'
@@ -22,6 +32,7 @@ export interface BootState {
   phase: 'starting' | 'ready' | 'error'
   steps: BootStep[]
   errorCode?: BootErrorCode
+  postgresContainerMismatches?: PostgresContainerMismatchField[]
 }
 
 export interface KufarDesktopApi {
