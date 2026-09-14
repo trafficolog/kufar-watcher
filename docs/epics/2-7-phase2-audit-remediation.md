@@ -1,10 +1,10 @@
 ---
 id: "2.7"
 phase: 2
-status: in_progress
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-14
-status_note: "11/12 done: 2.7.12 усиливает Run startup recovery process-safe ownership proof через canonical per-monitor advisory lease."
+status_note: "12/12 done: remediation фазы 2 закрыта; Run startup recovery теперь подтверждает orphan ownership через canonical per-monitor advisory lease."
 roles: [BACK, DB, QA]
 ---
 
@@ -54,14 +54,18 @@ roles: [BACK, DB, QA]
 
 ## Критерии приёмки эпика
 
-- [ ] Все P0/P1 дефекты закрыты отдельными RED → GREEN циклами.
+- [x] Все P0/P1 дефекты закрыты отдельными RED → GREEN циклами.
 - [x] P2/P3 либо реализованы, либо имеют подтверждённое решение о переносе/measurement-only закрытии с явным основанием.
 - [x] Не осталось двух независимо изменяемых источников seller type.
-- [ ] Scheduler и Run lifecycle сохраняют инварианты при malformed data и restart.
+- [x] Scheduler и Run lifecycle сохраняют инварианты при malformed data и restart.
 - [x] Matcher configuration нельзя сохранить в состоянии, которое нарушает собственный single-token compiler contract.
 - [x] Matcher соответствует собственной спецификации нормализации и snippet.
 - [x] Docs lifecycle и формулировка `2.4.4` согласованы с фактическим runtime.
 - [x] Будущий editor integration gate сохранён в `5.2.4`, но не считается условием закрытия remediation-фазы 2.
+
+## Результат
+
+Эпик закрыт 12/12. `2.7.12` устранил последний подтверждённый cross-process lifecycle gap: startup recovery больше не может завершить `Run` другого живого worker process, потому что orphan recovery использует тот же canonical per-monitor PostgreSQL advisory lease, что scheduled traversal, и удерживает ownership до terminal mutation.
 
 ## Связанные документы
 
