@@ -22,7 +22,7 @@ _Сгенерировано 2026-09-14_
 | `2.4` | Планировщик на pg-boss | 2 | ✅ done | 🟢 aligned | Эпик закрыт: 2.4.1–2.4.4 delivery scope done; remediation 2.4.5 закрепляет per-Run source degradation без изменения retry/watermark policy, verify #915 GREEN. |
 | `2.5` | Питание и догоняющий обход | 2 | ⬜ todo | 🟡 drifted | Корректная работа на машине, которая уходит в сон. |
 | `2.6` | Морфология русского языка | 2 | ⬜ todo | 🟡 drifted | Русский стеммер и правило выбора между маской и морфологией — срез 0.4.0. |
-| `2.7` | Ремедиация повторного аудита фазы 2 | 2 | ✅ done | 🟢 aligned | 11/11 done: P0/P1/P2 remediation реализована; 2.7.10 закрыла keyword persistence-boundary validation; P3 2.7.8 закрыта measurement-only, Phase 5 gate 5.2.4 сохранён. |
+| `2.7` | Ремедиация повторного аудита фазы 2 | 2 | 🔄 in_progress | 🟡 drifted | 11/12 done: 2.7.12 усиливает Run startup recovery process-safe ownership proof через canonical per-monitor advisory lease. |
 | `3.1` | Телеграм-бот и транспорт | 3 | ✅ done | 🟢 aligned | 3.1.1 bot bootstrap, 3.1.2 reconnect и 3.1.3 durable outbound queue завершены. |
 | `3.2` | Форматтер и кнопки | 3 | ⬜ todo | 🟡 drifted | Формат уведомления о находке. |
 | `3.3` | Тихие часы и очередь | 3 | ⬜ todo | 🟡 drifted | Уведомления не будят ночью и не теряются. |
