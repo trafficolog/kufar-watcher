@@ -115,7 +115,7 @@ describe('Telegram message template', () => {
     expect(message).toContain('<b>Игровые приставки</b>')
     expect(message).toContain('Sony PlayStation 5')
     expect(message).toContain('https://www.kufar.by/item/123')
-    expect(message).not.toContain('&am')
+    expect(message).not.toMatch(/&(?!amp;|lt;|gt;)/)
   })
 
   it('keeps an extremely long escaped title within the Telegram limit', async () => {
@@ -133,6 +133,6 @@ describe('Telegram message template', () => {
     expect(message).toContain('<b>Игровые приставки</b>')
     expect(message).toContain('Цена: 1999.00 BYN')
     expect(message).toContain('https://www.kufar.by/item/123')
-    expect(message).not.toMatch(/&(?:a|am|amp|l|lt|g|gt)?$/)
+    expect(message).not.toMatch(/&(?!amp;|lt;|gt;)/)
   })
 })
