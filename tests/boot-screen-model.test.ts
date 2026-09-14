@@ -16,14 +16,16 @@ function state(overrides: Partial<BootState> = {}): BootState {
   }
 }
 
-function incompatibleContainerState(
-  mismatches: string[] = ['host', 'port'],
-): BootState {
+function incompatibleContainerState(mismatches: string[] = ['host', 'port']): BootState {
   return {
     phase: 'error',
     steps: [
       { id: 'docker', state: 'success', detail: 'Docker daemon is available' },
-      { id: 'database', state: 'error', detail: 'Existing PostgreSQL container configuration is incompatible' },
+      {
+        id: 'database',
+        state: 'error',
+        detail: 'Existing PostgreSQL container configuration is incompatible',
+      },
       { id: 'migrations', state: 'pending', detail: 'Waiting for database' },
       { id: 'scheduler', state: 'pending', detail: 'Waiting for migrations' },
       { id: 'telegram', state: 'skipped', detail: 'Telegram is not configured yet' },

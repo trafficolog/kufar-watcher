@@ -11,13 +11,7 @@ export interface BootStep {
 }
 
 export type PostgresContainerMismatchField =
-  | 'image'
-  | 'volumeName'
-  | 'host'
-  | 'port'
-  | 'user'
-  | 'password'
-  | 'database'
+  'image' | 'volumeName' | 'host' | 'port' | 'user' | 'password' | 'database'
 
 export type BootErrorCode =
   | 'docker-unavailable'

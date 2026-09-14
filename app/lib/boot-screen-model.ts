@@ -116,10 +116,7 @@ function platformDockerHint(platform: BootUiPlatform): string {
   return 'Проверьте, что Docker запущен, и повторите попытку.'
 }
 
-function incompatibleContainerError(
-  state: BootState,
-  platform: BootUiPlatform,
-): BootScreenError {
+function incompatibleContainerError(state: BootState, platform: BootUiPlatform): BootScreenError {
   const containerName = 'kufar-watcher-postgres'
   const backupName = 'kufar-watcher-postgres-backup'
   const mismatches = state.postgresContainerMismatches ?? []
