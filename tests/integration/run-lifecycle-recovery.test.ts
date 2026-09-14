@@ -325,7 +325,11 @@ integration('Run lifecycle recovery', () => {
     const second = await prisma.run.create({
       data: { monitorId: MONITOR_ID, outcome: 'running' },
     })
-    const app = createWorkerApplication(workerConfig(), vi.fn(), dependenciesFor(prisma, scheduler()))
+    const app = createWorkerApplication(
+      workerConfig(),
+      vi.fn(),
+      dependenciesFor(prisma, scheduler()),
+    )
 
     await app.start()
 
