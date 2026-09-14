@@ -64,16 +64,18 @@ describe('runInfrastructureBootstrap', () => {
     expect(deps.startWorker).not.toHaveBeenCalled()
   })
 
-  it('reports configuration-invalid for an incompatible existing Postgres container', async () => {
+  it('preserves safe mismatch field names in a dedicated incompatible-container boot failure', async () => {
     const { calls, deps } = createDeps()
     deps.ensureDatabaseContainer.mockRejectedValueOnce(
-      new PostgresContainerConfigurationError(['port']),
+      new PostgresContainerConfigurationError(['port', 'password']),
     )
 
     const result = await runInfrastructureBootstrap(deps)
 
     expect(result.phase).toBe('error')
-    expect(result.errorCode).toBe('configuration-invalid')
+    expect(result.errorCode).toBe('database-container-incompatible')
+    expect(Reflect.get(result, 'postgresContainerMismatches')).toEqual(['port', 'password'])
+    expect(JSON.stringify(result)).not.toContain('generated-secret')
     expect(calls).toEqual(['ping'])
     expect(deps.waitForDatabase).not.toHaveBeenCalled()
     expect(deps.applyMigrations).not.toHaveBeenCalled()

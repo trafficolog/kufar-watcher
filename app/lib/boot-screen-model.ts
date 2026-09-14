@@ -1,4 +1,10 @@
-import type { BootState, BootStep, BootStepId, BootStepState } from '../../shared/ipc'
+import type {
+  BootState,
+  BootStep,
+  BootStepId,
+  BootStepState,
+  PostgresContainerMismatchField,
+} from '../../shared/ipc'
 
 export type BootUiPlatform = 'linux' | 'win32' | 'other'
 export type BootStepTone = 'idle' | 'running' | 'success' | 'skipped' | 'degraded' | 'error'
@@ -48,6 +54,16 @@ const TONES: Record<BootStepState, BootStepTone> = {
   skipped: 'skipped',
   degraded: 'degraded',
   error: 'error',
+}
+
+const POSTGRES_MISMATCH_LABELS: Record<PostgresContainerMismatchField, string> = {
+  image: 'образ',
+  volumeName: 'volume данных',
+  host: 'адрес',
+  port: 'порт',
+  user: 'пользователь',
+  password: 'пароль',
+  database: 'база данных',
 }
 
 function statusFor(step: BootStep): string {
@@ -100,6 +116,42 @@ function platformDockerHint(platform: BootUiPlatform): string {
   return 'Проверьте, что Docker запущен, и повторите попытку.'
 }
 
+function incompatibleContainerError(state: BootState, platform: BootUiPlatform): BootScreenError {
+  const containerName = 'kufar-watcher-postgres'
+  const backupName = 'kufar-watcher-postgres-backup'
+  const mismatches = state.postgresContainerMismatches ?? []
+  const mismatchText =
+    mismatches.length > 0
+      ? mismatches.map((field) => POSTGRES_MISMATCH_LABELS[field]).join(', ')
+      : 'неизвестные параметры'
+  const bindingOnly =
+    mismatches.length > 0 && mismatches.every((field) => field === 'host' || field === 'port')
+
+  if (!bindingOnly) {
+    const inspectionHint =
+      platform === 'win32'
+        ? `В Docker Desktop просмотрите контейнер и его volumes; для дополнительной диагностики можно выполнить \`docker inspect ${containerName}\`.`
+        : platform === 'linux'
+          ? `Для безопасной диагностики выполните \`docker inspect ${containerName}\` и \`docker volume inspect kufar-watcher-postgres-data\`.`
+          : `Для безопасной диагностики выполните \`docker inspect ${containerName}\`.`
+
+    return {
+      heading: 'Конфликт локального Postgres',
+      message: `Контейнер ${containerName} несовместим: ${mismatchText}. Эти параметры могут затрагивать формат или содержимое data volume, поэтому не нажимайте «Повторить» после одного только переименования. Не удаляйте контейнер или volume. Сначала сделайте резервную копию и вручную спланируйте перенос или миграцию данных. ${inspectionHint}`,
+    }
+  }
+
+  const recovery =
+    platform === 'win32'
+      ? `В Docker Desktop остановите контейнер, затем переименуйте его там или через docker CLI: \`docker rename ${containerName} ${backupName}\`. Оставьте резервный контейнер остановленным и нажмите «Повторить».`
+      : `Выполните \`docker stop ${containerName}\`, затем \`docker rename ${containerName} ${backupName}\`. Оставьте резервный контейнер остановленным и нажмите «Повторить».`
+
+  return {
+    heading: 'Конфликт локального Postgres',
+    message: `Контейнер ${containerName} несовместим: ${mismatchText}. Конфликт затрагивает только сетевую привязку. ${recovery} Data volume не удаляется и остаётся сохранённым.`,
+  }
+}
+
 function errorFor(state: BootState, platform: BootUiPlatform): BootScreenError | undefined {
   if (state.phase !== 'error') return undefined
 
@@ -115,6 +167,10 @@ function errorFor(state: BootState, platform: BootUiPlatform): BootScreenError |
       heading: 'Не удалось поднять локальную базу',
       message: `Docker отвечает, но контейнер Postgres не перешёл в рабочее состояние вовремя. Мониторинг не запущен: писать находки некуда. ${platformDockerHint(platform)}`,
     }
+  }
+
+  if (state.errorCode === 'database-container-incompatible') {
+    return incompatibleContainerError(state, platform)
   }
 
   if (state.errorCode === 'migration-failed') {
@@ -137,7 +193,7 @@ function errorFor(state: BootState, platform: BootUiPlatform): BootScreenError |
     return {
       heading: 'Не удалось подготовить локальную базу',
       message:
-        'Параметры локального Postgres недоступны, повреждены или не совпадают с конфигурацией существующего контейнера. Контейнер не изменён. Проверьте настройки или откройте журнал для диагностики.',
+        'Параметры локального Postgres недоступны или повреждены. Проверьте локальную конфигурацию и credentials либо откройте журнал для диагностики.',
     }
   }
 

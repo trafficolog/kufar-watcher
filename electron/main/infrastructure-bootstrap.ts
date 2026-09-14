@@ -72,9 +72,11 @@ function fail(
   id: BootStepId,
   errorCode: NonNullable<BootState['errorCode']>,
   detail: string,
+  diagnostics: Pick<BootState, 'postgresContainerMismatches'> = {},
 ): BootState {
   const failed = {
     ...updateStep(state, id, 'error', detail),
+    ...diagnostics,
     phase: 'error' as const,
     errorCode,
   }
@@ -108,8 +110,9 @@ export async function runInfrastructureBootstrap(
         deps,
         state,
         'database',
-        'configuration-invalid',
+        'database-container-incompatible',
         'Existing PostgreSQL container configuration is incompatible',
+        { postgresContainerMismatches: [...error.mismatches] },
       )
     }
 
