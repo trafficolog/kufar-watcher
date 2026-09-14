@@ -5,6 +5,7 @@ export const TELEGRAM_TOKEN_FILE = 'telegram-token.enc'
 export type TelegramSecretReadResult =
   | { state: 'missing' }
   | { state: 'protected'; token: string }
+  | { state: 'unprotected'; token: string }
   | {
       state: 'unavailable'
       reason: 'encryption-unavailable' | 'unprotected-backend' | 'decrypt-failed'
@@ -49,6 +50,23 @@ function errorCode(error: unknown): string | undefined {
   return typeof code === 'string' ? code : undefined
 }
 
+function readVersionedUnprotectedToken(encoded: string): string | null | undefined {
+  const text = encoded.trim()
+  if (!text.startsWith('{')) return undefined
+
+  try {
+    const parsed: unknown = JSON.parse(text)
+    if (!parsed || typeof parsed !== 'object') return null
+    if (Reflect.get(parsed, 'version') !== 1) return null
+    if (Reflect.get(parsed, 'protection') !== 'unprotected') return null
+    const value = Reflect.get(parsed, 'value')
+    if (typeof value !== 'string') return null
+    return Buffer.from(value, 'base64').toString('utf8')
+  } catch {
+    return null
+  }
+}
+
 export function createTelegramSecretStore(
   userDataDir: string,
   dependencies: TelegramSecretStoreDependencies,
@@ -63,6 +81,12 @@ export function createTelegramSecretStore(
       } catch (error) {
         if (errorCode(error) === 'ENOENT') return { state: 'missing' }
         return { state: 'unavailable', reason: 'decrypt-failed' }
+      }
+
+      const unprotectedToken = readVersionedUnprotectedToken(encoded)
+      if (unprotectedToken === null) return { state: 'unavailable', reason: 'decrypt-failed' }
+      if (unprotectedToken !== undefined) {
+        return { state: 'unprotected', token: unprotectedToken }
       }
 
       if (!(await dependencies.safeStorage.isAsyncEncryptionAvailable())) {

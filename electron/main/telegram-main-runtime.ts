@@ -8,9 +8,9 @@ export async function configureTelegramFromSecret(
 ): Promise<TelegramDesktopState['secret']> {
   const result = await store.read()
 
-  if (result.state === 'protected') {
+  if (result.state === 'protected' || result.state === 'unprotected') {
     supervisor.configureTelegram(result.token)
-    return 'protected'
+    return result.state
   }
 
   supervisor.configureTelegram(null)
