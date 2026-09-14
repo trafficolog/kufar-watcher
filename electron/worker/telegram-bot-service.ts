@@ -49,7 +49,7 @@ export type TelegramBotFactory = (
 ) => TelegramBotTransport
 
 export interface TelegramBotService {
-  verifyToken(token: string): Promise<TelegramBotIdentity>
+  verifyToken?(token: string): Promise<TelegramBotIdentity>
   configure(token: string | null): Promise<void>
   resume(): Promise<void>
   bindCandidate(chatId: string): Promise<TelegramBindResult>
