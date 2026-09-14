@@ -65,6 +65,28 @@ describe('Telegram secret store', () => {
     })
   })
 
+  it('restores an explicitly consented unprotected token without calling it protected', async () => {
+    const token = 'SECRET_SENTINEL_UNPROTECTED_RESTART_5_0_2'
+    const readFile = vi.fn(async () =>
+      JSON.stringify({
+        version: 1,
+        protection: 'unprotected',
+        value: Buffer.from(token, 'utf8').toString('base64'),
+      }),
+    )
+    const safeStorage = createSafeStorage({
+      getSelectedStorageBackend: vi.fn(() => 'basic_text'),
+    })
+    const store = createTelegramSecretStore('/user-data', {
+      platform: 'linux',
+      readFile,
+      safeStorage,
+    })
+
+    await expect(store.read()).resolves.toEqual({ state: 'unprotected', token })
+    expect(safeStorage.decryptStringAsync).not.toHaveBeenCalled()
+  })
+
   it('reports unavailable when async encryption is unavailable', async () => {
     const readFile = vi.fn(async () => Buffer.from('cipher').toString('base64'))
     const safeStorage = createSafeStorage({
