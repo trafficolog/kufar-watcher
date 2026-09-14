@@ -1,6 +1,12 @@
 import { KufarRoutingError, routeKufarQuery } from '../../shared/kufar-routing'
 import { KufarUrlParseError, parseKufarListingUrl } from '../../shared/kufar-url'
 
+const AUTO_UNSUPPORTED_MESSAGE =
+  'Авто пока не поддерживается. Вставьте ссылку из поддерживаемой категории Kufar.'
+const CATEGORY_UNSUPPORTED_MESSAGE = 'Эта категория Kufar пока не поддерживается.'
+const FOREIGN_HOST_MESSAGE = 'Нужна ссылка с kufar.by.'
+const INVALID_LISTING_MESSAGE = 'Не удалось распознать ссылку на список объявлений Kufar.'
+
 export interface ValidMonitorUrlPreview {
   state: 'valid'
   category: 'Электроника' | 'Недвижимость'
@@ -28,30 +34,19 @@ export function previewMonitorUrl(sourceUrl: string): MonitorUrlPreview {
     }
   } catch (error) {
     if (error instanceof KufarRoutingError) {
-      if (error.code === 'out-of-scope-category') {
-        return {
-          state: 'error',
-          message: 'Авто пока не поддерживается. Вставьте ссылку из поддерживаемой категории Kufar.',
-        }
-      }
-
       return {
         state: 'error',
-        message: 'Эта категория Kufar пока не поддерживается.',
+        message:
+          error.code === 'out-of-scope-category'
+            ? AUTO_UNSUPPORTED_MESSAGE
+            : CATEGORY_UNSUPPORTED_MESSAGE,
       }
     }
 
     if (error instanceof KufarUrlParseError) {
-      if (error.code === 'foreign-host') {
-        return {
-          state: 'error',
-          message: 'Нужна ссылка с kufar.by.',
-        }
-      }
-
       return {
         state: 'error',
-        message: 'Не удалось распознать ссылку на список объявлений Kufar.',
+        message: error.code === 'foreign-host' ? FOREIGN_HOST_MESSAGE : INVALID_LISTING_MESSAGE,
       }
     }
 
