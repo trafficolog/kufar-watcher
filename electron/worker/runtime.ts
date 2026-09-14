@@ -83,7 +83,7 @@ export async function startWorkerRuntime(
       return
     }
 
-    if (!services.bindTelegramCandidate) return
+    if (data.type !== 'telegram-bind-candidate' || !services.bindTelegramCandidate) return
     void services
       .bindTelegramCandidate(data.chatId)
       .then((result) => {
