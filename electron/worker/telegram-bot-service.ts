@@ -28,7 +28,11 @@ export interface TelegramNotificationSendOptions {
 export interface TelegramBotTransport {
   start(): Promise<void>
   stop(): Promise<void>
-  sendMessage(chatId: string, text: string, options?: TelegramNotificationSendOptions): Promise<void>
+  sendMessage(
+    chatId: string,
+    text: string,
+    options?: TelegramNotificationSendOptions,
+  ): Promise<void>
 }
 
 export type TelegramBotErrorKind = 'polling' | 'handler'
@@ -43,7 +47,11 @@ export interface TelegramBotService {
   configure(token: string | null): Promise<void>
   resume(): Promise<void>
   bindCandidate(chatId: string): Promise<TelegramBindResult>
-  sendMessage(chatId: string, text: string, options?: TelegramNotificationSendOptions): Promise<void>
+  sendMessage(
+    chatId: string,
+    text: string,
+    options?: TelegramNotificationSendOptions,
+  ): Promise<void>
   getState(): TelegramRuntimeState
   getCandidate(): TelegramCandidate | null
   getBoundChatId(): string | null
