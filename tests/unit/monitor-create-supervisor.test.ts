@@ -23,9 +23,9 @@ describe('monitor create worker supervisor', () => {
   it('correlates a monitor create request with the worker result', async () => {
     const worker = new FakeWorker()
     const workerModule = await import('../../electron/main/worker-supervisor')
-    const createWorkerSupervisor = Reflect.get(workerModule, 'createWorkerSupervisor') as (
-      options: { spawnWorker(): FakeWorker },
-    ) => MonitorCreateSupervisor
+    const createWorkerSupervisor = Reflect.get(workerModule, 'createWorkerSupervisor') as (options: {
+      spawnWorker(): FakeWorker
+    }) => MonitorCreateSupervisor
     const supervisor = createWorkerSupervisor({ spawnWorker: () => worker })
     const input: MonitorCreateInput = {
       name: 'PS5 Минск',
