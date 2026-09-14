@@ -1,4 +1,9 @@
-import { IPC, type BootState } from '../../shared/ipc'
+import {
+  IPC,
+  type BootState,
+  type MonitorCreateInput,
+  type MonitorCreateResult,
+} from '../../shared/ipc'
 import type { WorkerEvent } from '../../shared/runtime'
 import type { TelegramBindResult, TelegramDesktopState } from '../../shared/telegram'
 import { APP_HOST, APP_SCHEME } from './app-protocol'
@@ -15,12 +20,16 @@ export interface TelegramIpcServices {
   bindTelegramCandidate(): TelegramBindResult | Promise<TelegramBindResult>
 }
 
+export interface MonitorIpcServices {
+  createMonitor(input: MonitorCreateInput): MonitorCreateResult | Promise<MonitorCreateResult>
+}
+
 interface IpcInvokeEventLike {
   senderFrame: { url: string } | null
 }
 
 interface IpcMainLike {
-  handle(channel: string, handler: (event: IpcInvokeEventLike) => unknown): void
+  handle(channel: string, handler: (event: IpcInvokeEventLike, ...args: unknown[]) => unknown): void
 }
 
 export function forwardBootState(state: BootState, send: (state: BootState) => void): void {
@@ -148,5 +157,16 @@ export function registerTelegramIpcHandlers(
   ipcMain.handle(IPC.telegramBindCandidate, (event) => {
     assertTrustedRenderer(event, devRendererUrl)
     return services.bindTelegramCandidate()
+  })
+}
+
+export function registerMonitorIpcHandlers(
+  ipcMain: IpcMainLike,
+  services: MonitorIpcServices,
+  devRendererUrl?: string,
+): void {
+  ipcMain.handle(IPC.monitorCreate, (event, ...args) => {
+    assertTrustedRenderer(event, devRendererUrl)
+    return services.createMonitor(args[0] as MonitorCreateInput)
   })
 }
