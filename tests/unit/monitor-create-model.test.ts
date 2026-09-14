@@ -20,4 +20,21 @@ describe('monitor create model', () => {
       query: 'playstation',
     })
   })
+
+  it('returns clear inline errors for out-of-scope and invalid URLs', async () => {
+    const module: MonitorCreateModelModule = await import('../../app/lib/monitor-create-model')
+
+    expect(module.previewMonitorUrl!('https://auto.kufar.by/l/avtomobili')).toEqual({
+      state: 'error',
+      message: 'Авто пока не поддерживается. Вставьте ссылку из поддерживаемой категории Kufar.',
+    })
+    expect(module.previewMonitorUrl!('https://www.kufar.by/l/mebel')).toEqual({
+      state: 'error',
+      message: 'Эта категория Kufar пока не поддерживается.',
+    })
+    expect(module.previewMonitorUrl!('https://example.com/l/igry-i-pristavki')).toEqual({
+      state: 'error',
+      message: 'Нужна ссылка с kufar.by.',
+    })
+  })
 })
