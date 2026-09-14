@@ -1,5 +1,8 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client'
 import type { CanonicalQuery } from '../../shared/canonical-query'
+import type { MonitorCreateInput, MonitorCreateResult } from '../../shared/ipc'
+import { routeKufarQuery } from '../../shared/kufar-routing'
+import { parseKufarListingUrl } from '../../shared/kufar-url'
 import { assertSupportedMonitorInterval } from '../../shared/monitor-interval'
 import { matchingTermCompiler } from './matching-term-compiler'
 
@@ -146,6 +149,38 @@ function canonicalQueryJson(query: CanonicalQuery): Prisma.InputJsonValue {
   }
 }
 
+function validateMatchingTerms(terms: readonly string[]): void {
+  for (const term of terms) matchingTermCompiler.compile(term)
+}
+
+export async function createMonitorConfig(
+  prisma: PrismaClient,
+  input: MonitorCreateInput,
+): Promise<MonitorCreateResult> {
+  assertSupportedMonitorInterval(input.intervalSec)
+  validateMatchingTerms(input.include)
+  validateMatchingTerms(input.exclude)
+
+  const query = parseKufarListingUrl(input.sourceUrl)
+  routeKufarQuery(query)
+
+  const created = await prisma.monitor.create({
+    data: {
+      name: input.name,
+      sourceUrl: input.sourceUrl,
+      query: canonicalQueryJson(query),
+      intervalSec: input.intervalSec,
+      keywords: {
+        include: [...input.include],
+        exclude: [...input.exclude],
+      },
+    },
+    select: { id: true },
+  })
+
+  return { monitorId: created.id }
+}
+
 export async function updateMonitorConfigTransaction(
   tx: Prisma.TransactionClient,
   monitorId: number,
@@ -155,7 +190,7 @@ export async function updateMonitorConfigTransaction(
     assertSupportedMonitorInterval(patch.intervalSec)
   }
   if (patch.keywords !== undefined) {
-    for (const term of patch.keywords) matchingTermCompiler.compile(term)
+    validateMatchingTerms(patch.keywords)
   }
 
   const current = await tx.monitor.findUniqueOrThrow({
