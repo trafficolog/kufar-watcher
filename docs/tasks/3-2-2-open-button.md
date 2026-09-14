@@ -2,8 +2,8 @@
 id: "3.2.2"
 phase: 3
 epic: "3.2"
-status: in_progress
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-14
 roles: [BACK]
 depends_on: ["3.2.1"]
@@ -14,7 +14,7 @@ tags: [telegram, ui]
 
 # Задача 3.2.2 — Кнопка «Открыть»
 
-> Эпик 3.2 · Фаза 3 · 🔄 in_progress · зависит от: 3.2.1 · оценка: 1-2 ч
+> Эпик 3.2 · Фаза 3 · ✅ done · зависит от: 3.2.1 · оценка: 1-2 ч
 
 ## Цель
 
@@ -38,11 +38,19 @@ Telegram URL button не создаёт `callback_query`: Telegram-клиент 
 
 ## Критерии приёмки
 
-- [ ] Telegram send использует `parse_mode: HTML` и inline keyboard `[[{ text: "Открыть", url: openUrl }]]`.
-- [ ] Durable outbox сохраняет и восстанавливает `openUrl` вместе с `matchId`, `chatId` и `text`.
-- [ ] Кнопка принимает человеческий HTTP(S) URL Kufar и отвергает API URL/чужой host/не-HTTP(S) схему до transport send.
-- [ ] Notification для чужого/stale chat не отправляется и завершается существующим permanent failure.
-- [ ] Юнит-тесты boundary/queue/delivery/grammY transport зелёные.
+- [x] Telegram send использует `parse_mode: HTML` и inline keyboard `[[{ text: "Открыть", url: openUrl }]]`.
+- [x] Durable outbox сохраняет и восстанавливает `openUrl` вместе с `matchId`, `chatId` и `text`.
+- [x] Кнопка принимает человеческий HTTP(S) URL Kufar и отвергает API URL/чужой host/не-HTTP(S) схему до transport send.
+- [x] Notification для чужого/stale chat не отправляется и завершается существующим permanent failure.
+- [x] Юнит-тесты boundary/queue/delivery/grammY transport зелёные.
+
+## Результат
+
+- Durable notification payload хранит `openUrl`, поэтому retry/restart не теряет кнопку.
+- grammY transport отправляет Telegram HTML с единственной inline URL-кнопкой `Открыть` на `Listing.url`.
+- `isHumanKufarUrl()` принимает только HTTP(S) `kufar.by`/поддомены и отвергает `api.kufar.by`, чужие hosts и другие схемы до enqueue/send.
+- Существующая bound-chat защита сохранена: stale/foreign target остаётся permanent failure и не отправляется.
+- RED/GREEN цикл и полный verify подтвердили queue/delivery/transport boundary без добавления callback action.
 
 ## Подсказки
 
