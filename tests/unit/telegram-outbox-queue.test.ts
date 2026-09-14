@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createPgBossTelegramOutboxQueue } from '../../electron/worker/telegram-outbox-queue'
 
+const OPEN_URL = 'https://www.kufar.by/item/123'
+
 interface FakeJob {
   data: unknown
 }
@@ -86,7 +88,7 @@ describe('Telegram pg-boss outbox queue', () => {
       ['work', 'telegram-outbox', { batchSize: 1 }],
     ])
 
-    const job = { data: { matchId: 11, chatId: '42', text: 'hello' } }
+    const job = { data: { matchId: 11, chatId: '42', text: 'hello', openUrl: OPEN_URL } }
     await boss.dispatch([job])
     expect(handler).toHaveBeenCalledWith(job.data)
   })
@@ -97,13 +99,13 @@ describe('Telegram pg-boss outbox queue', () => {
     const queue = createPgBossTelegramOutboxQueue('postgresql://outbox', vi.fn(), () => boss)
     await queue.start(async () => undefined)
 
-    await queue.enqueue({ matchId: 17, chatId: '77', text: 'queued' })
+    await queue.enqueue({ matchId: 17, chatId: '77', text: 'queued', openUrl: OPEN_URL })
     await queue.stop()
 
     expect(boss.calls).toContainEqual([
       'send',
       'telegram-outbox',
-      { matchId: 17, chatId: '77', text: 'queued' },
+      { matchId: 17, chatId: '77', text: 'queued', openUrl: OPEN_URL },
     ])
     expect(boss.calls.slice(-2)).toEqual([
       ['offWork', 'telegram-outbox', { id: 'worker-1', wait: true }],

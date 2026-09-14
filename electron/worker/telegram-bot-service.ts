@@ -4,6 +4,7 @@ import type {
   TelegramChannelState,
   TelegramRuntimeState,
 } from '../../shared/telegram'
+import { isHumanKufarUrl } from './telegram-open-url'
 import { createTelegramReconnectPolicy } from './telegram-reconnect-policy'
 import { TelegramSendFailure } from './telegram-send-failure'
 
@@ -20,10 +21,18 @@ export interface TelegramBotHandlers {
   onCallbackQuery(chatId: string | null): Promise<void>
 }
 
+export interface TelegramNotificationSendOptions {
+  openUrl: string
+}
+
 export interface TelegramBotTransport {
   start(): Promise<void>
   stop(): Promise<void>
-  sendMessage(chatId: string, text: string): Promise<void>
+  sendMessage(
+    chatId: string,
+    text: string,
+    options?: TelegramNotificationSendOptions,
+  ): Promise<void>
 }
 
 export type TelegramBotErrorKind = 'polling' | 'handler'
@@ -38,7 +47,11 @@ export interface TelegramBotService {
   configure(token: string | null): Promise<void>
   resume(): Promise<void>
   bindCandidate(chatId: string): Promise<TelegramBindResult>
-  sendMessage(chatId: string, text: string): Promise<void>
+  sendMessage(
+    chatId: string,
+    text: string,
+    options?: TelegramNotificationSendOptions,
+  ): Promise<void>
   getState(): TelegramRuntimeState
   getCandidate(): TelegramCandidate | null
   getBoundChatId(): string | null
@@ -235,11 +248,18 @@ export function createTelegramBotService(options: TelegramBotServiceOptions): Te
       return 'bound'
     },
 
-    async sendMessage(chatId, text): Promise<void> {
+    async sendMessage(chatId, text, sendOptions): Promise<void> {
       if (boundChatId !== chatId) throw new TelegramSendFailure('permanent')
+      if (sendOptions && !isHumanKufarUrl(sendOptions.openUrl)) {
+        throw new TelegramSendFailure('permanent')
+      }
       const currentTransport = transport
       if (!currentTransport) throw new TelegramSendFailure('transient')
-      await currentTransport.sendMessage(chatId, text)
+      if (sendOptions) {
+        await currentTransport.sendMessage(chatId, text, sendOptions)
+      } else {
+        await currentTransport.sendMessage(chatId, text)
+      }
     },
 
     getState(): TelegramRuntimeState {

@@ -1,3 +1,4 @@
+import type { TelegramNotificationSendOptions } from './telegram-bot-service'
 import type { TelegramOutboxHandler } from './telegram-outbox-queue'
 import { TelegramSendFailure } from './telegram-send-failure'
 
@@ -11,7 +12,11 @@ export interface TelegramOutboxDeliveryRepository {
 
 export interface TelegramOutboxDeliveryOptions {
   repository: TelegramOutboxDeliveryRepository
-  sendMessage(chatId: string, text: string): Promise<void>
+  sendMessage(
+    chatId: string,
+    text: string,
+    options?: TelegramNotificationSendOptions,
+  ): Promise<void>
   publishJournal?(message: string): void
   now?: () => Date
   sleep?: (delayMs: number) => Promise<void>
@@ -45,7 +50,7 @@ export function createTelegramOutboxDelivery(
     lastAttemptAtByChat.set(payload.chatId, now().getTime())
 
     try {
-      await options.sendMessage(payload.chatId, payload.text)
+      await options.sendMessage(payload.chatId, payload.text, { openUrl: payload.openUrl })
     } catch (error) {
       if (error instanceof TelegramSendFailure && error.kind === 'permanent') {
         options.publishJournal?.('Telegram notification permanently rejected')

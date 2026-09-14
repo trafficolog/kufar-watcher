@@ -64,6 +64,7 @@ integration('PostgreSQL pg-boss Telegram outbox', () => {
       matchId: 931_313,
       chatId: '1001',
       text: 'restart-survival',
+      openUrl: 'https://www.kufar.by/item/931313',
     } satisfies TelegramOutboxPayload
 
     await seedPendingJob(payload)
