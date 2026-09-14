@@ -4,7 +4,7 @@ phase: 2
 epic: "2.7"
 status: done
 sync_state: aligned
-last_reviewed: 2026-09-12
+last_reviewed: 2026-09-14
 roles: [BACK, DB, QA]
 depends_on: ["2.4.3"]
 estimated_hours: 3-5
@@ -26,6 +26,8 @@ tags: [audit, run, lifecycle, prisma, recovery, p1]
 - Recovery заполняет `finishedAt`, безопасный `durationMs`, `errorCategory=internal`, `errorCode=worker-interrupted` и диагностическое `error`; `interrupted` не имитирует `success` или `skipped`.
 - Startup работает fail-closed: если recovery не завершился, scheduler не запускается. Поэтому новые runs текущей process incarnation не могут быть помечены orphan этим startup-step.
 - Recovery идемпотентен: повторный запуск не изменяет уже terminal `interrupted` row.
+
+> Историческое уточнение: исходная реализация этой карточки выполняла blind startup recovery. Multi-process ownership safety позже усилена задачей `2.7.12`: перед terminal mutation recovery теперь обязан получить и удерживать canonical per-monitor PostgreSQL advisory lease, поэтому live Run другого worker process не считается orphan только по наличию `running` row.
 
 ## Критерии приёмки
 

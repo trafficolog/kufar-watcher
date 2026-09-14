@@ -108,12 +108,14 @@ MVP-задаче `1.2.2`. До появления `HealthEvent` такие со�
 | `catchup` | bounded traversal chunk успешно сохранён вместе с checkpoint, но полный watermark traversal ещё не завершён | успешная попытка, не ошибка |
 | `skipped` | запуск намеренно пропущен, например из-за overlap | нейтральная; не считать успешным source traversal и не считать ошибкой |
 | `error` | попытка завершилась контролируемой или неожиданной ошибкой | неуспешная; причина уточняется через `errorCategory`, `errorCode` и `httpStatus` |
-| `interrupted` | startup recovery обнаружил `running` row предыдущего process incarnation без `finishedAt` | неуспешная terminal; не считать `success` или `skipped` |
+| `interrupted` | startup recovery доказал отсутствие live owner, получив canonical per-monitor advisory lease для незавершённого `running` row | неуспешная terminal; не считать `success` или `skipped` |
 
-Для `interrupted` recovery заполняет `finishedAt`, `durationMs`,
+Для `interrupted` recovery сначала получает и удерживает canonical per-monitor
+PostgreSQL advisory lease, а затем заполняет `finishedAt`, `durationMs`,
 `errorCategory=internal` и `errorCode=worker-interrupted` до запуска scheduler.
-Это делает повторный startup идемпотентным и не затрагивает normal `running`
-текущего процесса.
+Если lease занят другим live worker process, такой `running` row не считается
+orphan и остаётся незавершённым. Это делает recovery process-safe и повторный
+startup идемпотентным.
 
 На уровне БД constraint `Run_outcome_supported_check` отклоняет произвольные
 **non-null** строки и разрешает только шесть значений выше. Constraint создан

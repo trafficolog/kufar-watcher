@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { PrismaClient } from '../../generated/prisma/client'
 import type { SourceDegradationEvent } from '../../electron/worker/kufar-resilient-source'
+import { createLocalMonitorRunLeaseAcquirer } from '../../electron/worker/monitor-run-lease'
 import type {
   MonitorScheduleQueue,
   MonitorScheduleRepository,
@@ -137,6 +138,7 @@ describe('worker application', () => {
       reconcileError = options.onReconcileError
       return scheduler
     })
+    const createRunRecoveryLeaseAcquirer = vi.fn(() => createLocalMonitorRunLeaseAcquirer())
     telegram.createTelegramBotService.mockImplementation((options) => {
       telegramOptions = options
       return telegram.telegramService
@@ -149,6 +151,7 @@ describe('worker application', () => {
       createSourceRuntime,
       createRunExecutor,
       createScheduler,
+      createRunRecoveryLeaseAcquirer,
       createTelegramRepository: telegram.createTelegramRepository,
       createTelegramBotFactory: telegram.createTelegramBotFactory,
       createTelegramBotService: telegram.createTelegramBotService,
@@ -161,6 +164,7 @@ describe('worker application', () => {
     expect(createPrismaClient).toHaveBeenCalledWith(config.databaseUrl)
     expect(createQueue).toHaveBeenCalledOnce()
     expect(createQueue).toHaveBeenCalledWith(config.databaseUrl, expect.any(Function))
+    expect(createRunRecoveryLeaseAcquirer).toHaveBeenCalledWith(config.databaseUrl)
     expect(createRepository).toHaveBeenCalledWith(prisma)
     expect(createSourceRuntime).toHaveBeenCalledWith({
       prisma,
@@ -261,6 +265,7 @@ describe('worker application', () => {
   it('starts through the scheduler and stops outbox and Telegram before source and Prisma resources', async () => {
     const order: string[] = []
     const prisma = {
+      run: { findMany: vi.fn(async () => []) },
       $executeRaw: vi.fn(async () => 1),
       $disconnect: vi.fn(async () => {
         order.push('prisma')
@@ -292,6 +297,7 @@ describe('worker application', () => {
       createRunExecutor: () =>
         vi.fn(async () => ({ status: 'completed' })) as unknown as ScheduledMonitorRunExecutor,
       createScheduler: () => scheduler,
+      createRunRecoveryLeaseAcquirer: () => createLocalMonitorRunLeaseAcquirer(),
       createTelegramRepository: telegram.createTelegramRepository,
       createTelegramBotFactory: telegram.createTelegramBotFactory,
       createTelegramBotService: telegram.createTelegramBotService,

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { PrismaClient } from '../../generated/prisma/client'
+import type { AcquireMonitorRunLease } from '../../electron/worker/monitor-run-lease'
 import type {
   MonitorScheduleQueue,
   MonitorScheduleRepository,
@@ -25,10 +26,16 @@ const config = {
   monitorMaxPages: 5,
 }
 
+type RecoveryAwareDependencies = WorkerApplicationDependencies & {
+  createRunRecoveryLeaseAcquirer(databaseUrl: string): AcquireMonitorRunLease
+}
+
 function dependenciesFor(
   prisma: PrismaClient,
   scheduler: MonitorScheduler,
-): WorkerApplicationDependencies {
+  createRunRecoveryLeaseAcquirer: RecoveryAwareDependencies['createRunRecoveryLeaseAcquirer'] = () =>
+    async () => ({ release: async () => undefined }),
+): RecoveryAwareDependencies {
   const sourceRuntime = {
     createRunAdapters: vi.fn(() => ({}) as SourceAdapterRegistry),
     descriptionLoader: { ensureDescription: vi.fn() },
@@ -71,15 +78,29 @@ function dependenciesFor(
       markNotified: vi.fn(async () => undefined),
     }),
     createTelegramOutboxDelivery: () => vi.fn(async () => undefined),
+    createRunRecoveryLeaseAcquirer,
   }
 }
 
 describe('Run lifecycle startup recovery', () => {
-  it('recovers stale running rows before starting the scheduler', async () => {
+  it('reads candidates, holds the monitor lease through recovery, and releases before scheduler start', async () => {
     const order: string[] = []
+    const release = vi.fn(async () => {
+      order.push('lease:release')
+    })
+    const acquireMonitorRunLease: AcquireMonitorRunLease = vi.fn(async () => {
+      order.push('lease:acquire')
+      return { release }
+    })
     const prisma = {
+      run: {
+        findMany: vi.fn(async () => {
+          order.push('recovery:read')
+          return [{ monitorId: 101 }]
+        }),
+      },
       $executeRaw: vi.fn(async () => {
-        order.push('recover')
+        order.push('recovery:update')
         return 1
       }),
       $disconnect: vi.fn(async () => undefined),
@@ -91,19 +112,59 @@ describe('Run lifecycle startup recovery', () => {
       stop: vi.fn(async () => undefined),
     } as unknown as MonitorScheduler
 
-    const app = createWorkerApplication(config, vi.fn(), dependenciesFor(prisma, scheduler))
+    const app = createWorkerApplication(
+      config,
+      vi.fn(),
+      dependenciesFor(prisma, scheduler, () => acquireMonitorRunLease),
+    )
 
     await app.start()
 
-    expect(order).toEqual(['recover', 'scheduler:start'])
+    expect(order).toEqual([
+      'recovery:read',
+      'lease:acquire',
+      'recovery:update',
+      'lease:release',
+      'scheduler:start',
+    ])
+    expect(acquireMonitorRunLease).toHaveBeenCalledWith(101)
+    expect(release).toHaveBeenCalledTimes(1)
   })
 
-  it('does not start the scheduler when recovery fails', async () => {
-    const recoveryFailure = new Error('run recovery failed')
+  it('treats a busy monitor lease as a live-owner signal and still starts the scheduler', async () => {
+    const executeRaw = vi.fn(async () => 1)
+    const acquireMonitorRunLease: AcquireMonitorRunLease = vi.fn(async () => null)
     const prisma = {
-      $executeRaw: vi.fn(async () => {
-        throw recoveryFailure
-      }),
+      run: { findMany: vi.fn(async () => [{ monitorId: 101 }]) },
+      $executeRaw: executeRaw,
+      $disconnect: vi.fn(async () => undefined),
+    } as unknown as PrismaClient
+    const scheduler = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+    } as unknown as MonitorScheduler
+
+    const app = createWorkerApplication(
+      config,
+      vi.fn(),
+      dependenciesFor(prisma, scheduler, () => acquireMonitorRunLease),
+    )
+
+    await expect(app.start()).resolves.toBeUndefined()
+    expect(executeRaw).not.toHaveBeenCalled()
+    expect(scheduler.start).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not start the scheduler when candidate discovery fails', async () => {
+    const recoveryFailure = new Error('run recovery read failed')
+    const executeRaw = vi.fn(async () => 1)
+    const prisma = {
+      run: {
+        findMany: vi.fn(async () => {
+          throw recoveryFailure
+        }),
+      },
+      $executeRaw: executeRaw,
       $disconnect: vi.fn(async () => undefined),
     } as unknown as PrismaClient
     const scheduler = {
@@ -114,6 +175,91 @@ describe('Run lifecycle startup recovery', () => {
     const app = createWorkerApplication(config, vi.fn(), dependenciesFor(prisma, scheduler))
 
     await expect(app.start()).rejects.toBe(recoveryFailure)
+    expect(executeRaw).not.toHaveBeenCalled()
+    expect(scheduler.start).not.toHaveBeenCalled()
+  })
+
+  it('does not start the scheduler when lease acquisition fails', async () => {
+    const leaseFailure = new Error('run recovery lease failed')
+    const executeRaw = vi.fn(async () => 1)
+    const acquireMonitorRunLease: AcquireMonitorRunLease = vi.fn(async () => {
+      throw leaseFailure
+    })
+    const prisma = {
+      run: { findMany: vi.fn(async () => [{ monitorId: 101 }]) },
+      $executeRaw: executeRaw,
+      $disconnect: vi.fn(async () => undefined),
+    } as unknown as PrismaClient
+    const scheduler = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+    } as unknown as MonitorScheduler
+
+    const app = createWorkerApplication(
+      config,
+      vi.fn(),
+      dependenciesFor(prisma, scheduler, () => acquireMonitorRunLease),
+    )
+
+    await expect(app.start()).rejects.toBe(leaseFailure)
+    expect(executeRaw).not.toHaveBeenCalled()
+    expect(scheduler.start).not.toHaveBeenCalled()
+  })
+
+  it('releases the monitor lease when the recovery mutation fails and preserves the mutation error', async () => {
+    const mutationFailure = new Error('run recovery mutation failed')
+    const releaseFailure = new Error('run recovery release failed')
+    const release = vi.fn(async () => {
+      throw releaseFailure
+    })
+    const acquireMonitorRunLease: AcquireMonitorRunLease = vi.fn(async () => ({ release }))
+    const prisma = {
+      run: { findMany: vi.fn(async () => [{ monitorId: 101 }]) },
+      $executeRaw: vi.fn(async () => {
+        throw mutationFailure
+      }),
+      $disconnect: vi.fn(async () => undefined),
+    } as unknown as PrismaClient
+    const scheduler = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+    } as unknown as MonitorScheduler
+
+    const app = createWorkerApplication(
+      config,
+      vi.fn(),
+      dependenciesFor(prisma, scheduler, () => acquireMonitorRunLease),
+    )
+
+    await expect(app.start()).rejects.toBe(mutationFailure)
+    expect(release).toHaveBeenCalledTimes(1)
+    expect(scheduler.start).not.toHaveBeenCalled()
+  })
+
+  it('fails startup when lease release fails after a successful recovery mutation', async () => {
+    const releaseFailure = new Error('run recovery release failed')
+    const release = vi.fn(async () => {
+      throw releaseFailure
+    })
+    const acquireMonitorRunLease: AcquireMonitorRunLease = vi.fn(async () => ({ release }))
+    const prisma = {
+      run: { findMany: vi.fn(async () => [{ monitorId: 101 }]) },
+      $executeRaw: vi.fn(async () => 1),
+      $disconnect: vi.fn(async () => undefined),
+    } as unknown as PrismaClient
+    const scheduler = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+    } as unknown as MonitorScheduler
+
+    const app = createWorkerApplication(
+      config,
+      vi.fn(),
+      dependenciesFor(prisma, scheduler, () => acquireMonitorRunLease),
+    )
+
+    await expect(app.start()).rejects.toBe(releaseFailure)
+    expect(release).toHaveBeenCalledTimes(1)
     expect(scheduler.start).not.toHaveBeenCalled()
   })
 })

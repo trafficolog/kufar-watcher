@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { Client } from 'pg'
 
 import type { PrismaClient } from '../../generated/prisma/client'
 import type {
@@ -6,6 +7,7 @@ import type {
   MonitorScheduleRepository,
   MonitorScheduler,
 } from '../../electron/worker/monitor-scheduler'
+import { createPostgresMonitorRunLeaseAcquirer } from '../../electron/worker/monitor-run-lease'
 import { createPrismaClient } from '../../electron/worker/prisma-client'
 import type { ScheduledMonitorRunExecutor } from '../../electron/worker/scheduled-monitor-run'
 import type {
@@ -22,6 +24,7 @@ import type { SourceAdapterRegistry } from '../../shared/source-adapter-registry
 
 const integration = process.env.KUFAR_POSTGRES_INTEGRATION === '1' ? describe : describe.skip
 const MONITOR_ID = 916_101
+const OTHER_MONITOR_ID = 916_102
 const QUERY = {
   host: 'www.kufar.by',
   category: 'igry-i-pristavki',
@@ -37,6 +40,16 @@ const config = {
   databaseUrl: 'postgresql://run-lifecycle-integration',
   rawResponseJournalDir: '/tmp/kufar-run-lifecycle-integration',
   monitorMaxPages: 5,
+}
+
+function databaseUrl(): string {
+  const value = process.env.DATABASE_URL
+  if (!value) throw new Error('DATABASE_URL is required for Run recovery integration')
+  return value
+}
+
+function workerConfig() {
+  return { ...config, databaseUrl: databaseUrl() }
 }
 
 function dependenciesFor(
@@ -72,6 +85,8 @@ function dependenciesFor(
     createRunExecutor: () =>
       vi.fn(async () => ({ status: 'completed' })) as unknown as ScheduledMonitorRunExecutor,
     createScheduler: () => scheduler,
+    createRunRecoveryLeaseAcquirer: (connectionString) =>
+      createPostgresMonitorRunLeaseAcquirer(connectionString),
     createTelegramRepository: () => telegramRepository,
     createTelegramBotFactory: () => telegramBotFactory,
     createTelegramBotService: () => telegramService,
@@ -88,6 +103,30 @@ function dependenciesFor(
   }
 }
 
+function scheduler(): MonitorScheduler {
+  return {
+    start: vi.fn(async () => undefined),
+    stop: vi.fn(async () => undefined),
+  } as unknown as MonitorScheduler
+}
+
+async function waitForBlockedRunUpdate(observer: Client): Promise<void> {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const result = await observer.query<{ query: string }>(`
+      SELECT activity.query
+      FROM pg_stat_activity activity
+      WHERE activity.datname = current_database()
+        AND activity.pid <> pg_backend_pid()
+        AND pg_backend_pid() = ANY(pg_blocking_pids(activity.pid))
+      LIMIT 1
+    `)
+    if (result.rows[0]) return
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+
+  throw new Error('Timed out waiting for recovery UPDATE to block on the Run row lock')
+}
+
 integration('Run lifecycle recovery', () => {
   let prisma: ReturnType<typeof createPrismaClient>
 
@@ -97,21 +136,26 @@ integration('Run lifecycle recovery', () => {
   })
 
   beforeEach(async () => {
-    await prisma.monitor.deleteMany({ where: { id: MONITOR_ID } })
-    await prisma.monitor.create({
-      data: {
-        id: MONITOR_ID,
-        name: 'run-lifecycle-recovery',
-        sourceUrl: 'https://fixtures.invalid/run-lifecycle-recovery',
-        query: QUERY,
-        intervalSec: 60,
-        keywords: [],
-      },
-    })
+    await prisma.monitor.deleteMany({ where: { id: { in: [MONITOR_ID, OTHER_MONITOR_ID] } } })
+    for (const [id, name] of [
+      [MONITOR_ID, 'run-lifecycle-recovery'],
+      [OTHER_MONITOR_ID, 'run-lifecycle-recovery-other'],
+    ] as const) {
+      await prisma.monitor.create({
+        data: {
+          id,
+          name,
+          sourceUrl: `https://fixtures.invalid/${name}`,
+          query: QUERY,
+          intervalSec: 60,
+          keywords: [],
+        },
+      })
+    }
   })
 
   afterAll(async () => {
-    await prisma.monitor.deleteMany({ where: { id: MONITOR_ID } })
+    await prisma.monitor.deleteMany({ where: { id: { in: [MONITOR_ID, OTHER_MONITOR_ID] } } })
     await prisma.$disconnect()
   })
 
@@ -130,7 +174,7 @@ integration('Run lifecycle recovery', () => {
       },
     })
     let currentRunId: number | undefined
-    const scheduler = {
+    const currentScheduler = {
       start: vi.fn(async () => {
         const current = await prisma.run.create({
           data: { monitorId: MONITOR_ID, outcome: 'running' },
@@ -139,7 +183,11 @@ integration('Run lifecycle recovery', () => {
       }),
       stop: vi.fn(async () => undefined),
     } as unknown as MonitorScheduler
-    const app = createWorkerApplication(config, vi.fn(), dependenciesFor(prisma, scheduler))
+    const app = createWorkerApplication(
+      workerConfig(),
+      vi.fn(),
+      dependenciesFor(prisma, currentScheduler),
+    )
 
     await app.start()
 
@@ -166,6 +214,193 @@ integration('Run lifecycle recovery', () => {
     })
   })
 
+  it('does not interrupt a running row owned by another live PostgreSQL session', async () => {
+    const acquireLease = createPostgresMonitorRunLeaseAcquirer(databaseUrl())
+    const ownerLease = await acquireLease(MONITOR_ID)
+    expect(ownerLease).not.toBeNull()
+    if (!ownerLease) throw new Error('Expected owner lease to be acquired')
+
+    const liveRun = await prisma.run.create({
+      data: {
+        monitorId: MONITOR_ID,
+        startedAt: new Date(Date.now() - 5_000),
+        outcome: 'running',
+      },
+    })
+    const currentScheduler = scheduler()
+    const appWhileOwned = createWorkerApplication(
+      workerConfig(),
+      vi.fn(),
+      dependenciesFor(prisma, currentScheduler),
+    )
+
+    try {
+      await appWhileOwned.start()
+      expect(await prisma.run.findUniqueOrThrow({ where: { id: liveRun.id } })).toMatchObject({
+        outcome: 'running',
+        finishedAt: null,
+      })
+      expect(currentScheduler.start).toHaveBeenCalledTimes(1)
+    } finally {
+      await ownerLease.release()
+    }
+
+    const recoveryApp = createWorkerApplication(
+      workerConfig(),
+      vi.fn(),
+      dependenciesFor(prisma, currentScheduler),
+    )
+    await recoveryApp.start()
+
+    const recovered = await prisma.run.findUniqueOrThrow({ where: { id: liveRun.id } })
+    expect(recovered).toMatchObject({
+      outcome: 'interrupted',
+      error: 'Worker process interrupted before Run completion',
+      errorCategory: 'internal',
+      errorCode: 'worker-interrupted',
+    })
+    expect(recovered.finishedAt).not.toBeNull()
+    expect(recovered.durationMs ?? -1).toBeGreaterThanOrEqual(0)
+  })
+
+  it('holds the advisory lease through the blocked terminal update without blocking other monitors', async () => {
+    const staleRun = await prisma.run.create({
+      data: {
+        monitorId: MONITOR_ID,
+        startedAt: new Date(Date.now() - 5_000),
+        outcome: 'running',
+      },
+    })
+    const blocker = new Client({ connectionString: databaseUrl() })
+    await blocker.connect()
+    await blocker.query('BEGIN')
+    await blocker.query('SELECT "id" FROM "Run" WHERE "id" = $1 FOR UPDATE', [staleRun.id])
+
+    const recoveryScheduler = scheduler()
+    const app = createWorkerApplication(
+      workerConfig(),
+      vi.fn(),
+      dependenciesFor(prisma, recoveryScheduler),
+    )
+    const startPromise = app.start()
+    let transactionOpen = true
+
+    try {
+      await waitForBlockedRunUpdate(blocker)
+      const thirdAcquire = createPostgresMonitorRunLeaseAcquirer(databaseUrl())
+
+      expect(await thirdAcquire(MONITOR_ID)).toBeNull()
+
+      const otherLease = await thirdAcquire(OTHER_MONITOR_ID)
+      expect(otherLease).not.toBeNull()
+      await otherLease?.release()
+
+      await blocker.query('ROLLBACK')
+      transactionOpen = false
+      await startPromise
+
+      const leaseAfter = await thirdAcquire(MONITOR_ID)
+      expect(leaseAfter).not.toBeNull()
+      await leaseAfter?.release()
+
+      expect(await prisma.run.findUniqueOrThrow({ where: { id: staleRun.id } })).toMatchObject({
+        outcome: 'interrupted',
+        errorCategory: 'internal',
+        errorCode: 'worker-interrupted',
+      })
+    } finally {
+      if (transactionOpen) await blocker.query('ROLLBACK').catch(() => undefined)
+      await blocker.end()
+      await startPromise.catch(() => undefined)
+    }
+  })
+
+  it('recovers every stale running row for one monitor under the same ownership window', async () => {
+    const first = await prisma.run.create({
+      data: { monitorId: MONITOR_ID, outcome: 'running' },
+    })
+    const second = await prisma.run.create({
+      data: { monitorId: MONITOR_ID, outcome: 'running' },
+    })
+    const app = createWorkerApplication(
+      workerConfig(),
+      vi.fn(),
+      dependenciesFor(prisma, scheduler()),
+    )
+
+    await app.start()
+
+    const rows = await prisma.run.findMany({
+      where: { id: { in: [first.id, second.id] } },
+      orderBy: { id: 'asc' },
+    })
+    expect(rows).toHaveLength(2)
+    for (const row of rows) {
+      expect(row).toMatchObject({
+        outcome: 'interrupted',
+        error: 'Worker process interrupted before Run completion',
+        errorCategory: 'internal',
+        errorCode: 'worker-interrupted',
+      })
+      expect(row.finishedAt).not.toBeNull()
+    }
+  })
+
+  it('serializes concurrent recovery contexts through the canonical monitor advisory lease', async () => {
+    const staleRun = await prisma.run.create({
+      data: {
+        monitorId: MONITOR_ID,
+        startedAt: new Date(Date.now() - 5_000),
+        outcome: 'running',
+      },
+    })
+    const blocker = new Client({ connectionString: databaseUrl() })
+    await blocker.connect()
+    await blocker.query('BEGIN')
+    await blocker.query('SELECT "id" FROM "Run" WHERE "id" = $1 FOR UPDATE', [staleRun.id])
+
+    const firstScheduler = scheduler()
+    const secondScheduler = scheduler()
+    const firstApp = createWorkerApplication(
+      workerConfig(),
+      vi.fn(),
+      dependenciesFor(prisma, firstScheduler),
+    )
+    const secondApp = createWorkerApplication(
+      workerConfig(),
+      vi.fn(),
+      dependenciesFor(prisma, secondScheduler),
+    )
+    const firstStart = firstApp.start()
+    let transactionOpen = true
+
+    try {
+      await waitForBlockedRunUpdate(blocker)
+      await secondApp.start()
+
+      expect(secondScheduler.start).toHaveBeenCalledTimes(1)
+      expect(await prisma.run.findUniqueOrThrow({ where: { id: staleRun.id } })).toMatchObject({
+        outcome: 'running',
+        finishedAt: null,
+      })
+
+      await blocker.query('ROLLBACK')
+      transactionOpen = false
+      await firstStart
+
+      expect(firstScheduler.start).toHaveBeenCalledTimes(1)
+      expect(await prisma.run.findUniqueOrThrow({ where: { id: staleRun.id } })).toMatchObject({
+        outcome: 'interrupted',
+        errorCategory: 'internal',
+        errorCode: 'worker-interrupted',
+      })
+    } finally {
+      if (transactionOpen) await blocker.query('ROLLBACK').catch(() => undefined)
+      await blocker.end()
+      await firstStart.catch(() => undefined)
+    }
+  })
+
   it('is idempotent when startup recovery runs again', async () => {
     const orphan = await prisma.run.create({
       data: {
@@ -174,16 +409,21 @@ integration('Run lifecycle recovery', () => {
         outcome: 'running',
       },
     })
-    const scheduler = {
-      start: vi.fn(async () => undefined),
-      stop: vi.fn(async () => undefined),
-    } as unknown as MonitorScheduler
+    const currentScheduler = scheduler()
 
-    const firstApp = createWorkerApplication(config, vi.fn(), dependenciesFor(prisma, scheduler))
+    const firstApp = createWorkerApplication(
+      workerConfig(),
+      vi.fn(),
+      dependenciesFor(prisma, currentScheduler),
+    )
     await firstApp.start()
     const first = await prisma.run.findUniqueOrThrow({ where: { id: orphan.id } })
 
-    const secondApp = createWorkerApplication(config, vi.fn(), dependenciesFor(prisma, scheduler))
+    const secondApp = createWorkerApplication(
+      workerConfig(),
+      vi.fn(),
+      dependenciesFor(prisma, currentScheduler),
+    )
     await secondApp.start()
     const second = await prisma.run.findUniqueOrThrow({ where: { id: orphan.id } })
 
