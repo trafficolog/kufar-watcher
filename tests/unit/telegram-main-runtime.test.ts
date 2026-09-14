@@ -20,6 +20,7 @@ describe('Telegram main runtime', () => {
     const token = 'SECRET_SENTINEL_3_1_1'
     const store: TelegramSecretStore = {
       read: vi.fn(async () => ({ state: 'protected' as const, token })),
+      write: vi.fn(async () => ({ state: 'protected' as const })),
     }
     const supervisor = createSupervisor()
 
@@ -38,6 +39,7 @@ describe('Telegram main runtime', () => {
             ? { state: 'missing' as const }
             : { state: 'unavailable' as const, reason: 'decrypt-failed' as const },
         ),
+        write: vi.fn(async () => ({ state: 'protected' as const })),
       }
       const supervisor = createSupervisor()
 
