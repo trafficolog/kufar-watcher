@@ -10,14 +10,18 @@ const OPEN_URL = 'https://www.kufar.by/item/123'
 function createRepository(notifiedAt: Date | null = null) {
   return {
     getNotifiedAt: vi.fn(async (): Promise<Date | null | undefined> => notifiedAt),
+    markSending: vi.fn(async () => undefined),
     markNotified: vi.fn(async () => undefined),
   }
 }
 
 describe('Telegram outbox delivery', () => {
-  it('marks Match notified only after Telegram confirms the send', async () => {
+  it('marks Match sending before Telegram receives the external side effect', async () => {
     const calls: string[] = []
     const repository = createRepository()
+    repository.markSending.mockImplementation(async () => {
+      calls.push('sending')
+    })
     repository.markNotified.mockImplementation(async () => {
       calls.push('mark')
     })
@@ -34,7 +38,8 @@ describe('Telegram outbox delivery', () => {
 
     await delivery({ matchId: 11, chatId: '42', text: 'hello', openUrl: OPEN_URL })
 
-    expect(calls).toEqual(['send', 'mark'])
+    expect(calls).toEqual(['sending', 'send', 'mark'])
+    expect(repository.markSending).toHaveBeenCalledWith(11, deliveredAt)
     expect(repository.markNotified).toHaveBeenCalledWith(11, deliveredAt)
   })
 
