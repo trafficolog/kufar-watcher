@@ -6,15 +6,14 @@ interface MonitorCreateModelModule {
 
 describe('monitor create model', () => {
   it('shows parsed category, region, and search query before save', async () => {
-    const module =
-      (await import('../../app/lib/monitor-create-model')) as MonitorCreateModelModule
+    const module: MonitorCreateModelModule = await import('../../app/lib/monitor-create-model')
 
     expect(module.previewMonitorUrl).toBeTypeOf('function')
-    expect(
-      module.previewMonitorUrl!(
-        'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~playstation',
-      ),
-    ).toEqual({
+    const preview = module.previewMonitorUrl!(
+      'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~playstation',
+    )
+
+    expect(preview).toEqual({
       state: 'valid',
       category: 'Электроника',
       region: 'minsk',
