@@ -36,14 +36,13 @@ describe('createMonitorConfigAndSync', () => {
       include: ['ps5', 'playstation*'],
       exclude: ['repair'],
     }
-    const module = (await import(
-      '../../electron/worker/monitor-config-sync'
-    )) as MonitorCreateConfigSyncModule
+    const module =
+      (await import('../../electron/worker/monitor-config-sync')) as MonitorCreateConfigSyncModule
 
     expect(module.createMonitorConfigAndSync).toBeTypeOf('function')
-    await expect(
-      module.createMonitorConfigAndSync!(prisma, scheduler, input),
-    ).resolves.toEqual({ monitorId: 17 })
+    await expect(module.createMonitorConfigAndSync!(prisma, scheduler, input)).resolves.toEqual({
+      monitorId: 17,
+    })
 
     expect(createdData).toEqual([
       {
