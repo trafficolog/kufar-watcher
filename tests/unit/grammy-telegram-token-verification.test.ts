@@ -13,7 +13,12 @@ interface TelegramVerifyingTransport {
 
 describe('grammY Telegram token verification', () => {
   it('gets the bot identity without starting polling', async () => {
-    const getMe = vi.fn(async () => ({ id: 42, is_bot: true, first_name: 'Kufar', username: 'kufar_watch_bot' }))
+    const getMe = vi.fn(async () => ({
+      id: 42,
+      is_bot: true,
+      first_name: 'Kufar',
+      username: 'kufar_watch_bot',
+    }))
     const bot = {
       on: vi.fn(),
       catch: vi.fn(),
