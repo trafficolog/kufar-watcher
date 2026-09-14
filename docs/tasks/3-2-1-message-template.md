@@ -2,9 +2,9 @@
 id: "3.2.1"
 phase: 3
 epic: "3.2"
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-05
+last_reviewed: 2026-09-14
 roles: [BACK]
 depends_on: ["3.1.3", "2.2.2"]
 estimated_hours: 2-3
@@ -14,7 +14,7 @@ tags: [telegram, format]
 
 # Задача 3.2.1 — Шаблон сообщения и экранирование
 
-> Эпик 3.2 · Фаза 3 · ⬜ todo · зависит от: 3.1.3, 2.2.2 · оценка: 2-3 ч
+> Эпик 3.2 · Фаза 3 · 🔄 in_progress · зависит от: 3.1.3, 2.2.2 · оценка: 2-3 ч
 
 ## Цель
 
