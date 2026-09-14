@@ -37,7 +37,11 @@ export interface GrammyBotLike {
   ): void
   catch(handler: () => void): void
   api: {
-    sendMessage(chatId: string, text: string, options?: GrammySendMessageOptionsLike): Promise<unknown>
+    sendMessage(
+      chatId: string,
+      text: string,
+      options?: GrammySendMessageOptionsLike,
+    ): Promise<unknown>
   }
 }
 
@@ -116,7 +120,9 @@ function runRealBot(bot: GrammyBotLike, options: GrammyRunnerOptionsLike): Gramm
   return run(bot as unknown as Bot, options) as unknown as GrammyRunnerHandleLike
 }
 
-function notificationOptions(options: TelegramNotificationSendOptions): GrammySendMessageOptionsLike {
+function notificationOptions(
+  options: TelegramNotificationSendOptions,
+): GrammySendMessageOptionsLike {
   return {
     parse_mode: 'HTML',
     reply_markup: {
