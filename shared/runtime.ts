@@ -1,3 +1,4 @@
+import type { MonitorCreateInput, MonitorCreateResult } from './ipc'
 import type {
   TelegramBindResult,
   TelegramCandidate,
@@ -14,6 +15,11 @@ export type WorkerControlMessage =
       requestId: string
       chatId: string
     }
+  | {
+      type: 'monitor-create'
+      requestId: string
+      input: MonitorCreateInput
+    }
 
 export type WorkerEvent =
   | { type: 'ready' }
@@ -24,6 +30,12 @@ export type WorkerEvent =
       monitorId: number
       stage: 'primary' | 'html-fallback' | 'degradation-event'
     }
+  | {
+      type: 'monitor-create-result'
+      requestId: string
+      result: MonitorCreateResult
+    }
+  | { type: 'monitor-create-error'; requestId: string }
   | {
       type: 'telegram-state'
       state: TelegramRuntimeState
