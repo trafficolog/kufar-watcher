@@ -25,7 +25,12 @@ export interface TelegramNotificationSendOptions {
   openUrl: string
 }
 
+export interface TelegramBotIdentity {
+  username: string
+}
+
 export interface TelegramBotTransport {
+  getMe?(): Promise<TelegramBotIdentity>
   start(): Promise<void>
   stop(): Promise<void>
   sendMessage(
@@ -44,6 +49,7 @@ export type TelegramBotFactory = (
 ) => TelegramBotTransport
 
 export interface TelegramBotService {
+  verifyToken(token: string): Promise<TelegramBotIdentity>
   configure(token: string | null): Promise<void>
   resume(): Promise<void>
   bindCandidate(chatId: string): Promise<TelegramBindResult>
@@ -69,6 +75,11 @@ export interface TelegramBotServiceOptions {
 
 function journalMessage(kind: TelegramBotErrorKind): string {
   return kind === 'polling' ? 'Telegram polling failed' : 'Telegram update handler failed'
+}
+
+const verificationHandlers: TelegramBotHandlers = {
+  async onMessage(): Promise<void> {},
+  async onCallbackQuery(): Promise<void> {},
 }
 
 export function createTelegramBotService(options: TelegramBotServiceOptions): TelegramBotService {
@@ -207,6 +218,22 @@ export function createTelegramBotService(options: TelegramBotServiceOptions): Te
   }
 
   return {
+    async verifyToken(token): Promise<TelegramBotIdentity> {
+      let probe: TelegramBotTransport
+      try {
+        probe = options.createBot(token, verificationHandlers, () => undefined)
+      } catch {
+        throw new Error('Telegram token verification failed')
+      }
+
+      try {
+        if (!probe.getMe) throw new Error('Telegram token verification failed')
+        return await probe.getMe()
+      } finally {
+        await probe.stop()
+      }
+    },
+
     async configure(token): Promise<void> {
       lifecycleGeneration += 1
       const generation = lifecycleGeneration
