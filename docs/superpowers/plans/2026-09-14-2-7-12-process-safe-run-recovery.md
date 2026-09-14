@@ -36,9 +36,10 @@
 - Modify `docs/superpowers/specs/data-model.md` — clarify that startup `interrupted` requires advisory-lease ownership proof, not merely a `running` row.
 - Create `electron/worker/monitor-run-recovery.ts` — sole owner of process-safe orphan recovery algorithm and SQL mutation.
 - Modify `electron/worker/worker-application.ts` — remove blind global recovery, wire the focused recovery module and production PostgreSQL lease acquirer.
-- Keep `electron/worker/monitor-run-lease.ts` behavior unchanged unless a minimal export/type refactor is necessary; no namespace/policy changes.
+- Keep `electron/worker/monitor-run-lease.ts` behavior and exports unchanged; its current exported `AcquireMonitorRunLease`, local acquirer, and PostgreSQL acquirer are sufficient.
 - Modify `tests/unit/run-lifecycle-recovery.test.ts` — unit orchestration, busy lease, fail-closed and release semantics.
 - Modify `tests/integration/run-lifecycle-recovery.test.ts` — real multi-context PostgreSQL characterization and recovery acceptance.
+- Modify dependency fixtures in `tests/unit/worker-application.test.ts`, `tests/unit/telegram-outbox-application.test.ts`, and `tests/unit/telegram-reconnect-application.test.ts` so custom worker applications inject a local recovery lease acquirer rather than reaching a fake PostgreSQL URL.
 - No change to `scripts/verify-postgres-compose.sh`: `run-lifecycle-recovery.test.ts` is already in the canonical PostgreSQL integration allowlist.
 
 ---
@@ -288,11 +289,11 @@ type RecoveryAwareDependencies = WorkerApplicationDependencies & {
 }
 ```
 
-When constructing the object for RED, cast only at the final test boundary if TypeScript rejects the future field. Remove the temporary extension/cast in the GREEN commit once `WorkerApplicationDependencies` owns the field.
+Pass the extended object to `createWorkerApplication()` through one final `as unknown as WorkerApplicationDependencies` cast. Current production ignores the extra function, which is exactly why the following assertions are RED. Remove the extension/cast in the GREEN commit once `WorkerApplicationDependencies` owns the field.
 
 - [ ] **Step 2: RED — recovery still precedes scheduler start**
 
-Replace the old `$executeRaw`-only sequencing assertion with an observable lease/recovery sequence:
+Replace the old `$executeRaw`-only sequencing assertion with an observable future flow:
 
 ```ts
 expect(order).toEqual([
@@ -304,11 +305,11 @@ expect(order).toEqual([
 ])
 ```
 
-The Prisma double must expose `run.findMany()` for candidate monitor IDs and `$executeRaw` for terminal mutation.
+The Prisma double exposes `run.findMany()` returning one candidate and `$executeRaw` pushing `recovery:update`; the injected lease acquirer pushes `lease:acquire` and returns a lease whose `release()` pushes `lease:release`. Current production produces only the blind update/scheduler sequence, so the assertion fails for the ownership gap.
 
 - [ ] **Step 3: RED — a busy lease is not startup failure**
 
-Set `run.findMany()` to return `[{ monitorId: 101 }]`, have `acquireMonitorRunLease(101)` return `null`, and assert:
+Set `run.findMany()` to return `[{ monitorId: 101 }]`, inject an acquirer that returns `null`, and assert:
 
 ```ts
 await expect(app.start()).resolves.toBeUndefined()
@@ -316,26 +317,37 @@ expect(prisma.$executeRaw).not.toHaveBeenCalled()
 expect(scheduler.start).toHaveBeenCalledTimes(1)
 ```
 
+Current production ignores the busy-lease seam and executes the blind mutation, so this is RED.
+
 - [ ] **Step 4: RED — infrastructure failure remains fail-closed**
 
-Cover both candidate read failure and lease acquisition rejection:
+Cover candidate-read rejection and lease-acquisition rejection separately:
 
 ```ts
 await expect(app.start()).rejects.toBe(recoveryFailure)
 expect(scheduler.start).not.toHaveBeenCalled()
 ```
 
-Do not convert a thrown lease error into a busy `null` signal.
+For the lease-acquisition case, `run.findMany()` succeeds and the injected acquirer rejects. Current production never calls it, so the expected lease error is not observed.
 
-- [ ] **Step 5: RED — release semantics**
+- [ ] **Step 5: RED — release always runs and primary errors are not masked**
 
-Add module-level tests that require:
+Drive all cases through `app.start()` with one candidate:
 
 ```ts
 expect(release).toHaveBeenCalledTimes(1)
 ```
 
-for successful mutation and failed mutation paths. For a mutation error plus release error, assert the mutation error is the one rethrown. For a successful mutation plus release error, assert the release error rejects recovery/startup.
+Cases:
+
+```text
+successful mutation + successful release -> start succeeds, release once
+failed mutation + successful release -> mutation error rejects, release once
+failed mutation + failed release -> mutation error remains the rejection, release once
+successful mutation + failed release -> release error rejects startup
+```
+
+Current production ignores the injected lease entirely, so release assertions/release-error disposition are RED without importing a not-yet-created production module.
 
 - [ ] **Step 6: Run the unit file and confirm RED**
 
@@ -361,8 +373,12 @@ git commit -m "test: define process-safe run recovery contract"
 **Files:**
 - Create: `electron/worker/monitor-run-recovery.ts`
 - Modify: `electron/worker/worker-application.ts`
-- Modify only if required for exports/types: `electron/worker/monitor-run-lease.ts`
-- Modify test fixtures that construct `WorkerApplicationDependencies`: `tests/unit/run-lifecycle-recovery.test.ts`, `tests/integration/run-lifecycle-recovery.test.ts`, and any compiler-reported `WorkerApplicationDependencies` fixtures such as `tests/unit/worker-application.test.ts`.
+- Modify: `tests/unit/run-lifecycle-recovery.test.ts`
+- Modify: `tests/integration/run-lifecycle-recovery.test.ts`
+- Modify: `tests/unit/worker-application.test.ts`
+- Modify: `tests/unit/telegram-outbox-application.test.ts`
+- Modify: `tests/unit/telegram-reconnect-application.test.ts`
+- Do not modify: `electron/worker/monitor-run-lease.ts`
 
 **Interfaces:**
 - Consumes:
@@ -451,12 +467,12 @@ Keep every existing mutation field exactly as above; do not reset journal counte
 
 - [ ] **Step 4: Implement non-masking release error semantics**
 
-Use explicit primary-error tracking instead of a `finally` that can mask the mutation error:
+Use a small helper for one acquired monitor lease:
 
 ```ts
 let primaryError: unknown
 try {
-  await recoverMonitorRows(...)
+  await recoverMonitorRows(prisma, monitorId)
 } catch (error) {
   primaryError = error
 }
@@ -504,20 +520,39 @@ await scheduler.start()
 
 Delete the old local `recoverInterruptedRuns()` blind global `UPDATE` from `worker-application.ts`.
 
-- [ ] **Step 6: Update test dependency fixtures mechanically**
+- [ ] **Step 6: Update every known custom WorkerApplication dependency fixture**
 
-Any `WorkerApplicationDependencies` literal must supply an injected acquirer. For non-recovery unit tests use a local deterministic acquirer, for example:
+Add the local acquirer import and this dependency to:
+
+```text
+tests/unit/run-lifecycle-recovery.test.ts
+tests/unit/worker-application.test.ts
+tests/unit/telegram-outbox-application.test.ts
+tests/unit/telegram-reconnect-application.test.ts
+```
+
+Use:
 
 ```ts
 createRunRecoveryLeaseAcquirer: () => createLocalMonitorRunLeaseAcquirer(),
 ```
 
-For PostgreSQL recovery integration use:
+For `tests/integration/run-lifecycle-recovery.test.ts`, use the real database-backed dependency:
 
 ```ts
 createRunRecoveryLeaseAcquirer: (databaseUrl) =>
   createPostgresMonitorRunLeaseAcquirer(databaseUrl),
 ```
+
+Prisma doubles in tests that call `app.start()` must expose:
+
+```ts
+run: {
+  findMany: vi.fn(async () => []),
+},
+```
+
+unless the test intentionally supplies recovery candidates.
 
 Do not let production code infer a local fallback from a fake Prisma client.
 
@@ -526,7 +561,10 @@ Do not let production code infer a local fallback from a fake Prisma client.
 Run:
 
 ```bash
-npx vitest run tests/unit/run-lifecycle-recovery.test.ts
+npx vitest run tests/unit/run-lifecycle-recovery.test.ts \
+  tests/unit/worker-application.test.ts \
+  tests/unit/telegram-outbox-application.test.ts \
+  tests/unit/telegram-reconnect-application.test.ts
 ```
 
 Expected: PASS.
@@ -549,21 +587,20 @@ Run:
 npm run typecheck
 ```
 
-Expected: PASS; no missing `WorkerApplicationDependencies` fixtures.
+Expected: PASS with the new required dependency present in every custom worker dependency fixture.
 
 - [ ] **Step 10: Commit the GREEN implementation**
 
 ```bash
 git add electron/worker/monitor-run-recovery.ts \
   electron/worker/worker-application.ts \
-  electron/worker/monitor-run-lease.ts \
   tests/unit/run-lifecycle-recovery.test.ts \
   tests/integration/run-lifecycle-recovery.test.ts \
-  tests/unit/worker-application.test.ts
+  tests/unit/worker-application.test.ts \
+  tests/unit/telegram-outbox-application.test.ts \
+  tests/unit/telegram-reconnect-application.test.ts
 git commit -m "fix: make run recovery process-safe"
 ```
-
-Only include `monitor-run-lease.ts` or additional test files if they actually changed.
 
 ---
 
@@ -571,42 +608,70 @@ Only include `monitor-run-lease.ts` or additional test files if they actually ch
 
 **Files:**
 - Modify: `tests/integration/run-lifecycle-recovery.test.ts`
-- Modify: `tests/unit/run-lifecycle-recovery.test.ts` only for release-error cases not already covered.
-- Production code changes only if one of these tests exposes a real contract gap.
+- No production files.
 
 **Interfaces:**
 - Consumes: `recoverInterruptedMonitorRuns()` and canonical `createPostgresMonitorRunLeaseAcquirer()`.
 - Produces: acceptance evidence for TOCTOU exclusion, monitor independence, multiple stale rows and concurrent recoveries.
 
-- [ ] **Step 1: Add an integration-only mutation barrier seam without weakening production API**
+- [ ] **Step 1: Add deterministic PostgreSQL row-lock and activity helpers**
 
-Prefer controlling PostgreSQL execution through a Prisma/client test double only if it still executes the real mutation. If a barrier cannot be placed without a production test hook, use a transaction-level PostgreSQL blocker on the target `Run` rows so recovery acquires the advisory lease and then blocks naturally at the `UPDATE`.
-
-Concrete approach:
+Import the real driver:
 
 ```ts
-await blocker.$executeRaw`BEGIN`
-await blocker.$executeRaw`
-  SELECT "id"
-  FROM "Run"
-  WHERE "monitorId" = ${MONITOR_ID}
-  FOR UPDATE
-`
+import { Client } from 'pg'
 ```
 
-Start recovery in another context; once its advisory lease is observable as occupied, attempt a third acquisition for the same monitor and assert `null`. Then release the row lock and let recovery complete.
+Add a polling helper that observes the real recovery `UPDATE` blocked on a row lock:
 
-Do not add a production `onRecoveryBarrier` callback.
+```ts
+async function waitForBlockedRecoveryUpdate(inspector: Client): Promise<void> {
+  const deadline = Date.now() + 5_000
 
-- [ ] **Step 2: Assert TOCTOU exclusion**
+  while (Date.now() < deadline) {
+    const result = await inspector.query<{ blocked: boolean }>(`
+      SELECT EXISTS (
+        SELECT 1
+        FROM pg_stat_activity
+        WHERE datname = current_database()
+          AND state = 'active'
+          AND wait_event_type = 'Lock'
+          AND query LIKE '%UPDATE "Run"%'
+      ) AS blocked
+    `)
+    if (result.rows[0]?.blocked) return
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
 
-While recovery is blocked on the row mutation after acquiring the monitor advisory lock:
+  throw new Error('Timed out waiting for blocked Run recovery update')
+}
+```
+
+Create a dedicated blocker connection:
+
+```ts
+const blocker = new Client({ connectionString: databaseUrl() })
+await blocker.connect()
+await blocker.query('BEGIN')
+await blocker.query(
+  'SELECT "id" FROM "Run" WHERE "monitorId" = $1 FOR UPDATE',
+  [MONITOR_ID],
+)
+```
+
+Use a separate inspector `Client` for `pg_stat_activity` polling. Always `ROLLBACK`/`end()` blocker and `end()` inspector in `finally`.
+
+- [ ] **Step 2: Assert TOCTOU exclusion while the real mutation is blocked**
+
+Start `recoverInterruptedMonitorRuns()` with the real PostgreSQL acquirer while the blocker transaction holds the Run row lock. Wait for `waitForBlockedRecoveryUpdate(inspector)`; at that point recovery has passed candidate selection, acquired the advisory lease, issued the real `UPDATE`, and is waiting on the row lock.
+
+Then assert:
 
 ```ts
 expect(await thirdAcquire(MONITOR_ID)).toBeNull()
 ```
 
-After recovery finishes and releases:
+Release the blocker transaction, await recovery, and then assert:
 
 ```ts
 const leaseAfter = await thirdAcquire(MONITOR_ID)
@@ -614,9 +679,11 @@ expect(leaseAfter).not.toBeNull()
 await leaseAfter?.release()
 ```
 
-- [ ] **Step 3: Assert different monitor independence**
+This proves the canonical lease remains held across the actual terminal SQL mutation, not merely around a pre-check.
 
-Create a second monitor and prove its advisory lease remains acquireable while recovery owns `MONITOR_ID`:
+- [ ] **Step 3: Assert different monitor independence during the same blocked mutation**
+
+Create `OTHER_MONITOR_ID` and, while recovery is blocked on `MONITOR_ID`, assert:
 
 ```ts
 const otherLease = await thirdAcquire(OTHER_MONITOR_ID)
@@ -624,13 +691,19 @@ expect(otherLease).not.toBeNull()
 await otherLease?.release()
 ```
 
-- [ ] **Step 4: Assert multiple stale rows are recovered under one monitor ownership window**
+- [ ] **Step 4: Assert multiple stale rows are recovered under one ownership window**
 
-Create two `running` rows for one monitor while no live owner lease exists, run recovery once, and assert both become `interrupted` with the existing journal fields.
+Create two `running` rows for one monitor with no live owner lease, run `recoverInterruptedMonitorRuns()` once, and assert both become `interrupted` with non-null `finishedAt`, non-negative `durationMs`, `errorCategory='internal'`, and `errorCode='worker-interrupted'`.
 
 - [ ] **Step 5: Assert concurrent recovery contexts serialize by the same advisory key**
 
-Start two recovery applications against the same candidate monitor. Hold the first recovery at the row lock barrier after advisory acquisition. The second recovery must observe the advisory lock as busy and finish without mutating/claiming ownership; after the first completes, terminal rows remain correct and idempotent.
+Reuse the row-lock barrier:
+
+1. start recovery A and wait until its real `UPDATE` is blocked;
+2. start recovery B with an independent Prisma/lease context;
+3. assert recovery B resolves while recovery A remains blocked, because B receives busy `null` for the advisory lease and performs no mutation;
+4. release the blocker and await recovery A;
+5. assert the candidate rows are terminal exactly once and a subsequent recovery is idempotent.
 
 - [ ] **Step 6: Run focused PostgreSQL verification**
 
@@ -640,16 +713,14 @@ Run:
 bash scripts/verify-postgres-compose.sh
 ```
 
-Expected: PASS.
+Expected: PASS with no production changes after the GREEN implementation.
 
-- [ ] **Step 7: Commit concurrency hardening**
+- [ ] **Step 7: Commit concurrency hardening tests**
 
 ```bash
-git add tests/integration/run-lifecycle-recovery.test.ts tests/unit/run-lifecycle-recovery.test.ts
+git add tests/integration/run-lifecycle-recovery.test.ts
 git commit -m "test: harden run recovery ownership window"
 ```
-
-If production changes were required, keep them minimal and include the exact failing assertion/evidence in the task card before committing.
 
 ---
 
@@ -662,7 +733,11 @@ If production changes were required, keep them minimal and include the exact fai
 - Modify: `docs/superpowers/specs/data-model.md`
 - Modify: `docs/epics/2-7-phase2-audit-remediation.md`
 - Modify/generated: `docs/phases/2-rules-scheduler.md`
-- Modify/generated: `docs/operations/status/*`
+- Modify/generated: `docs/operations/status/current-state.md`
+- Modify/generated: `docs/operations/status/drift-report.md`
+- Modify/generated: `docs/operations/status/epics.md`
+- Modify/generated: `docs/operations/status/phases.md`
+- Modify/generated: `docs/operations/status/tasks.md`
 
 **Interfaces:**
 - Consumes: final RED/GREEN commit SHAs and workflow run IDs.
@@ -670,7 +745,7 @@ If production changes were required, keep them minimal and include the exact fai
 
 - [ ] **Step 1: Clarify data-model lifecycle wording**
 
-Replace the too-broad `interrupted` description with wording equivalent to:
+Replace the too-broad `interrupted` description with:
 
 ```md
 | `interrupted` | startup recovery доказал orphan: `running` row не имеет `finishedAt`, а recovery получил и удерживал canonical per-monitor advisory lease во время terminal update | неуспешная terminal; не считать `success` или `skipped` |
@@ -698,14 +773,16 @@ sync_state: aligned
 last_reviewed: 2026-09-14
 ```
 
-Check every acceptance box and add exact sections for:
+Check every acceptance box and record exact:
 
-- RED commit + workflow run proving live-owner false interruption;
-- GREEN implementation commit + workflow run;
-- concurrency hardening commit/run if separate;
-- final exact-head verify SHA/tree/run.
+```text
+RED commit + workflow run proving live-owner false interruption
+GREEN implementation commit + workflow run
+concurrency-hardening commit + workflow run
+final exact-head SHA + tree + workflow run
+```
 
-Do not claim Codex review evidence until it actually exists; if quota is exhausted, record that separately in the PR process, not as a successful review.
+Do not claim Codex review evidence until it actually exists; quota exhaustion is recorded separately in the PR process, not as a successful review.
 
 - [ ] **Step 4: Close epic 2.7 back to 12/12 done/aligned**
 
@@ -756,7 +833,7 @@ git commit -m "docs: close process-safe run recovery"
 - Consumes: final branch head containing tasks 1–6.
 - Produces: exact-head CI evidence, review disposition, merge commit/tree equality, and `main` ref confirmation.
 
-- [ ] **Step 1: Run local/static focused checks if a checkout is available**
+- [ ] **Step 1: Run the complete project checks in the execution environment**
 
 ```bash
 npm test
@@ -767,7 +844,7 @@ npm run docs:ops:check
 bash scripts/verify-postgres-compose.sh
 ```
 
-Expected: all PASS. If local Docker/network is unavailable, do not substitute assumptions; use GitHub Actions as executable evidence.
+Expected: all PASS. In this GitHub-connector session, GitHub Actions remains the authoritative executable environment when no local repository/Docker daemon is available.
 
 - [ ] **Step 2: Push exact head and record canonical GitHub Actions verify**
 
