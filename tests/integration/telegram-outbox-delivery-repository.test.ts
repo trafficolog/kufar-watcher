@@ -237,9 +237,7 @@ integrationDescribe('Telegram outbox delivery repository', () => {
     })
 
     expect(sendMessage).toHaveBeenCalledTimes(1)
-    expect(publishJournal).toHaveBeenCalledWith(
-      'Telegram notification resent from uncertain state',
-    )
+    expect(publishJournal).toHaveBeenCalledWith('Telegram notification resent from uncertain state')
     expect(await prisma.match.findUniqueOrThrow({ where: { id: match.id } })).toMatchObject({
       notifiedAt: retriedAt,
       notificationSendingAt: null,
@@ -298,9 +296,7 @@ integrationDescribe('Telegram outbox delivery repository', () => {
 
     expect(retrySend).toHaveBeenCalledTimes(1)
     expect(publishJournal).toHaveBeenCalledTimes(1)
-    expect(publishJournal).toHaveBeenCalledWith(
-      'Telegram notification resent from uncertain state',
-    )
+    expect(publishJournal).toHaveBeenCalledWith('Telegram notification resent from uncertain state')
     expect(await prisma.match.findUniqueOrThrow({ where: { id: match.id } })).toMatchObject({
       notifiedAt: retriedAt,
       notificationSendingAt: null,
