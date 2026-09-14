@@ -42,6 +42,7 @@ export interface GrammyBotLike {
       text: string,
       options?: GrammySendMessageOptionsLike,
     ): Promise<unknown>
+    getMe?(): Promise<{ username?: string }>
   }
 }
 
@@ -153,6 +154,17 @@ export function createGrammyTelegramBotFactory(
     })
 
     return {
+      async getMe(): Promise<{ username: string }> {
+        const getMe = bot.api.getMe
+        if (!getMe) throw new Error('Telegram token verification failed')
+        try {
+          const identity = await getMe.call(bot.api)
+          if (!identity.username) throw new Error('Missing Telegram bot username')
+          return { username: identity.username }
+        } catch {
+          throw new Error('Telegram token verification failed')
+        }
+      },
       async start(): Promise<void> {
         if (runner?.isRunning()) {
           await runner.task()
@@ -193,6 +205,6 @@ export function createGrammyTelegramBotFactory(
           throw normalizeSendFailure(error)
         }
       },
-    }
+    } as TelegramBotTransport & { getMe(): Promise<{ username: string }> }
   }
 }
