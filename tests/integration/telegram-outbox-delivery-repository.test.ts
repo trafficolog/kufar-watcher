@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { createPrismaClient } from '../../electron/worker/prisma-client'
+import { createTelegramOutboxDelivery } from '../../electron/worker/telegram-outbox-delivery'
 import { createPrismaTelegramOutboxDeliveryRepository } from '../../electron/worker/telegram-outbox-delivery-repository'
 import type { Prisma } from '../../generated/prisma/client'
 
@@ -79,5 +80,54 @@ integrationDescribe('Telegram outbox delivery repository', () => {
     await repository.markNotified(match.id, notifiedAt)
     await expect(repository.getNotifiedAt(match.id)).resolves.toEqual(notifiedAt)
     await expect(repository.getNotifiedAt(match.id + 1_000_000)).resolves.toBeUndefined()
+  })
+
+  it('persists the sending timestamp before Telegram receives the external side effect', async () => {
+    const match = await prisma.match.create({
+      data: {
+        monitorId: MONITOR_ID,
+        listingId: LISTING_ID,
+        matchedTerms: ['telegram-outbox'] as Prisma.InputJsonValue,
+        matchedIn: ['title'] as Prisma.InputJsonValue,
+      },
+    })
+    const repository = createPrismaTelegramOutboxDeliveryRepository(prisma)
+    const sendingAt = new Date('2026-09-13T12:06:00.000Z')
+    const observedSendingAt: Array<Date | null> = []
+    const delivery = createTelegramOutboxDelivery({
+      repository,
+      now: () => sendingAt,
+      sleep: async () => undefined,
+      sendMessage: async () => {
+        const columnRows = await prisma.$queryRaw<Array<{ exists: boolean }>>`
+          SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'Match'
+              AND column_name = 'notificationSendingAt'
+          ) AS "exists"
+        `
+        const columnExists = columnRows[0]?.exists === true
+        expect(columnExists).toBe(true)
+        if (!columnExists) return
+
+        const markerRows = await prisma.$queryRaw<Array<{ notificationSendingAt: Date | null }>>`
+          SELECT "notificationSendingAt"
+          FROM "Match"
+          WHERE "id" = ${match.id}
+        `
+        observedSendingAt.push(markerRows[0]?.notificationSendingAt ?? null)
+      },
+    })
+
+    await delivery({
+      matchId: match.id,
+      chatId: '42',
+      text: 'hello',
+      openUrl: 'https://www.kufar.by/item/123',
+    })
+
+    expect(observedSendingAt).toEqual([sendingAt])
   })
 })
