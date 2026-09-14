@@ -24,7 +24,10 @@ interface MessageFields {
 }
 
 function escapeHtml(value: string): string {
-  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
 }
 
 function formatPrice(input: TelegramMessageTemplateInput): string {
@@ -37,7 +40,9 @@ function formatPrice(input: TelegramMessageTemplateInput): string {
       return 'Цена не указана'
     case 'fixed':
       if (input.priceAmount === null) return 'Цена не указана'
-      return input.currency === null ? input.priceAmount : `${input.priceAmount} ${input.currency}`
+      return input.currency === null
+        ? input.priceAmount
+        : `${input.priceAmount} ${input.currency}`
   }
 }
 
