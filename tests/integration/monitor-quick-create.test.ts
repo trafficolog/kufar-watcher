@@ -57,9 +57,10 @@ integration('monitor quick-create', () => {
         include: ['ps5', 'playstation*'],
         exclude: ['repair'],
       })
-      monitorId = result.monitorId
+      const createdId = result.monitorId
+      monitorId = createdId
 
-      const monitor = await prisma.monitor.findUniqueOrThrow({ where: { id: monitorId } })
+      const monitor = await prisma.monitor.findUniqueOrThrow({ where: { id: createdId } })
       expect(monitor).toEqual(
         expect.objectContaining({
           name: 'PS5 Minsk quick-create',
@@ -81,10 +82,12 @@ integration('monitor quick-create', () => {
       )
 
       expect(
-        (await boss.getSchedules()).filter((schedule) => schedule.name === monitorQueueName(monitorId)),
+        (await boss.getSchedules()).filter(
+          (schedule) => schedule.name === monitorQueueName(createdId),
+        ),
       ).toEqual([
         expect.objectContaining({
-          name: monitorQueueName(monitorId),
+          name: monitorQueueName(createdId),
           cron: '*/5 * * * *',
         }),
       ])
