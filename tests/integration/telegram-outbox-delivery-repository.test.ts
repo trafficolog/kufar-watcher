@@ -82,6 +82,29 @@ integrationDescribe('Telegram outbox delivery repository', () => {
     await expect(repository.getNotifiedAt(match.id + 1_000_000)).resolves.toBeUndefined()
   })
 
+  it('clears the durable sending marker when notification delivery is confirmed', async () => {
+    const match = await prisma.match.create({
+      data: {
+        monitorId: MONITOR_ID,
+        listingId: LISTING_ID,
+        matchedTerms: ['telegram-outbox'] as Prisma.InputJsonValue,
+        matchedIn: ['title'] as Prisma.InputJsonValue,
+      },
+    })
+    const repository = createPrismaTelegramOutboxDeliveryRepository(prisma)
+    const sendingAt = new Date('2026-09-13T12:05:30.000Z')
+    const notifiedAt = new Date('2026-09-13T12:05:31.000Z')
+
+    await repository.markSending(match.id, sendingAt)
+    await repository.markNotified(match.id, notifiedAt)
+
+    const persisted = await prisma.match.findUniqueOrThrow({ where: { id: match.id } })
+    expect(persisted).toMatchObject({
+      notifiedAt,
+      notificationSendingAt: null,
+    })
+  })
+
   it('persists the sending timestamp before Telegram receives the external side effect', async () => {
     const match = await prisma.match.create({
       data: {
