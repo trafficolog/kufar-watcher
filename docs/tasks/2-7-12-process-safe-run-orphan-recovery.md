@@ -50,7 +50,8 @@ Production recovery строит PostgreSQL lease acquirer явно из `config
 - **Minimal GREEN:** commit `2bce5fdd92594d2c9391bdcb4414121e651bb152`, tree `ed2c60d07d0720d56d571e67a7163c4e15424298`, verify **#1454** — полный GREEN, включая PostgreSQL compose integration, build и оба Electron smoke.
 - **Concurrency hardening:** production после GREEN не менялся. Integration coverage добавила реальный PostgreSQL ownership window, независимость разных monitor IDs, multi-row recovery и concurrent recovery contexts. Verify **#1455** остановился только на test formatting; verify **#1458** выявил нестабильный observer, привязанный к presentation текста Prisma SQL. Harness был заменён на PostgreSQL lock-graph proof через `pg_blocking_pids()` без изменения production semantics.
 - **Hardened GREEN:** head `f67af7954768a07853c61c35dbb48246621e06b6`, verify **#1459** — полный GREEN: dependency/docs checks, 602 unit tests, typecheck, lint, formatting, Dockerode integration, PostgreSQL compose integration с ownership-window tests, build/output verification и оба Electron smoke.
-- Final docs-only exact-head evidence фиксируется после синхронизации generated docs этой карточки.
+- **Docs closure GREEN:** commit `527a24479250cd6407102d7b9c9c6c8dfbd40193`, tree `a3c5acfa3c522a62ec2de6566837ae1c9e4185c8`, verify **#1465** (`34831920046`) — полный GREEN после `2.7.12 → done/aligned`, `2.7 → 12/12 done/aligned` и canonical `docs:ops:refresh`.
+- Финальный review-head verify фиксируется в PR #62: его нельзя самоссылочно записать в этот файл без создания нового HEAD после соответствующего run.
 
 ## Связанные документы
 
