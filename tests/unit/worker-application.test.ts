@@ -195,116 +195,110 @@ describe('worker application', () => {
       publishCandidate: expect.any(Function),
       publishJournal: expect.any(Function),
     })
-    expect(outbox.createTelegramOutboxQueue).toHaveBeenCalledWith({
-      connectionString: config.databaseUrl,
-      onError: expect.any(Function),
-      deliver: expect.any(Function),
-    })
+    expect(outbox.createTelegramOutboxQueue).toHaveBeenCalledWith(
+      config.databaseUrl,
+      expect.any(Function),
+    )
     expect(outbox.createTelegramOutboxDeliveryRepository).toHaveBeenCalledWith(prisma)
     expect(outbox.createTelegramOutboxDelivery).toHaveBeenCalledWith({
       repository: outbox.deliveryRepository,
-      send: expect.any(Function),
-      publish: expect.any(Function),
+      sendMessage: expect.any(Function),
+      publishJournal: expect.any(Function),
     })
-    expect(app.telegramState()).toBe('not-configured')
-    expect(app.telegramCandidate()).toBeNull()
-    expect(app.telegramBoundChatId()).toBeNull()
+    expect(app.scheduler).toBe(scheduler)
 
+    queueError?.(new Error('pg-boss failed'))
+    await sourceDegradation?.(17, degradationEvent)
+    await pauseRequired?.(17, 'primary')
+    reconcileError?.(23, new Error('unsupported interval'))
     telegramOptions?.publishState?.('waiting-for-binding', null)
-    telegramOptions?.publishChannelState?.('connected')
     telegramOptions?.publishCandidate?.({
       chatId: '1001',
       chatType: 'private',
-      displayName: 'Owner',
+      displayName: 'Ada',
     })
-    telegramOptions?.publishJournal?.('safe telegram journal')
-    queueError?.(new Error('queue down'))
-    sourceDegradation?.(degradationEvent)
-    pauseRequired?.({
-      monitorId: 11,
-      runId: 22,
-      status: 429,
-      failureCode: 'throttled',
-      message: 'Kufar throttling exhausted retry budget',
-    })
-    reconcileError?.(new Error('reconcile down'))
+    telegramOptions?.publishJournal?.('Telegram polling failed')
 
-    expect(publish).toHaveBeenCalledWith({
+    expect(publish).toHaveBeenNthCalledWith(1, {
+      type: 'journal',
+      level: 'error',
+      message: 'pg-boss failed',
+    })
+    expect(publish).toHaveBeenNthCalledWith(2, {
+      type: 'journal',
+      level: 'warning',
+      message: 'Kufar source degraded to HTML fallback',
+    })
+    expect(publish).toHaveBeenNthCalledWith(3, {
+      type: 'monitor-pause-required',
+      monitorId: 17,
+      stage: 'primary',
+    })
+    expect(publish).toHaveBeenNthCalledWith(4, {
+      type: 'journal',
+      level: 'error',
+      message: 'Monitor 23 schedule reconciliation failed: unsupported interval',
+    })
+    expect(publish).toHaveBeenNthCalledWith(5, {
       type: 'telegram-state',
       state: 'waiting-for-binding',
       boundChatId: null,
     })
-    expect(publish).toHaveBeenCalledWith({ type: 'telegram-channel', state: 'connected' })
-    expect(publish).toHaveBeenCalledWith({
+    expect(publish).toHaveBeenNthCalledWith(6, {
       type: 'telegram-candidate',
       candidate: {
         chatId: '1001',
         chatType: 'private',
-        displayName: 'Owner',
+        displayName: 'Ada',
       },
     })
-    expect(publish).toHaveBeenCalledWith({ type: 'journal', message: 'safe telegram journal' })
-    expect(publish).toHaveBeenCalledWith({
+    expect(publish).toHaveBeenNthCalledWith(7, {
       type: 'journal',
-      message: 'PostgreSQL job queue error',
+      level: 'error',
+      message: 'Telegram polling failed',
     })
-    expect(publish).toHaveBeenCalledWith({
-      type: 'journal',
-      message: 'Kufar source degraded: html-fallback after network',
-    })
-    expect(publish).toHaveBeenCalledWith({
-      type: 'journal',
-      message: 'Monitor 11 paused after retry budget exhausted',
-    })
-    expect(publish).toHaveBeenCalledWith({
-      type: 'journal',
-      message: 'Monitor scheduler reconciliation failed',
-    })
+
+    await app.configureTelegram?.('SECRET_SENTINEL_3_1_1')
+    expect(telegram.telegramService.configure).toHaveBeenCalledWith('SECRET_SENTINEL_3_1_1')
+    await expect(app.bindTelegramCandidate?.('1001')).resolves.toBe('bound')
   })
 
-  it('stops scheduler, outbox, Telegram, source runtime, queue, lease acquirer, and Prisma in order', async () => {
+  it('starts through the scheduler and stops outbox and Telegram before source and Prisma resources', async () => {
     const order: string[] = []
     const prisma = {
+      run: { findMany: vi.fn(async () => []) },
+      $executeRaw: vi.fn(async () => 1),
       $disconnect: vi.fn(async () => {
         order.push('prisma')
       }),
     } as unknown as PrismaClient
-    const queue = {
-      stop: vi.fn(async () => {
-        order.push('queue')
-      }),
-    } as unknown as MonitorScheduleQueue
-    const repository = {} as MonitorScheduleRepository
     const sourceRuntime = {
-      createRunAdapters: vi.fn(),
+      createRunAdapters: vi.fn(() => ({}) as SourceAdapterRegistry),
       descriptionLoader: { ensureDescription: vi.fn() },
       close: vi.fn(async () => {
         order.push('source')
       }),
     } as WorkerSourceRuntime
     const scheduler = {
-      start: vi.fn(async () => undefined),
+      start: vi.fn(async () => {
+        order.push('scheduler:start')
+      }),
       stop: vi.fn(async () => {
-        order.push('scheduler')
+        order.push('scheduler:stop')
       }),
     } as unknown as MonitorScheduler
     const telegram = createTelegramHarness(order)
     const outbox = createOutboxHarness(order)
-    const leaseAcquirer = {
-      tryAcquire: vi.fn(),
-      close: vi.fn(async () => {
-        order.push('lease')
-      }),
-    }
 
     const app = createWorkerApplication(config, vi.fn(), {
-      createPrismaClient: vi.fn(() => prisma),
-      createQueue: vi.fn(() => queue),
-      createRepository: vi.fn(() => repository),
-      createSourceRuntime: vi.fn(() => sourceRuntime),
-      createRunExecutor: vi.fn(() => vi.fn()),
-      createScheduler: vi.fn(() => scheduler),
-      createRunRecoveryLeaseAcquirer: vi.fn(() => leaseAcquirer),
+      createPrismaClient: () => prisma,
+      createQueue: () => ({}) as MonitorScheduleQueue,
+      createRepository: () => ({}) as MonitorScheduleRepository,
+      createSourceRuntime: () => sourceRuntime,
+      createRunExecutor: () =>
+        vi.fn(async () => ({ status: 'completed' })) as unknown as ScheduledMonitorRunExecutor,
+      createScheduler: () => scheduler,
+      createRunRecoveryLeaseAcquirer: () => createLocalMonitorRunLeaseAcquirer(),
       createTelegramRepository: telegram.createTelegramRepository,
       createTelegramBotFactory: telegram.createTelegramBotFactory,
       createTelegramBotService: telegram.createTelegramBotService,
@@ -314,15 +308,16 @@ describe('worker application', () => {
     })
 
     await app.start()
-    await app.stop()
+    expect(order).toEqual(['scheduler:start', 'outbox:start'])
 
+    await app.stop()
     expect(order).toEqual([
-      'scheduler',
+      'scheduler:start',
+      'outbox:start',
+      'scheduler:stop',
       'outbox:stop',
       'telegram',
       'source',
-      'queue',
-      'lease',
       'prisma',
     ])
   })
