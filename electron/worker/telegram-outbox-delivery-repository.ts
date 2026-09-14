@@ -13,6 +13,14 @@ export function createPrismaTelegramOutboxDeliveryRepository(
       return match?.notifiedAt
     },
 
+    async getSendingAt(matchId): Promise<Date | null | undefined> {
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        select: { notificationSendingAt: true },
+      })
+      return match?.notificationSendingAt
+    },
+
     async markSending(matchId, sendingAt): Promise<void> {
       await prisma.match.updateMany({
         where: { id: matchId, notifiedAt: null },
