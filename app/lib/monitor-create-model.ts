@@ -53,3 +53,10 @@ export function previewMonitorUrl(sourceUrl: string): MonitorUrlPreview {
     throw error
   }
 }
+
+export function parseMonitorTerms(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((term) => term.trim())
+    .filter((term) => term.length > 0)
+}
