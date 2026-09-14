@@ -31,7 +31,7 @@ future_model_count="$({ docker compose exec -T postgres psql -U "$POSTGRES_USER"
 test "$future_model_count" = "0"
 
 migration_count="$({ docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc 'SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL;'; } | tr -d '[:space:]')"
-test "$migration_count" = "9"
+test "$migration_count" = "10"
 
 monitor_legacy_seller_column_count="$({ docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'Monitor' AND column_name = 'sellerType';"; } | tr -d '[:space:]')"
 test "$monitor_legacy_seller_column_count" = "0"
@@ -124,4 +124,4 @@ test "$sentinel_table_count" = "0"
 test "$(seed_counts)" = "2|6|4"
 
 reset_migration_count="$({ docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc 'SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL;'; } | tr -d '[:space:]')"
-test "$reset_migration_count" = "9"
+test "$reset_migration_count" = "10"
