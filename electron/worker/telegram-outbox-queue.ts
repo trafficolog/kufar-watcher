@@ -1,9 +1,12 @@
 import { PgBoss } from 'pg-boss'
 
+import { isHumanKufarUrl } from './telegram-open-url'
+
 export interface TelegramOutboxPayload {
   matchId: number
   chatId: string
   text: string
+  openUrl: string
 }
 
 export type TelegramOutboxHandler = (payload: TelegramOutboxPayload) => Promise<void>
@@ -61,6 +64,7 @@ function parsePayload(value: unknown): TelegramOutboxPayload {
   const matchId = Reflect.get(value, 'matchId')
   const chatId = Reflect.get(value, 'chatId')
   const text = Reflect.get(value, 'text')
+  const openUrl = Reflect.get(value, 'openUrl')
   if (
     typeof matchId !== 'number' ||
     !Number.isInteger(matchId) ||
@@ -68,12 +72,14 @@ function parsePayload(value: unknown): TelegramOutboxPayload {
     typeof chatId !== 'string' ||
     chatId.length === 0 ||
     typeof text !== 'string' ||
-    text.length === 0
+    text.length === 0 ||
+    typeof openUrl !== 'string' ||
+    !isHumanKufarUrl(openUrl)
   ) {
     throw new Error('Invalid Telegram outbox payload')
   }
 
-  return { matchId, chatId, text }
+  return { matchId, chatId, text, openUrl }
 }
 
 export function createPgBossTelegramOutboxQueue(
