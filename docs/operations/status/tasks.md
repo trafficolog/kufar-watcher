@@ -17,7 +17,7 @@ _Сгенерировано 2026-09-14_
 | `0.2.5` | Валидация конфигурации существующего Postgres-контейнера | 0.2 | ✅ done | 🟢 aligned |
 | `0.2.6` | Единый источник Postgres connection config | 0.2 | ✅ done | 🟢 aligned |
 | `0.2.7` | Live-проверка Dockerode runtime в CI | 0.2 | ✅ done | 🟢 aligned |
-| `0.2.8` | Recovery UX для несовместимого Postgres-контейнера | 0.2 | 🔄 in_progress | 🟢 aligned |
+| `0.2.8` | Recovery UX для несовместимого Postgres-контейнера | 0.2 | ✅ done | 🟢 aligned |
 | `0.3.1` | Схема Prisma по доменной модели | 0.3 | ✅ done | 🟢 aligned |
 | `0.3.2` | Индексы и ограничения целостности | 0.3 | ✅ done | 🟢 aligned |
 | `0.3.3` | Сиды и dev-фикстуры | 0.3 | ✅ done | 🟢 aligned |
