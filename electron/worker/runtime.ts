@@ -1,3 +1,4 @@
+import type { MonitorCreateInput, MonitorCreateResult } from '../../shared/ipc'
 import type { TelegramBindResult } from '../../shared/telegram'
 import type { WorkerControlMessage, WorkerEvent } from '../../shared/runtime'
 
@@ -12,6 +13,22 @@ export interface WorkerRuntimeServices {
   configureTelegram?(token: string | null): Promise<void>
   resumeTelegram?(): Promise<void>
   bindTelegramCandidate?(chatId: string): Promise<TelegramBindResult>
+  createMonitor?(input: MonitorCreateInput): Promise<MonitorCreateResult>
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
+function isMonitorCreateInput(value: unknown): value is MonitorCreateInput {
+  if (!value || typeof value !== 'object') return false
+  return (
+    typeof Reflect.get(value, 'name') === 'string' &&
+    typeof Reflect.get(value, 'sourceUrl') === 'string' &&
+    typeof Reflect.get(value, 'intervalSec') === 'number' &&
+    isStringArray(Reflect.get(value, 'include')) &&
+    isStringArray(Reflect.get(value, 'exclude'))
+  )
 }
 
 function isWorkerControlMessage(message: unknown): message is WorkerControlMessage {
@@ -27,6 +44,12 @@ function isWorkerControlMessage(message: unknown): message is WorkerControlMessa
     return (
       typeof Reflect.get(message, 'requestId') === 'string' &&
       typeof Reflect.get(message, 'chatId') === 'string'
+    )
+  }
+  if (type === 'monitor-create') {
+    return (
+      typeof Reflect.get(message, 'requestId') === 'string' &&
+      isMonitorCreateInput(Reflect.get(message, 'input'))
     )
   }
   return false
@@ -80,6 +103,31 @@ export async function startWorkerRuntime(
           message: 'Telegram resume failed',
         })
       })
+      return
+    }
+
+    if (data.type === 'monitor-create') {
+      if (!services.createMonitor) return
+      void services
+        .createMonitor(data.input)
+        .then((result) => {
+          parentPort.postMessage({
+            type: 'monitor-create-result',
+            requestId: data.requestId,
+            result,
+          })
+        })
+        .catch(() => {
+          parentPort.postMessage({
+            type: 'monitor-create-error',
+            requestId: data.requestId,
+          })
+          parentPort.postMessage({
+            type: 'journal',
+            level: 'error',
+            message: 'Monitor creation failed',
+          })
+        })
       return
     }
 
