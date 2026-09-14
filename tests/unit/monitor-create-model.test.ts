@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 interface MonitorCreateModelModule {
   previewMonitorUrl?: (sourceUrl: string) => unknown
+  parseMonitorTerms?: (raw: string) => string[]
 }
 
 describe('monitor create model', () => {
@@ -36,5 +37,16 @@ describe('monitor create model', () => {
       state: 'error',
       message: 'Нужна ссылка с kufar.by.',
     })
+  })
+
+  it('turns a comma-separated term field into the backend term list', async () => {
+    const module: MonitorCreateModelModule = await import('../../app/lib/monitor-create-model')
+
+    expect(module.parseMonitorTerms).toBeTypeOf('function')
+    expect(module.parseMonitorTerms!('  playstation*, ps5, , pro  ')).toEqual([
+      'playstation*',
+      'ps5',
+      'pro',
+    ])
   })
 })
