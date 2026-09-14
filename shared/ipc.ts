@@ -29,6 +29,18 @@ export interface BootState {
   postgresContainerMismatches?: PostgresContainerMismatchField[]
 }
 
+export interface MonitorCreateInput {
+  name: string
+  sourceUrl: string
+  intervalSec: number
+  include: string[]
+  exclude: string[]
+}
+
+export interface MonitorCreateResult {
+  monitorId: number
+}
+
 export interface KufarDesktopApi {
   system: {
     getBootState(): Promise<BootState>
@@ -42,6 +54,9 @@ export interface KufarDesktopApi {
     bindCandidate(): Promise<TelegramBindResult>
     onState(listener: (state: TelegramDesktopState) => void): () => void
   }
+  monitors: {
+    create(input: MonitorCreateInput): Promise<MonitorCreateResult>
+  }
 }
 
 export const IPC = {
@@ -53,4 +68,5 @@ export const IPC = {
   telegramStateGet: 'telegram:state:get',
   telegramBindCandidate: 'telegram:candidate:bind',
   telegramStateEvent: 'telegram:state:event',
+  monitorCreate: 'monitors:create',
 } as const

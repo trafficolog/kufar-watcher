@@ -1,3 +1,4 @@
+import type { MonitorCreateInput, MonitorCreateResult } from '../../shared/ipc'
 import {
   TELEGRAM_BIND_RESULTS,
   TELEGRAM_CHANNEL_STATES,
@@ -36,6 +37,7 @@ export interface WorkerSupervisor {
   configureTelegram(token: string | null): void
   resumeTelegram(): void
   bindTelegramCandidate(chatId: string): Promise<TelegramBindResult>
+  createMonitor(input: MonitorCreateInput): Promise<MonitorCreateResult>
   shutdown(): Promise<WorkerShutdownResult>
 }
 
@@ -96,6 +98,27 @@ function parseWorkerEvent(message: unknown): WorkerEvent | undefined {
       return { type, monitorId, stage }
     }
     return undefined
+  }
+
+  if (type === 'monitor-create-result') {
+    const requestId = Reflect.get(message, 'requestId')
+    const result = Reflect.get(message, 'result')
+    const monitorId =
+      result && typeof result === 'object' ? Reflect.get(result, 'monitorId') : undefined
+    if (
+      typeof requestId === 'string' &&
+      typeof monitorId === 'number' &&
+      Number.isInteger(monitorId) &&
+      monitorId > 0
+    ) {
+      return { type, requestId, result: { monitorId } }
+    }
+    return undefined
+  }
+
+  if (type === 'monitor-create-error') {
+    const requestId = Reflect.get(message, 'requestId')
+    if (typeof requestId === 'string') return { type, requestId }
   }
 
   if (type === 'telegram-state') {
@@ -192,6 +215,10 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
     string,
     { resolve(result: TelegramBindResult): void; reject(error: Error): void }
   >()
+  const pendingMonitorCreates = new Map<
+    string,
+    { resolve(result: MonitorCreateResult): void; reject(error: Error): void }
+  >()
   let currentWorker: WorkerRuntimeHandle | undefined
   let restartTimer: ReturnType<typeof setTimeout> | undefined
   let restartAttempt = 0
@@ -200,12 +227,20 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
   let telegramToken: string | null = null
   let currentWorkerConfigurationSent = false
   let telegramBindRequestSequence = 0
+  let monitorCreateRequestSequence = 0
 
   const rejectPendingTelegramBinds = (message: string): void => {
     for (const pending of pendingTelegramBinds.values()) {
       pending.reject(new Error(message))
     }
     pendingTelegramBinds.clear()
+  }
+
+  const rejectPendingMonitorCreates = (message: string): void => {
+    for (const pending of pendingMonitorCreates.values()) {
+      pending.reject(new Error(message))
+    }
+    pendingMonitorCreates.clear()
   }
 
   const sendTelegramConfiguration = (worker: WorkerRuntimeHandle): void => {
@@ -223,6 +258,18 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
     const onMessage = (message: unknown): void => {
       const event = parseWorkerEvent(message)
       if (!event) return
+
+      if (event.type === 'monitor-create-result' || event.type === 'monitor-create-error') {
+        const pending = pendingMonitorCreates.get(event.requestId)
+        if (!pending) return
+        pendingMonitorCreates.delete(event.requestId)
+        if (event.type === 'monitor-create-result') {
+          pending.resolve(event.result)
+        } else {
+          pending.reject(new Error('Monitor creation failed'))
+        }
+        return
+      }
 
       if (event.type === 'telegram-bind-result' || event.type === 'telegram-bind-error') {
         const pending = pendingTelegramBinds.get(event.requestId)
@@ -251,6 +298,7 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
         currentWorker = undefined
         currentWorkerConfigurationSent = false
         rejectPendingTelegramBinds('Worker became unavailable')
+        rejectPendingMonitorCreates('Worker became unavailable')
       }
       if (stopping) return
 
@@ -306,9 +354,21 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
         worker.postMessage({ type: 'telegram-bind-candidate', requestId, chatId })
       })
     },
+    createMonitor(input: MonitorCreateInput): Promise<MonitorCreateResult> {
+      const worker = currentWorker
+      if (!worker) return Promise.reject(new Error('Worker is unavailable'))
+
+      monitorCreateRequestSequence += 1
+      const requestId = `monitor-create-${monitorCreateRequestSequence}`
+      return new Promise((resolve, reject) => {
+        pendingMonitorCreates.set(requestId, { resolve, reject })
+        worker.postMessage({ type: 'monitor-create', requestId, input })
+      })
+    },
     async shutdown(): Promise<WorkerShutdownResult> {
       stopping = true
       rejectPendingTelegramBinds('Worker is shutting down')
+      rejectPendingMonitorCreates('Worker is shutting down')
       if (restartTimer) {
         clearTimeout(restartTimer)
         restartTimer = undefined

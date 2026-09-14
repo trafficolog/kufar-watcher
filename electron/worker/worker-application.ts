@@ -2,6 +2,7 @@ import type { PrismaClient } from '../../generated/prisma/client'
 import type { WorkerEvent } from '../../shared/runtime'
 import type { WorkerConfig } from './config'
 import { createGrammyTelegramBotFactory } from './grammy-telegram-bot'
+import { createMonitorConfigAndSync } from './monitor-config-sync'
 import {
   createPostgresMonitorRunLeaseAcquirer,
   type AcquireMonitorRunLease,
@@ -192,6 +193,9 @@ export function createWorkerApplication(
     },
     async bindTelegramCandidate(chatId) {
       return telegram.bindCandidate(chatId)
+    },
+    async createMonitor(input) {
+      return createMonitorConfigAndSync(prisma, scheduler, input)
     },
     async stop() {
       await scheduler.stop()

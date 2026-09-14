@@ -1,10 +1,16 @@
-import { IPC, type BootState, type KufarDesktopApi } from '../../shared/ipc'
+import {
+  IPC,
+  type BootState,
+  type KufarDesktopApi,
+  type MonitorCreateInput,
+  type MonitorCreateResult,
+} from '../../shared/ipc'
 import type { TelegramDesktopState } from '../../shared/telegram'
 
 type RendererListener = (event: unknown, payload: unknown) => void
 
 export interface IpcRendererLike {
-  invoke(channel: string): Promise<unknown>
+  invoke(channel: string, ...args: unknown[]): Promise<unknown>
   on(channel: string, listener: RendererListener): unknown
   removeListener(channel: string, listener: RendererListener): unknown
 }
@@ -48,6 +54,11 @@ export function createDesktopApi(ipcRenderer: IpcRendererLike): KufarDesktopApi 
         return () => {
           ipcRenderer.removeListener(IPC.telegramStateEvent, handleState)
         }
+      },
+    },
+    monitors: {
+      async create(input: MonitorCreateInput): Promise<MonitorCreateResult> {
+        return (await ipcRenderer.invoke(IPC.monitorCreate, input)) as MonitorCreateResult
       },
     },
   }
