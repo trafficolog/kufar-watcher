@@ -24,10 +24,7 @@ interface MessageFields {
 }
 
 function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
 
 function formatPrice(input: TelegramMessageTemplateInput): string {
@@ -40,9 +37,7 @@ function formatPrice(input: TelegramMessageTemplateInput): string {
       return 'Цена не указана'
     case 'fixed':
       if (input.priceAmount === null) return 'Цена не указана'
-      return input.currency === null
-        ? input.priceAmount
-        : `${input.priceAmount} ${input.currency}`
+      return input.currency === null ? input.priceAmount : `${input.priceAmount} ${input.currency}`
   }
 }
 
@@ -58,10 +53,7 @@ function renderMessage(fields: MessageFields): string {
   return lines.join('\n')
 }
 
-function truncateToFit(
-  value: string,
-  renderWithValue: (candidate: string) => string,
-): string {
+function truncateToFit(value: string, renderWithValue: (candidate: string) => string): string {
   if (renderWithValue(value).length <= TELEGRAM_MESSAGE_LIMIT) return value
 
   const codePoints = Array.from(value)
