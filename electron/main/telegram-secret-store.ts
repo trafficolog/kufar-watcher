@@ -151,7 +151,15 @@ export function createTelegramSecretStore(
 
       try {
         const encrypted = await encryptStringAsync.call(dependencies.safeStorage, token)
-        await writeFile(path, encrypted.toString('base64'), 'utf8')
+        await writeFile(
+          path,
+          JSON.stringify({
+            version: 1,
+            protection: 'protected',
+            value: encrypted.toString('base64'),
+          }),
+          'utf8',
+        )
         return { state: 'protected' }
       } catch {
         return { state: 'unavailable', reason: 'write-failed' }
