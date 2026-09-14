@@ -255,9 +255,9 @@ describe('typed IPC routing', () => {
 
     registerMonitorIpcHandlers(ipcMain, { createMonitor }, devRendererUrl)
 
-    await expect(
-      ipcMain.invoke(IPC.monitorCreate, 'https://example.com', input),
-    ).rejects.toThrow('Untrusted renderer')
+    await expect(ipcMain.invoke(IPC.monitorCreate, 'https://example.com', input)).rejects.toThrow(
+      'Untrusted renderer',
+    )
     expect(createMonitor).not.toHaveBeenCalled()
 
     await expect(
