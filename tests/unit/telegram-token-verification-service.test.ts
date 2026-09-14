@@ -20,13 +20,14 @@ describe('Telegram token verification service', () => {
     const start = vi.fn(async () => undefined)
     const stop = vi.fn(async () => undefined)
     const getMe = vi.fn(async () => ({ username: 'kufar_watch_bot' }))
-    const createBot = vi.fn<TelegramBotFactory>(() =>
-      ({
-        start,
-        stop,
-        sendMessage: vi.fn(async () => undefined),
-        getMe,
-      }) as TelegramBotTransport & { getMe(): Promise<{ username: string }> },
+    const createBot = vi.fn<TelegramBotFactory>(
+      () =>
+        ({
+          start,
+          stop,
+          sendMessage: vi.fn(async () => undefined),
+          getMe,
+        }) as TelegramBotTransport & { getMe(): Promise<{ username: string }> },
     )
     const service = createTelegramBotService({
       repository,
