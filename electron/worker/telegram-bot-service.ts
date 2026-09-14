@@ -247,7 +247,11 @@ export function createTelegramBotService(options: TelegramBotServiceOptions): Te
       }
       const currentTransport = transport
       if (!currentTransport) throw new TelegramSendFailure('transient')
-      await currentTransport.sendMessage(chatId, text, sendOptions)
+      if (sendOptions) {
+        await currentTransport.sendMessage(chatId, text, sendOptions)
+      } else {
+        await currentTransport.sendMessage(chatId, text)
+      }
     },
 
     getState(): TelegramRuntimeState {
