@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { PrismaClient } from '../../generated/prisma/client'
+import { createLocalMonitorRunLeaseAcquirer } from '../../electron/worker/monitor-run-lease'
 import type { MonitorScheduler } from '../../electron/worker/monitor-scheduler'
 import type {
   TelegramBotService,
@@ -45,6 +46,7 @@ describe('Telegram reconnect application wiring', () => {
       }),
       createRunExecutor: () => vi.fn(),
       createScheduler: () => scheduler,
+      createRunRecoveryLeaseAcquirer: () => createLocalMonitorRunLeaseAcquirer(),
       createTelegramRepository: () => ({}),
       createTelegramBotFactory: () => vi.fn(),
       createTelegramBotService: (options: TelegramBotServiceOptions) => {

@@ -1,8 +1,12 @@
 import type { PrismaClient } from '../../generated/prisma/client'
-import { RUN_OUTCOME } from '../../shared/run-outcome'
 import type { WorkerEvent } from '../../shared/runtime'
 import type { WorkerConfig } from './config'
 import { createGrammyTelegramBotFactory } from './grammy-telegram-bot'
+import {
+  createPostgresMonitorRunLeaseAcquirer,
+  type AcquireMonitorRunLease,
+} from './monitor-run-lease'
+import { recoverInterruptedMonitorRuns } from './monitor-run-recovery'
 import {
   MonitorScheduler,
   type MonitorScheduleQueue,
@@ -50,6 +54,7 @@ export interface WorkerApplicationDependencies {
   createSourceRuntime(options: WorkerSourceRuntimeOptions): WorkerSourceRuntime
   createRunExecutor(options: ScheduledMonitorRunExecutorOptions): ScheduledMonitorRunExecutor
   createScheduler(options: MonitorSchedulerOptions): MonitorScheduler
+  createRunRecoveryLeaseAcquirer(databaseUrl: string): AcquireMonitorRunLease
   createTelegramRepository(prisma: PrismaClient): TelegramBindingRepository
   createTelegramBotFactory(): TelegramBotFactory
   createTelegramBotService(options: TelegramBotServiceOptions): TelegramBotService
@@ -72,6 +77,7 @@ const defaultDependencies: WorkerApplicationDependencies = {
   createScheduler(options) {
     return new MonitorScheduler(options)
   },
+  createRunRecoveryLeaseAcquirer: createPostgresMonitorRunLeaseAcquirer,
   createTelegramRepository: createPrismaTelegramBindingRepository,
   createTelegramBotFactory: createGrammyTelegramBotFactory,
   createTelegramBotService,
@@ -84,34 +90,13 @@ export function formatWorkerError(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-async function recoverInterruptedRuns(prisma: PrismaClient): Promise<void> {
-  const recoveredAt = new Date()
-  await prisma.$executeRaw`
-    UPDATE "Run"
-    SET
-      "finishedAt" = ${recoveredAt}::timestamp,
-      "durationMs" = LEAST(
-        2147483647,
-        GREATEST(
-          0,
-          FLOOR(EXTRACT(EPOCH FROM (${recoveredAt}::timestamp - "startedAt")) * 1000)
-        )
-      )::integer,
-      "outcome" = ${RUN_OUTCOME.INTERRUPTED}::text,
-      "error" = 'Worker process interrupted before Run completion',
-      "errorCategory" = 'internal',
-      "errorCode" = 'worker-interrupted'
-    WHERE "outcome" = ${RUN_OUTCOME.RUNNING}::text
-      AND "finishedAt" IS NULL
-  `
-}
-
 export function createWorkerApplication(
   config: WorkerConfig,
   publish: (event: WorkerEvent) => void,
   dependencies: WorkerApplicationDependencies = defaultDependencies,
 ): WorkerApplication {
   const prisma = dependencies.createPrismaClient(config.databaseUrl)
+  const acquireRunRecoveryLease = dependencies.createRunRecoveryLeaseAcquirer(config.databaseUrl)
   const queue = dependencies.createQueue(config.databaseUrl, (error) => {
     publish({
       type: 'journal',
@@ -190,7 +175,10 @@ export function createWorkerApplication(
   return {
     scheduler,
     async start() {
-      await recoverInterruptedRuns(prisma)
+      await recoverInterruptedMonitorRuns({
+        prisma,
+        acquireMonitorRunLease: acquireRunRecoveryLease,
+      })
       await scheduler.start()
       await telegramOutbox.start(deliverTelegramOutbox)
     },

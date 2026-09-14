@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { PrismaClient } from '../../generated/prisma/client'
+import { createLocalMonitorRunLeaseAcquirer } from '../../electron/worker/monitor-run-lease'
 import type {
   MonitorScheduleQueue,
   MonitorScheduleRepository,
@@ -38,6 +39,7 @@ describe('worker Telegram outbox composition', () => {
     const order: string[] = []
     const publish = vi.fn<(event: WorkerEvent) => void>()
     const prisma = {
+      run: { findMany: vi.fn(async () => []) },
       $executeRaw: vi.fn(async () => 0),
       $disconnect: vi.fn(async () => {
         order.push('prisma')
@@ -102,6 +104,7 @@ describe('worker Telegram outbox composition', () => {
       createRunExecutor: () =>
         vi.fn(async () => ({ status: 'completed' })) as unknown as ScheduledMonitorRunExecutor,
       createScheduler: () => scheduler,
+      createRunRecoveryLeaseAcquirer: () => createLocalMonitorRunLeaseAcquirer(),
       createTelegramRepository: () => ({}) as TelegramBindingRepository,
       createTelegramBotFactory: () => vi.fn() as never,
       createTelegramBotService: () => telegram,

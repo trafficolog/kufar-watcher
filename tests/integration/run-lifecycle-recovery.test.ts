@@ -83,6 +83,8 @@ function dependenciesFor(
     createRunExecutor: () =>
       vi.fn(async () => ({ status: 'completed' })) as unknown as ScheduledMonitorRunExecutor,
     createScheduler: () => scheduler,
+    createRunRecoveryLeaseAcquirer: (connectionString) =>
+      createPostgresMonitorRunLeaseAcquirer(connectionString),
     createTelegramRepository: () => telegramRepository,
     createTelegramBotFactory: () => telegramBotFactory,
     createTelegramBotService: () => telegramService,
