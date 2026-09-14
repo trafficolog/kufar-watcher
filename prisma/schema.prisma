@@ -96,15 +96,16 @@ model Listing {
 }
 
 model Match {
-  id           Int       @id @default(autoincrement())
-  monitorId    Int
-  listingId    String
-  matchedTerms Json
-  matchedIn    Json
-  snippet      String?
-  notifiedAt   DateTime?
-  monitor      Monitor   @relation(fields: [monitorId], references: [id], onDelete: Cascade)
-  listing      Listing   @relation(fields: [listingId], references: [listId])
+  id                    Int       @id @default(autoincrement())
+  monitorId             Int
+  listingId             String
+  matchedTerms          Json
+  matchedIn             Json
+  snippet               String?
+  notificationSendingAt DateTime?
+  notifiedAt            DateTime?
+  monitor                Monitor   @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  listing                Listing   @relation(fields: [listingId], references: [listId])
 
   @@unique([monitorId, listingId])
   @@index([monitorId, notifiedAt])

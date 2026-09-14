@@ -7,6 +7,8 @@ export type { TelegramSendFailureKind } from './telegram-send-failure'
 
 export interface TelegramOutboxDeliveryRepository {
   getNotifiedAt(matchId: number): Promise<Date | null | undefined>
+  getSendingAt?(matchId: number): Promise<Date | null | undefined>
+  markSending?(matchId: number, sendingAt: Date): Promise<void>
   markNotified(matchId: number, notifiedAt: Date): Promise<void>
 }
 
@@ -41,6 +43,14 @@ export function createTelegramOutboxDelivery(
     const notifiedAt = await options.repository.getNotifiedAt(payload.matchId)
     if (notifiedAt === undefined || notifiedAt !== null) return
 
+    if (options.repository.getSendingAt) {
+      const sendingAt = await options.repository.getSendingAt(payload.matchId)
+      if (sendingAt === undefined) return
+      if (sendingAt !== null) {
+        options.publishJournal?.('Telegram notification resent from uncertain state')
+      }
+    }
+
     const previousAttemptAt = lastAttemptAtByChat.get(payload.chatId)
     if (previousAttemptAt !== undefined) {
       const remainingDelayMs = minChatIntervalMs - (now().getTime() - previousAttemptAt)
@@ -48,6 +58,7 @@ export function createTelegramOutboxDelivery(
     }
 
     lastAttemptAtByChat.set(payload.chatId, now().getTime())
+    await options.repository.markSending?.(payload.matchId, now())
 
     try {
       await options.sendMessage(payload.chatId, payload.text, { openUrl: payload.openUrl })

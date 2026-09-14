@@ -48,7 +48,7 @@ describe('Prisma Telegram outbox delivery repository', () => {
     await expect(harness.repository.getNotifiedAt(43)).resolves.toEqual(notifiedAt)
   })
 
-  it('marks only an existing still-pending match as notified', async () => {
+  it('marks only an existing still-pending match as notified and clears the sending marker', async () => {
     const harness = createHarness()
     const notifiedAt = new Date('2026-09-13T12:01:00.000Z')
 
@@ -56,7 +56,7 @@ describe('Prisma Telegram outbox delivery repository', () => {
 
     expect(harness.updateMany).toHaveBeenCalledWith({
       where: { id: 44, notifiedAt: null },
-      data: { notifiedAt },
+      data: { notifiedAt, notificationSendingAt: null },
     })
   })
 })

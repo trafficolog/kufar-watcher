@@ -120,6 +120,8 @@ describe('Telegram open button', () => {
     const delivery = createTelegramOutboxDelivery({
       repository: {
         getNotifiedAt: vi.fn(async () => null),
+        getSendingAt: vi.fn(async () => null),
+        markSending: vi.fn(async () => undefined),
         markNotified: vi.fn(async () => undefined),
       },
       sendMessage,

@@ -7,17 +7,25 @@ import {
 
 const OPEN_URL = 'https://www.kufar.by/item/123'
 
-function createRepository(notifiedAt: Date | null = null) {
+function createRepository(
+  notifiedAt: Date | null = null,
+  notificationSendingAt: Date | null = null,
+) {
   return {
     getNotifiedAt: vi.fn(async (): Promise<Date | null | undefined> => notifiedAt),
+    getSendingAt: vi.fn(async (): Promise<Date | null | undefined> => notificationSendingAt),
+    markSending: vi.fn(async () => undefined),
     markNotified: vi.fn(async () => undefined),
   }
 }
 
 describe('Telegram outbox delivery', () => {
-  it('marks Match notified only after Telegram confirms the send', async () => {
+  it('marks Match sending before Telegram receives the external side effect', async () => {
     const calls: string[] = []
     const repository = createRepository()
+    repository.markSending.mockImplementation(async () => {
+      calls.push('sending')
+    })
     repository.markNotified.mockImplementation(async () => {
       calls.push('mark')
     })
@@ -34,8 +42,31 @@ describe('Telegram outbox delivery', () => {
 
     await delivery({ matchId: 11, chatId: '42', text: 'hello', openUrl: OPEN_URL })
 
-    expect(calls).toEqual(['send', 'mark'])
+    expect(calls).toEqual(['sending', 'send', 'mark'])
+    expect(repository.markSending).toHaveBeenCalledWith(11, deliveredAt)
     expect(repository.markNotified).toHaveBeenCalledWith(11, deliveredAt)
+  })
+
+  it('resends an uncertain Match after restart and journals the possible duplicate', async () => {
+    const uncertainAt = new Date('2026-09-13T11:55:00.000Z')
+    const retryAt = new Date('2026-09-13T12:00:00.000Z')
+    const repository = createRepository(null, uncertainAt)
+    const sendMessage = vi.fn(async () => undefined)
+    const publishJournal = vi.fn()
+    const delivery = createTelegramOutboxDelivery({
+      repository,
+      sendMessage,
+      publishJournal,
+      now: () => retryAt,
+      sleep: async () => undefined,
+    })
+
+    await delivery({ matchId: 11, chatId: '42', text: 'hello', openUrl: OPEN_URL })
+
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+    expect(repository.markSending).toHaveBeenCalledWith(11, retryAt)
+    expect(repository.markNotified).toHaveBeenCalledWith(11, retryAt)
+    expect(publishJournal).toHaveBeenCalledWith('Telegram notification resent from uncertain state')
   })
 
   it('does not resend a Match that is already notified', async () => {
@@ -50,6 +81,7 @@ describe('Telegram outbox delivery', () => {
     await delivery({ matchId: 11, chatId: '42', text: 'hello', openUrl: OPEN_URL })
 
     expect(sendMessage).not.toHaveBeenCalled()
+    expect(repository.markSending).not.toHaveBeenCalled()
     expect(repository.markNotified).not.toHaveBeenCalled()
   })
 
