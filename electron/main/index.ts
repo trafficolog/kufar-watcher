@@ -27,6 +27,7 @@ import { createInfrastructureBootstrapDependencies } from './infrastructure-runt
 import {
   forwardBootState,
   markWorkerBootFailed,
+  registerMonitorIpcHandlers,
   registerSystemIpcHandlers,
   registerTelegramIpcHandlers,
   routeWorkerBootEvent,
@@ -241,6 +242,14 @@ app.whenReady().then(async () => {
         if (!candidate) return 'no-candidate'
         return supervisor.bindTelegramCandidate(candidate.chatId)
       },
+    },
+    devRendererUrl,
+  )
+
+  registerMonitorIpcHandlers(
+    ipcMain,
+    {
+      createMonitor: (input) => supervisor.createMonitor(input),
     },
     devRendererUrl,
   )
