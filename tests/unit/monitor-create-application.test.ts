@@ -54,8 +54,7 @@ describe('monitor create worker application', () => {
       createSourceRuntime: () => sourceRuntime,
       createRunExecutor: () => vi.fn(async () => ({ status: 'completed' })),
       createScheduler: () => scheduler,
-      createRunRecoveryLeaseAcquirer: () =>
-        createLocalMonitorRunLeaseAcquirer(),
+      createRunRecoveryLeaseAcquirer: () => createLocalMonitorRunLeaseAcquirer(),
       createTelegramRepository: () => ({}),
       createTelegramBotFactory: () => ({}),
       createTelegramBotService: () => telegram,
@@ -73,8 +72,7 @@ describe('monitor create worker application', () => {
       dependencies,
     )
     const createMonitor = Reflect.get(app, 'createMonitor') as
-      | MonitorCreateApplication['createMonitor']
-      | undefined
+      MonitorCreateApplication['createMonitor'] | undefined
     const input: MonitorCreateInput = {
       name: 'PS5 Minsk',
       sourceUrl: 'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~playstation',
