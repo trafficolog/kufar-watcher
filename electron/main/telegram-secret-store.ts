@@ -44,13 +44,18 @@ export interface TelegramSecretStoreDependencies {
   safeStorage: TelegramSafeStorage
 }
 
+interface VersionedTelegramSecretRecord {
+  protection: 'protected' | 'unprotected'
+  value: string
+}
+
 function errorCode(error: unknown): string | undefined {
   if (typeof error !== 'object' || error === null || !('code' in error)) return undefined
   const code = Reflect.get(error, 'code')
   return typeof code === 'string' ? code : undefined
 }
 
-function readVersionedUnprotectedToken(encoded: string): string | null | undefined {
+function readVersionedRecord(encoded: string): VersionedTelegramSecretRecord | null | undefined {
   const text = encoded.trim()
   if (!text.startsWith('{')) return undefined
 
@@ -58,10 +63,11 @@ function readVersionedUnprotectedToken(encoded: string): string | null | undefin
     const parsed: unknown = JSON.parse(text)
     if (!parsed || typeof parsed !== 'object') return null
     if (Reflect.get(parsed, 'version') !== 1) return null
-    if (Reflect.get(parsed, 'protection') !== 'unprotected') return null
+    const protection = Reflect.get(parsed, 'protection')
+    if (protection !== 'protected' && protection !== 'unprotected') return null
     const value = Reflect.get(parsed, 'value')
     if (typeof value !== 'string') return null
-    return Buffer.from(value, 'base64').toString('utf8')
+    return { protection, value }
   } catch {
     return null
   }
@@ -83,10 +89,13 @@ export function createTelegramSecretStore(
         return { state: 'unavailable', reason: 'decrypt-failed' }
       }
 
-      const unprotectedToken = readVersionedUnprotectedToken(encoded)
-      if (unprotectedToken === null) return { state: 'unavailable', reason: 'decrypt-failed' }
-      if (unprotectedToken !== undefined) {
-        return { state: 'unprotected', token: unprotectedToken }
+      const versionedRecord = readVersionedRecord(encoded)
+      if (versionedRecord === null) return { state: 'unavailable', reason: 'decrypt-failed' }
+      if (versionedRecord?.protection === 'unprotected') {
+        return {
+          state: 'unprotected',
+          token: Buffer.from(versionedRecord.value, 'base64').toString('utf8'),
+        }
       }
 
       if (!(await dependencies.safeStorage.isAsyncEncryptionAvailable())) {
@@ -100,9 +109,10 @@ export function createTelegramSecretStore(
         return { state: 'unavailable', reason: 'unprotected-backend' }
       }
 
+      const ciphertext = versionedRecord?.value ?? encoded.trim()
       try {
         const { result: token } = await dependencies.safeStorage.decryptStringAsync(
-          Buffer.from(encoded.trim(), 'base64'),
+          Buffer.from(ciphertext, 'base64'),
         )
         return { state: 'protected', token }
       } catch {
