@@ -68,7 +68,7 @@ Lease key включает `monitorId`, поэтому recovery одного mon
 
 Допустимо вынести/экспортировать только минимально необходимую общую часть для production recovery, но нельзя создавать второй namespace или отдельную lock policy для recovery.
 
-Local in-memory lease остаётся только fallback/test isolation там, где нет реальной PostgreSQL connection string. Process-safe acceptance проверяется исключительно на реальном PostgreSQL lease.
+Production recovery всегда получает `createPostgresMonitorRunLeaseAcquirer(config.databaseUrl)` из worker wiring. Он не выбирает local fallback по внутреннему состоянию Prisma client. Local in-memory lease разрешён только как явно инъектированная test dependency для unit isolation. Process-safe acceptance проверяется исключительно на реальном PostgreSQL lease.
 
 ### Новый `electron/worker/monitor-run-recovery.ts`
 
@@ -100,14 +100,14 @@ export function recoverInterruptedMonitorRuns(
 
 `worker-application` остаётся orchestration boundary:
 
-1. создаёт recovery dependencies из canonical DB connection source;
+1. default production dependency создаёт recovery lease acquirer напрямую из `config.databaseUrl`;
 2. вызывает process-safe recovery;
 3. только после успешного завершения запускает scheduler;
 4. затем запускает остальные runtime services как сегодня.
 
 Глобальный blind SQL recovery удаляется из `worker-application`.
 
-Для реального Prisma client recovery должен использовать PostgreSQL lease из того же canonical connection string, который уже используется scheduled executor. Test doubles могут инжектировать lease acquirer явно, чтобы unit tests не требовали PostgreSQL.
+`config.databaseUrl` уже является canonical worker DB connection source для Prisma/queue stack, поэтому recovery и scheduled executor адресуют одну PostgreSQL instance и один advisory-lock namespace. Test doubles могут инжектировать lease acquirer явно, чтобы unit tests не требовали PostgreSQL.
 
 ## Terminal mutation
 
