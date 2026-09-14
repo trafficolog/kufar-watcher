@@ -6,7 +6,8 @@ interface MonitorCreateModelModule {
 
 describe('monitor create model', () => {
   it('shows parsed category, region, and search query before save', async () => {
-    const module = (await import('../../app/lib/monitor-create-model')) as MonitorCreateModelModule
+    const module =
+      (await import('../../app/lib/monitor-create-model')) as MonitorCreateModelModule
 
     expect(module.previewMonitorUrl).toBeTypeOf('function')
     expect(
