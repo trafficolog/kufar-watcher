@@ -34,14 +34,14 @@ roles: [BACK, DB, QA]
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-2.7-tasks -->
-**Задач:** 12 · **done:** 11
+**Задач:** 12 · **done:** 12
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `2.7.1` | [Валидация интервала и изоляция scheduler startup](../tasks/2-7-1-scheduler-interval-isolation.md) | ✅ done | 🟢 aligned |
 | `2.7.10` | [Валидация keywords на persistence boundary](../tasks/2-7-10-keyword-persistence-validation.md) | ✅ done | 🟢 aligned |
 | `2.7.11` | [Lifecycle-контракт docs и точная семантика drift pause signal](../tasks/2-7-11-docs-lifecycle-audit-contract.md) | ✅ done | 🟢 aligned |
-| `2.7.12` | [Process-safe Run orphan recovery](../tasks/2-7-12-process-safe-run-orphan-recovery.md) | 🔄 in_progress | 🟡 drifted |
+| `2.7.12` | [Process-safe Run orphan recovery](../tasks/2-7-12-process-safe-run-orphan-recovery.md) | ✅ done | 🟢 aligned |
 | `2.7.2` | [Контракт термов и симметричная нормализация](../tasks/2-7-2-matching-term-contract.md) | ✅ done | 🟢 aligned |
 | `2.7.3` | [Terminal disposition при исчерпании description budget](../tasks/2-7-3-description-budget-terminal-disposition.md) | ✅ done | 🟢 aligned |
 | `2.7.4` | [Целостность жизненного цикла Run](../tasks/2-7-4-run-lifecycle-integrity.md) | ✅ done | 🟢 aligned |
