@@ -12,7 +12,11 @@ export interface TelegramOutboxDeliveryRepository {
 
 export interface TelegramOutboxDeliveryOptions {
   repository: TelegramOutboxDeliveryRepository
-  sendMessage(chatId: string, text: string, options?: TelegramNotificationSendOptions): Promise<void>
+  sendMessage(
+    chatId: string,
+    text: string,
+    options?: TelegramNotificationSendOptions,
+  ): Promise<void>
   publishJournal?(message: string): void
   now?: () => Date
   sleep?: (delayMs: number) => Promise<void>
