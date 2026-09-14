@@ -27,11 +27,11 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-3.2-tasks -->
-**Задач:** 4 · **done:** 0
+**Задач:** 4 · **done:** 1
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
-| `3.2.1` | [Шаблон сообщения и экранирование](../tasks/3-2-1-message-template.md) | 🔄 in_progress | 🟡 drifted |
+| `3.2.1` | [Шаблон сообщения и экранирование](../tasks/3-2-1-message-template.md) | ✅ done | 🟢 aligned |
 | `3.2.2` | [Кнопка «Открыть» и обработка нажатий](../tasks/3-2-2-open-button.md) | ⬜ todo | 🟡 drifted |
 | `3.2.3` | [Гарантия доставки уведомления](../tasks/3-2-3-send-idempotency.md) | ⬜ todo | 🟡 drifted |
 | `3.2.4` | [Кнопка «В избранное»](../tasks/3-2-4-favorite-button.md) | ⬜ todo | 🟡 drifted |

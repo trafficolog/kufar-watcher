@@ -2,8 +2,8 @@
 id: "3.2.1"
 phase: 3
 epic: "3.2"
-status: in_progress
-sync_state: drifted
+status: done
+sync_state: aligned
 last_reviewed: 2026-09-14
 roles: [BACK]
 depends_on: ["3.1.3", "2.2.2"]
@@ -14,7 +14,7 @@ tags: [telegram, format]
 
 # Задача 3.2.1 — Шаблон сообщения и экранирование
 
-> Эпик 3.2 · Фаза 3 · 🔄 in_progress · зависит от: 3.1.3, 2.2.2 · оценка: 2-3 ч
+> Эпик 3.2 · Фаза 3 · ✅ done · зависит от: 3.1.3, 2.2.2 · оценка: 2-3 ч
 
 ## Цель
 
@@ -34,10 +34,18 @@ tags: [telegram, format]
 
 ## Критерии приёмки
 
-- [ ] Заголовок со спецсимволами разметки не ломает сообщение
-- [ ] Договорная цена отображается словами
-- [ ] Сообщение никогда не превышает лимит длины
-- [ ] Юнит-тесты зелёные
+- [x] Заголовок со спецсимволами разметки не ломает сообщение
+- [x] Договорная цена отображается словами
+- [x] Сообщение никогда не превышает лимит длины
+- [x] Юнит-тесты зелёные
+
+## Результат
+
+- Добавлен pure formatter `electron/worker/telegram-message-template.ts`; transport/outbox wiring не менялся.
+- Недоверенные monitor/title/region/snippet/url данные HTML-экранируются, а доверенная структура сообщения остаётся валидной Telegram HTML.
+- `fixed`, `negotiable`, `free` и `unknown` цены имеют явное представление; отсутствующие region/snippet опускаются.
+- Ограничение 4096 символов соблюдается Unicode-aware сокращением: сначала optional snippet, затем длинные core-поля при необходимости, без разрыва HTML entities.
+- RED characterization доказал отсутствие formatter шестью ожидаемыми assertion failures; после минимальной реализации все formatter unit tests и полный verify проходят.
 
 ## Подсказки
 
