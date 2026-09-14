@@ -36,8 +36,9 @@ describe('createMonitorConfigAndSync', () => {
       include: ['ps5', 'playstation*'],
       exclude: ['repair'],
     }
-    const module = (await import('../../electron/worker/monitor-config-sync')) as
-      MonitorCreateConfigSyncModule
+    const module = (await import(
+      '../../electron/worker/monitor-config-sync'
+    )) as MonitorCreateConfigSyncModule
 
     expect(module.createMonitorConfigAndSync).toBeTypeOf('function')
     await expect(
