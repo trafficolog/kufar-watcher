@@ -12,9 +12,11 @@ export type TelegramSecretReadResult =
 
 export type TelegramSecretWriteResult =
   | { state: 'protected' }
+  | { state: 'unprotected' }
+  | { state: 'confirmation-required'; reason: 'unprotected-backend' }
   | {
       state: 'unavailable'
-      reason: 'encryption-unavailable' | 'unprotected-backend' | 'write-failed'
+      reason: 'encryption-unavailable' | 'write-failed'
     }
 
 export interface TelegramSecretStore {
@@ -84,16 +86,37 @@ export function createTelegramSecretStore(
       }
     },
 
-    async write(token): Promise<TelegramSecretWriteResult> {
+    async write(token, allowUnprotected): Promise<TelegramSecretWriteResult> {
       if (!(await dependencies.safeStorage.isAsyncEncryptionAvailable())) {
         return { state: 'unavailable', reason: 'encryption-unavailable' }
       }
 
-      if (
+      const isUnprotectedLinuxBackend =
         dependencies.platform === 'linux' &&
         dependencies.safeStorage.getSelectedStorageBackend() === 'basic_text'
-      ) {
-        return { state: 'unavailable', reason: 'unprotected-backend' }
+
+      if (isUnprotectedLinuxBackend) {
+        if (!allowUnprotected) {
+          return { state: 'confirmation-required', reason: 'unprotected-backend' }
+        }
+
+        const writeFile = dependencies.writeFile
+        if (!writeFile) return { state: 'unavailable', reason: 'write-failed' }
+
+        try {
+          await writeFile(
+            path,
+            JSON.stringify({
+              version: 1,
+              protection: 'unprotected',
+              value: Buffer.from(token, 'utf8').toString('base64'),
+            }),
+            'utf8',
+          )
+          return { state: 'unprotected' }
+        } catch {
+          return { state: 'unavailable', reason: 'write-failed' }
+        }
       }
 
       const encryptStringAsync = dependencies.safeStorage.encryptStringAsync
