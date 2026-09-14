@@ -165,7 +165,9 @@ export function createWorkerApplication(
   const deliverTelegramOutbox = dependencies.createTelegramOutboxDelivery({
     repository: telegramOutboxRepository,
     sendMessage(chatId, text, sendOptions) {
-      return telegram.sendMessage(chatId, text, sendOptions)
+      return sendOptions
+        ? telegram.sendMessage(chatId, text, sendOptions)
+        : telegram.sendMessage(chatId, text)
     },
     publishJournal(message) {
       publish({ type: 'journal', level: 'error', message })
