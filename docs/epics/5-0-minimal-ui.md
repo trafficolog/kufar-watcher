@@ -1,9 +1,9 @@
 ---
 id: "5.0"
 phase: 5
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-09-05
+last_reviewed: 2026-09-14
 status_note: "Минимальный UI, замыкающий срез MVP-1: создание монитора и настройка Telegram."
 roles:
   - FRONT
@@ -38,11 +38,11 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-5.0-tasks -->
-**Задач:** 4 · **done:** 0
+**Задач:** 4 · **done:** 1
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
-| `5.0.1` | [Быстрое создание монитора](../tasks/5-0-1-quick-create.md) | ⬜ todo | 🟡 drifted |
+| `5.0.1` | [Быстрое создание монитора](../tasks/5-0-1-quick-create.md) | ✅ done | 🟢 aligned |
 | `5.0.2` | [Настройка Telegram: токен и привязка чата](../tasks/5-0-2-telegram-setup.md) | ⬜ todo | 🟡 drifted |
 | `5.0.3` | [Минимальный список мониторов](../tasks/5-0-3-monitor-list.md) | ⬜ todo | 🟡 drifted |
 | `5.0.4` | [Приёмка среза MVP-1](../tasks/5-0-4-mvp-acceptance.md) | ⬜ todo | 🟡 drifted |
