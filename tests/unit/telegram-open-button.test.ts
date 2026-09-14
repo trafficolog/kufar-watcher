@@ -109,7 +109,9 @@ describe('Telegram open button', () => {
     const queue = createPgBossTelegramOutboxQueue('postgresql://outbox', vi.fn(), () => boss)
     await queue.start(async () => undefined)
 
-    await expect(queue.enqueue(openPayload(openUrl))).rejects.toThrow(/invalid telegram outbox payload/i)
+    await expect(queue.enqueue(openPayload(openUrl))).rejects.toThrow(
+      /invalid telegram outbox payload/i,
+    )
     expect(boss.sent).toEqual([])
   })
 
