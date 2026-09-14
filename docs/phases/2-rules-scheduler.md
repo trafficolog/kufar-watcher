@@ -3,7 +3,7 @@ id: "2"
 status: in_progress
 sync_state: drifted
 last_reviewed: 2026-09-14
-status_note: "Фаза 2 в работе: эпики 2.1–2.4 закрыты; remediation 2.7 временно открыт задачей 2.7.12; power/catch-up 2.5 и morphology 2.6 остаются в очереди."
+status_note: "Фаза 2 в работе: эпики 2.1–2.4 и remediation 2.7 закрыты; power/catch-up 2.5 и morphology 2.6 остаются в очереди."
 ---
 
 # Фаза 2 — Правила, матчинг, планировщик
