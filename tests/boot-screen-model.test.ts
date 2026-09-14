@@ -16,6 +16,23 @@ function state(overrides: Partial<BootState> = {}): BootState {
   }
 }
 
+function incompatibleContainerState(
+  mismatches: string[] = ['image', 'port'],
+): BootState {
+  return {
+    phase: 'error',
+    steps: [
+      { id: 'docker', state: 'success', detail: 'Docker daemon is available' },
+      { id: 'database', state: 'error', detail: 'Existing PostgreSQL container configuration is incompatible' },
+      { id: 'migrations', state: 'pending', detail: 'Waiting for database' },
+      { id: 'scheduler', state: 'pending', detail: 'Waiting for migrations' },
+      { id: 'telegram', state: 'skipped', detail: 'Telegram is not configured yet' },
+    ],
+    errorCode: 'database-container-incompatible',
+    postgresContainerMismatches: mismatches,
+  } as unknown as BootState
+}
+
 describe('buildBootScreenModel', () => {
   it('maps infrastructure steps to the prototype order and presentation states', () => {
     const model = buildBootScreenModel(state(), 'linux')
@@ -68,15 +85,38 @@ describe('buildBootScreenModel', () => {
     expect(model.error?.message).toContain('Docker Desktop')
   })
 
-  it('explains that an incompatible existing Postgres container is left unchanged', () => {
+  it('shows reversible Linux rename-and-retry guidance for an incompatible existing container', () => {
+    const model = buildBootScreenModel(incompatibleContainerState(['image', 'port']), 'linux')
+
+    expect(model.error?.heading).toBe('Конфликт локального Postgres')
+    expect(model.error?.message).toContain('kufar-watcher-postgres')
+    expect(model.error?.message).toContain('образ')
+    expect(model.error?.message).toContain('порт')
+    expect(model.error?.message).toContain('docker rename')
+    expect(model.error?.message).toContain('Повторить')
+    expect(model.error?.message).toContain('volume')
+    expect(model.error?.message).not.toContain('docker rm')
+  })
+
+  it('mentions Docker Desktop for the reversible incompatible-container recovery path on Windows', () => {
+    const model = buildBootScreenModel(incompatibleContainerState(['password']), 'win32')
+
+    expect(model.error?.message).toContain('Docker Desktop')
+    expect(model.error?.message).toContain('пароль')
+    expect(model.error?.message).toContain('docker rename')
+    expect(model.error?.message).not.toContain('docker rm')
+  })
+
+  it('keeps generic configuration-invalid guidance separate from Docker container recovery', () => {
     const model = buildBootScreenModel(
       state({ phase: 'error', errorCode: 'configuration-invalid' }),
       'linux',
     )
 
     expect(model.error?.heading).toBe('Не удалось подготовить локальную базу')
-    expect(model.error?.message).toContain('существующего контейнера')
-    expect(model.error?.message).toContain('Контейнер не изменён')
+    expect(model.error?.message).not.toContain('kufar-watcher-postgres')
+    expect(model.error?.message).not.toContain('docker rename')
+    expect(model.error?.message).not.toContain('существующего контейнера')
   })
 
   it('does not treat skipped or degraded Telegram as a fatal launch error', () => {
