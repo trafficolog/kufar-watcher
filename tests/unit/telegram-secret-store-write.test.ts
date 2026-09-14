@@ -7,7 +7,7 @@ interface WritableTelegramSecretStore {
 }
 
 describe('Telegram secret store write', () => {
-  it('encrypts a token before persisting it when protected storage is available', async () => {
+  it('encrypts a token into a versioned protected record before persisting it', async () => {
     const ciphertext = Buffer.from('ciphertext')
     const writeFile = vi.fn(async () => undefined)
     const safeStorage = {
@@ -31,7 +31,11 @@ describe('Telegram secret store write', () => {
     })
     expect(writeFile).toHaveBeenCalledWith(
       expect.stringContaining('telegram-token.enc'),
-      ciphertext.toString('base64'),
+      JSON.stringify({
+        version: 1,
+        protection: 'protected',
+        value: ciphertext.toString('base64'),
+      }),
       'utf8',
     )
     expect(JSON.stringify(writeFile.mock.calls)).not.toContain('SECRET_SENTINEL_5_0_2')
