@@ -22,9 +22,9 @@ export interface SystemIpcServices {
 
 export interface TelegramIpcServices {
   getTelegramState(): TelegramDesktopState | Promise<TelegramDesktopState>
-  verifyTelegramToken(token: string):
-    | TelegramTokenVerificationResult
-    | Promise<TelegramTokenVerificationResult>
+  verifyTelegramToken(
+    token: string,
+  ): TelegramTokenVerificationResult | Promise<TelegramTokenVerificationResult>
   saveTelegramToken(
     token: string,
     allowUnprotected: boolean,
