@@ -1,4 +1,4 @@
-import type { MonitorCreateInput, MonitorCreateResult } from '../../shared/ipc'
+import type { MonitorCreateInput, MonitorCreateResult, MonitorListItem } from '../../shared/ipc'
 import type { TelegramBindResult } from '../../shared/telegram'
 import type { WorkerControlMessage, WorkerEvent } from '../../shared/runtime'
 
@@ -16,6 +16,7 @@ export interface WorkerRuntimeServices {
   bindTelegramCandidate?(chatId: string): Promise<TelegramBindResult>
   sendTelegramTestMessage?(): Promise<void>
   createMonitor?(input: MonitorCreateInput): Promise<MonitorCreateResult>
+  listMonitors?(): Promise<MonitorListItem[]>
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -54,7 +55,7 @@ function isWorkerControlMessage(message: unknown): message is WorkerControlMessa
       typeof Reflect.get(message, 'chatId') === 'string'
     )
   }
-  if (type === 'telegram-test-message') {
+  if (type === 'telegram-test-message' || type === 'monitor-list') {
     return typeof Reflect.get(message, 'requestId') === 'string'
   }
   if (type === 'monitor-create') {
@@ -208,6 +209,31 @@ export async function startWorkerRuntime(
             type: 'journal',
             level: 'error',
             message: 'Monitor creation failed',
+          })
+        })
+      return
+    }
+
+    if (data.type === 'monitor-list') {
+      if (!services.listMonitors) return
+      void services
+        .listMonitors()
+        .then((result) => {
+          parentPort.postMessage({
+            type: 'monitor-list-result',
+            requestId: data.requestId,
+            result,
+          })
+        })
+        .catch(() => {
+          parentPort.postMessage({
+            type: 'monitor-list-error',
+            requestId: data.requestId,
+          })
+          parentPort.postMessage({
+            type: 'journal',
+            level: 'error',
+            message: 'Monitor list failed',
           })
         })
       return
