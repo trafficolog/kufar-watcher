@@ -64,6 +64,7 @@ describe('worker Telegram outbox composition', () => {
       configure: vi.fn(async () => undefined),
       resume: vi.fn(async () => undefined),
       bindCandidate: vi.fn(async () => 'bound' as const),
+      sendTestMessage: vi.fn(async () => undefined),
       sendMessage: vi.fn(async () => undefined),
       getState: vi.fn(() => 'ready' as const),
       getCandidate: vi.fn(() => null),
