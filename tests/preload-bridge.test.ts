@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createDesktopApi } from '../electron/preload/desktop-api'
-import { IPC, type BootState } from '../shared/ipc'
+import { IPC, type BootState, type MonitorListItem } from '../shared/ipc'
 import type { TelegramDesktopState } from '../shared/telegram'
 
 type RendererListener = (event: unknown, payload: unknown) => void
@@ -21,6 +21,15 @@ class FakeIpcRenderer {
     },
     secret: 'protected',
   }
+  monitorSnapshot: MonitorListItem[] = [
+    {
+      id: 7,
+      name: 'PS5 Минск',
+      intervalSec: 300,
+      state: 'active',
+      lastRun: null,
+    },
+  ]
 
   async invoke(channel: string, ...args: unknown[]): Promise<unknown> {
     this.invoked.push(channel)
@@ -29,6 +38,7 @@ class FakeIpcRenderer {
     if (channel === IPC.telegramStateGet) return this.telegramState
     if (channel === IPC.telegramBindCandidate) return 'bound'
     if (channel === Reflect.get(IPC, 'monitorCreate')) return { monitorId: 17 }
+    if (channel === Reflect.get(IPC, 'monitorList')) return this.monitorSnapshot
     return undefined
   }
 
@@ -80,11 +90,18 @@ describe('preload desktop bridge', () => {
     ])
 
     const monitors = Reflect.get(api, 'monitors') as
-      { create(input: unknown): Promise<{ monitorId: number }> } | undefined
+      | {
+          create(input: unknown): Promise<{ monitorId: number }>
+          list(): Promise<MonitorListItem[]>
+        }
+      | undefined
     const monitorCreateChannel = Reflect.get(IPC, 'monitorCreate')
+    const monitorListChannel = Reflect.get(IPC, 'monitorList')
     expect(monitors).toBeDefined()
     expect(Reflect.get(monitors ?? {}, 'create')).toBeTypeOf('function')
+    expect(Reflect.get(monitors ?? {}, 'list')).toBeTypeOf('function')
     expect(monitorCreateChannel).toBe('monitors:create')
+    expect(monitorListChannel).toBe('monitors:list')
 
     await expect(api.system.getBootState()).resolves.toEqual(ipcRenderer.bootState)
     await api.system.retryBoot()
@@ -102,7 +119,9 @@ describe('preload desktop bridge', () => {
       exclude: ['ремонт'],
     }
     await expect(monitors!.create(input)).resolves.toEqual({ monitorId: 17 })
+    await expect(monitors!.list()).resolves.toEqual(ipcRenderer.monitorSnapshot)
     expect(ipcRenderer.calls).toContainEqual({ channel: 'monitors:create', args: [input] })
+    expect(ipcRenderer.calls).toContainEqual({ channel: 'monitors:list', args: [] })
     expect(ipcRenderer.calls).toContainEqual({ channel: 'telegram:test-message', args: [] })
 
     expect(ipcRenderer.invoked).toEqual([
@@ -114,6 +133,7 @@ describe('preload desktop bridge', () => {
       IPC.telegramBindCandidate,
       IPC.telegramTestMessage,
       'monitors:create',
+      'monitors:list',
     ])
   })
 
