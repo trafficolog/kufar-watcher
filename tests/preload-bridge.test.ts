@@ -75,6 +75,7 @@ describe('preload desktop bridge', () => {
       'verifyToken',
       'saveToken',
       'bindCandidate',
+      'sendTestMessage',
       'onState',
     ])
 
@@ -91,6 +92,7 @@ describe('preload desktop bridge', () => {
     await api.system.exit()
     await expect(api.telegram.getState()).resolves.toEqual(ipcRenderer.telegramState)
     await expect(api.telegram.bindCandidate()).resolves.toBe('bound')
+    await expect(api.telegram.sendTestMessage()).resolves.toBeUndefined()
 
     const input = {
       name: 'PS5 Минск',
@@ -101,6 +103,7 @@ describe('preload desktop bridge', () => {
     }
     await expect(monitors!.create(input)).resolves.toEqual({ monitorId: 17 })
     expect(ipcRenderer.calls).toContainEqual({ channel: 'monitors:create', args: [input] })
+    expect(ipcRenderer.calls).toContainEqual({ channel: 'telegram:test-message', args: [] })
 
     expect(ipcRenderer.invoked).toEqual([
       IPC.bootGet,
@@ -109,6 +112,7 @@ describe('preload desktop bridge', () => {
       IPC.appExit,
       IPC.telegramStateGet,
       IPC.telegramBindCandidate,
+      IPC.telegramTestMessage,
       'monitors:create',
     ])
   })
