@@ -46,6 +46,22 @@ export interface MonitorCreateResult {
   monitorId: number
 }
 
+export interface MonitorRunSummary {
+  startedAt: string
+  finishedAt: string | null
+  outcome: string | null
+  errorCategory: string | null
+  errorCode: string | null
+}
+
+export interface MonitorListItem {
+  id: number
+  name: string
+  intervalSec: number
+  state: 'active' | 'paused' | 'archived'
+  lastRun: MonitorRunSummary | null
+}
+
 export interface KufarDesktopApi {
   system: {
     getBootState(): Promise<BootState>
