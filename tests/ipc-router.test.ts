@@ -258,7 +258,11 @@ describe('typed IPC routing', () => {
       exclude: ['ремонт'],
     }
 
-    registerMonitorIpcHandlers(ipcMain, { createMonitor }, devRendererUrl)
+    registerMonitorIpcHandlers(
+      ipcMain,
+      { createMonitor, listMonitors: vi.fn(async () => []) },
+      devRendererUrl,
+    )
 
     await expect(ipcMain.invoke(IPC.monitorCreate, 'https://example.com', input)).rejects.toThrow(
       'Untrusted renderer',
