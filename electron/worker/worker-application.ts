@@ -1,4 +1,5 @@
 import type { PrismaClient } from '../../generated/prisma/client'
+import type { MonitorListItem } from '../../shared/ipc'
 import type { WorkerEvent } from '../../shared/runtime'
 import type { WorkerConfig } from './config'
 import { createGrammyTelegramBotFactory } from './grammy-telegram-bot'
@@ -43,22 +44,6 @@ import {
   type WorkerSourceRuntime,
   type WorkerSourceRuntimeOptions,
 } from './worker-source-runtime'
-
-export interface MonitorRunSummary {
-  startedAt: string
-  finishedAt: string | null
-  outcome: string | null
-  errorCategory: string | null
-  errorCode: string | null
-}
-
-export interface MonitorListItem {
-  id: number
-  name: string
-  intervalSec: number
-  state: 'active' | 'paused' | 'archived'
-  lastRun: MonitorRunSummary | null
-}
 
 export interface WorkerApplication extends WorkerRuntimeServices {
   scheduler: MonitorScheduler
