@@ -31,6 +31,7 @@ export type WorkerEvent =
       monitorId: number
       stage: 'primary' | 'html-fallback' | 'degradation-event'
     }
+  | { type: 'monitor-changed'; monitorId: number }
   | { type: 'monitor-create-result'; requestId: string; result: MonitorCreateResult }
   | { type: 'monitor-create-error'; requestId: string }
   | { type: 'monitor-list-result'; requestId: string; result: MonitorListItem[] }
