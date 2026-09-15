@@ -170,6 +170,14 @@ function parseWorkerEvent(message: unknown): WorkerEvent | undefined {
     return undefined
   }
 
+  if (type === 'monitor-changed') {
+    const monitorId = Reflect.get(message, 'monitorId')
+    if (typeof monitorId === 'number' && Number.isInteger(monitorId) && monitorId > 0) {
+      return { type, monitorId }
+    }
+    return undefined
+  }
+
   if (type === 'monitor-create-result') {
     const requestId = Reflect.get(message, 'requestId')
     const result = Reflect.get(message, 'result')
