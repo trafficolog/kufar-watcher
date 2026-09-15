@@ -271,6 +271,7 @@ app.whenReady().then(async () => {
     {
       createMonitor: (input) => supervisor.createMonitor(input),
       listMonitors: () => supervisor.listMonitors(),
+      setMonitorState: (monitorId, state) => supervisor.setMonitorState(monitorId, state),
     },
     devRendererUrl,
   )
