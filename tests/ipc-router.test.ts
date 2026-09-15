@@ -260,7 +260,11 @@ describe('typed IPC routing', () => {
 
     registerMonitorIpcHandlers(
       ipcMain,
-      { createMonitor, listMonitors: vi.fn(async () => []) },
+      {
+        createMonitor,
+        listMonitors: vi.fn(async () => []),
+        setMonitorState: vi.fn(async () => undefined),
+      },
       devRendererUrl,
     )
 
@@ -290,6 +294,7 @@ describe('typed IPC routing', () => {
     const services = {
       createMonitor: vi.fn(async (_input: MonitorCreateInput) => ({ monitorId: 17 })),
       listMonitors: vi.fn(async () => snapshot),
+      setMonitorState: vi.fn(async () => undefined),
     }
     const devRendererUrl = 'http://127.0.0.1:3000'
 
