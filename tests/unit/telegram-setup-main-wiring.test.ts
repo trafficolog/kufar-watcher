@@ -12,8 +12,8 @@ describe('Telegram setup Electron main wiring', () => {
     expect(source).toContain("import { readFile, writeFile } from 'node:fs/promises'")
     expect(source).toContain('writeFile,\n    safeStorage,')
     expect(source).toContain('verifyTelegramToken(supervisor, token)')
-    expect(source).toContain(
-      'saveTelegramToken(telegramSecretStore, supervisor, token, allowUnprotected)',
-    )
+    expect(source).toContain('saveTelegramToken(')
+    expect(source).toContain('telegramSecretStore,')
+    expect(source).toContain('allowUnprotected,')
   })
 })

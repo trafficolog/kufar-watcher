@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import {
   app,
@@ -34,7 +34,11 @@ import {
   routeWorkerTelegramEvent,
 } from './ipc-router'
 import { loadOrCreatePostgresCredentials, readPostgresRuntimeConfig } from './postgres-config'
-import { configureTelegramFromSecret } from './telegram-main-runtime'
+import {
+  configureTelegramFromSecret,
+  saveTelegramToken,
+  verifyTelegramToken,
+} from './telegram-main-runtime'
 import { createTelegramSecretStore } from './telegram-secret-store'
 import { workerProcessEnvironment } from './worker-process-env'
 import { createWorkerSupervisor, type WorkerSupervisor } from './worker-supervisor'
@@ -183,6 +187,7 @@ app.whenReady().then(async () => {
   const telegramSecretStore = createTelegramSecretStore(userDataDir, {
     platform: process.platform,
     readFile,
+    writeFile,
     safeStorage,
   })
   const telegramSecretState = await configureTelegramFromSecret(telegramSecretStore, supervisor)
@@ -237,6 +242,20 @@ app.whenReady().then(async () => {
     ipcMain,
     {
       getTelegramState: () => telegramState,
+      verifyTelegramToken: (token) => verifyTelegramToken(supervisor, token),
+      saveTelegramToken: async (token, allowUnprotected) => {
+        const result = await saveTelegramToken(
+          telegramSecretStore,
+          supervisor,
+          token,
+          allowUnprotected,
+        )
+        if (result.state === 'protected' || result.state === 'unprotected') {
+          telegramState = { ...telegramState, secret: result.state }
+          broadcastTelegramState(telegramState)
+        }
+        return result
+      },
       bindTelegramCandidate: async () => {
         const candidate = telegramState.candidate
         if (!candidate) return 'no-candidate'
