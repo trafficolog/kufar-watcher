@@ -1,4 +1,9 @@
-import type { MonitorCreateInput, MonitorCreateResult } from '../../shared/ipc'
+import type {
+  MonitorCreateInput,
+  MonitorCreateResult,
+  MonitorListItem,
+  MonitorRunSummary,
+} from '../../shared/ipc'
 import {
   TELEGRAM_BIND_RESULTS,
   TELEGRAM_CHANNEL_STATES,
@@ -40,8 +45,11 @@ export interface WorkerSupervisor {
   bindTelegramCandidate(chatId: string): Promise<TelegramBindResult>
   sendTelegramTestMessage(): Promise<void>
   createMonitor(input: MonitorCreateInput): Promise<MonitorCreateResult>
+  listMonitors(): Promise<MonitorListItem[]>
   shutdown(): Promise<WorkerShutdownResult>
 }
+
+const MONITOR_STATES = ['active', 'paused', 'archived'] as const
 
 function includesString<const T extends readonly string[]>(
   values: T,
@@ -70,6 +78,65 @@ function parseTelegramCandidate(value: unknown): TelegramCandidate | null | unde
   return username === undefined
     ? { chatId, chatType, displayName }
     : { chatId, chatType, displayName, username }
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+function parseMonitorRunSummary(value: unknown): MonitorRunSummary | null | undefined {
+  if (value === null) return null
+  if (!value || typeof value !== 'object') return undefined
+
+  const startedAt = Reflect.get(value, 'startedAt')
+  const finishedAt = Reflect.get(value, 'finishedAt')
+  const outcome = Reflect.get(value, 'outcome')
+  const errorCategory = Reflect.get(value, 'errorCategory')
+  const errorCode = Reflect.get(value, 'errorCode')
+  if (
+    typeof startedAt !== 'string' ||
+    !isNullableString(finishedAt) ||
+    !isNullableString(outcome) ||
+    !isNullableString(errorCategory) ||
+    !isNullableString(errorCode)
+  ) {
+    return undefined
+  }
+
+  return { startedAt, finishedAt, outcome, errorCategory, errorCode }
+}
+
+function parseMonitorListItem(value: unknown): MonitorListItem | undefined {
+  if (!value || typeof value !== 'object') return undefined
+
+  const id = Reflect.get(value, 'id')
+  const name = Reflect.get(value, 'name')
+  const intervalSec = Reflect.get(value, 'intervalSec')
+  const state = Reflect.get(value, 'state')
+  const lastRun = parseMonitorRunSummary(Reflect.get(value, 'lastRun'))
+  if (
+    typeof id !== 'number' ||
+    !Number.isInteger(id) ||
+    id <= 0 ||
+    typeof name !== 'string' ||
+    typeof intervalSec !== 'number' ||
+    !Number.isInteger(intervalSec) ||
+    intervalSec <= 0 ||
+    !includesString(MONITOR_STATES, state) ||
+    lastRun === undefined
+  ) {
+    return undefined
+  }
+
+  return { id, name, intervalSec, state, lastRun }
+}
+
+function parseMonitorList(value: unknown): MonitorListItem[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const monitors = value.map(parseMonitorListItem)
+  return monitors.some((monitor) => monitor === undefined)
+    ? undefined
+    : (monitors as MonitorListItem[])
 }
 
 function parseWorkerEvent(message: unknown): WorkerEvent | undefined {
@@ -119,6 +186,18 @@ function parseWorkerEvent(message: unknown): WorkerEvent | undefined {
   }
 
   if (type === 'monitor-create-error') {
+    const requestId = Reflect.get(message, 'requestId')
+    if (typeof requestId === 'string') return { type, requestId }
+  }
+
+  if (type === 'monitor-list-result') {
+    const requestId = Reflect.get(message, 'requestId')
+    const result = parseMonitorList(Reflect.get(message, 'result'))
+    if (typeof requestId === 'string' && result) return { type, requestId, result }
+    return undefined
+  }
+
+  if (type === 'monitor-list-error') {
     const requestId = Reflect.get(message, 'requestId')
     if (typeof requestId === 'string') return { type, requestId }
   }
@@ -247,6 +326,10 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
     string,
     { resolve(result: MonitorCreateResult): void; reject(error: Error): void }
   >()
+  const pendingMonitorLists = new Map<
+    string,
+    { resolve(result: MonitorListItem[]): void; reject(error: Error): void }
+  >()
   let currentWorker: WorkerRuntimeHandle | undefined
   let restartTimer: ReturnType<typeof setTimeout> | undefined
   let restartAttempt = 0
@@ -258,6 +341,7 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
   let telegramBindRequestSequence = 0
   let telegramTestMessageRequestSequence = 0
   let monitorCreateRequestSequence = 0
+  let monitorListRequestSequence = 0
 
   const rejectPendingTelegramVerifications = (message: string): void => {
     for (const pending of pendingTelegramVerifications.values()) {
@@ -285,6 +369,13 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
       pending.reject(new Error(message))
     }
     pendingMonitorCreates.clear()
+  }
+
+  const rejectPendingMonitorLists = (message: string): void => {
+    for (const pending of pendingMonitorLists.values()) {
+      pending.reject(new Error(message))
+    }
+    pendingMonitorLists.clear()
   }
 
   const sendTelegramConfiguration = (worker: WorkerRuntimeHandle): void => {
@@ -326,6 +417,18 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
           pending.resolve(event.result)
         } else {
           pending.reject(new Error('Monitor creation failed'))
+        }
+        return
+      }
+
+      if (event.type === 'monitor-list-result' || event.type === 'monitor-list-error') {
+        const pending = pendingMonitorLists.get(event.requestId)
+        if (!pending) return
+        pendingMonitorLists.delete(event.requestId)
+        if (event.type === 'monitor-list-result') {
+          pending.resolve(event.result)
+        } else {
+          pending.reject(new Error('Monitor list failed'))
         }
         return
       }
@@ -375,6 +478,7 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
         rejectPendingTelegramBinds('Worker became unavailable')
         rejectPendingTelegramTestMessages('Worker became unavailable')
         rejectPendingMonitorCreates('Worker became unavailable')
+        rejectPendingMonitorLists('Worker became unavailable')
       }
       if (stopping) return
 
@@ -463,12 +567,24 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
         worker.postMessage({ type: 'monitor-create', requestId, input })
       })
     },
+    listMonitors(): Promise<MonitorListItem[]> {
+      const worker = currentWorker
+      if (!worker) return Promise.reject(new Error('Worker is unavailable'))
+
+      monitorListRequestSequence += 1
+      const requestId = `monitor-list-${monitorListRequestSequence}`
+      return new Promise((resolve, reject) => {
+        pendingMonitorLists.set(requestId, { resolve, reject })
+        worker.postMessage({ type: 'monitor-list', requestId })
+      })
+    },
     async shutdown(): Promise<WorkerShutdownResult> {
       stopping = true
       rejectPendingTelegramVerifications('Worker is shutting down')
       rejectPendingTelegramBinds('Worker is shutting down')
       rejectPendingTelegramTestMessages('Worker is shutting down')
       rejectPendingMonitorCreates('Worker is shutting down')
+      rejectPendingMonitorLists('Worker is shutting down')
       if (restartTimer) {
         clearTimeout(restartTimer)
         restartTimer = undefined
