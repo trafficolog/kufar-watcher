@@ -59,6 +59,9 @@ export function createDesktopApi(ipcRenderer: IpcRendererLike): KufarDesktopApi 
           ReturnType<KufarDesktopApi['telegram']['bindCandidate']>
         >
       },
+      async sendTestMessage() {
+        await ipcRenderer.invoke(IPC.telegramTestMessage)
+      },
       onState(listener): () => void {
         const handleState: RendererListener = (_event, state) =>
           listener(state as TelegramDesktopState)
