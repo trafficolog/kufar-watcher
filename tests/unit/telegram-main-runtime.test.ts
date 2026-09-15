@@ -14,6 +14,7 @@ function createSupervisor() {
     sendTelegramTestMessage: vi.fn(async () => undefined),
     createMonitor: vi.fn(),
     listMonitors: vi.fn(async () => []),
+    setMonitorState: vi.fn(async () => undefined),
     shutdown: vi.fn(async () => 'acknowledged' as const),
   } satisfies WorkerSupervisor
 }
