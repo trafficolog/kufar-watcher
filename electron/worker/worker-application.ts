@@ -211,6 +211,7 @@ export function createWorkerApplication(
     },
     async setMonitorState(monitorId, state) {
       await updateMonitorConfigAndSync(prisma, scheduler, monitorId, { state })
+      publish({ type: 'monitor-changed', monitorId })
     },
     async listMonitors() {
       const monitors = await prisma.monitor.findMany({
