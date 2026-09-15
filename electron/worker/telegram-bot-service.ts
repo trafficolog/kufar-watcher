@@ -10,6 +10,7 @@ import { TelegramSendFailure } from './telegram-send-failure'
 
 export const TELEGRAM_BINDING_ACKNOWLEDGEMENT =
   'Запрос на привязку получен. Подтвердите привязку в приложении Kufar Monitor.'
+export const TELEGRAM_TEST_MESSAGE = 'Kufar Monitor: тестовое сообщение.'
 
 export interface TelegramBindingRepository {
   getBoundChatId(): Promise<string | null>
@@ -53,6 +54,7 @@ export interface TelegramBotService {
   configure(token: string | null): Promise<void>
   resume(): Promise<void>
   bindCandidate(chatId: string): Promise<TelegramBindResult>
+  sendTestMessage(): Promise<void>
   sendMessage(
     chatId: string,
     text: string,
@@ -273,6 +275,14 @@ export function createTelegramBotService(options: TelegramBotServiceOptions): Te
       clearCandidate()
       publishState('ready')
       return 'bound'
+    },
+
+    async sendTestMessage(): Promise<void> {
+      const chatId = boundChatId
+      if (chatId === null) throw new TelegramSendFailure('permanent')
+      const currentTransport = transport
+      if (!currentTransport) throw new TelegramSendFailure('transient')
+      await currentTransport.sendMessage(chatId, TELEGRAM_TEST_MESSAGE)
     },
 
     async sendMessage(chatId, text, sendOptions): Promise<void> {
