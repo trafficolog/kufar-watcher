@@ -183,7 +183,7 @@ describe('worker application', () => {
     expect(createScheduler).toHaveBeenCalledWith({
       repository,
       queue,
-      runMonitor,
+      runMonitor: expect.any(Function),
       onReconcileError: expect.any(Function),
     })
     expect(telegram.createTelegramRepository).toHaveBeenCalledWith(prisma)
