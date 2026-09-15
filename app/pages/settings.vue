@@ -207,7 +207,12 @@ onBeforeUnmount(() => {
           :disabled="busy !== 'idle'"
           @input="consentRequired = false"
         />
-        <button class="button primary" type="button" :disabled="busy !== 'idle'" @click="verifyAndSave">
+        <button
+          class="button primary"
+          type="button"
+          :disabled="busy !== 'idle'"
+          @click="verifyAndSave"
+        >
           {{ busy === 'verify' || busy === 'save' ? 'Проверяю…' : 'Проверить и сохранить' }}
         </button>
       </div>
@@ -230,7 +235,12 @@ onBeforeUnmount(() => {
           >
             Сохранить без защиты
           </button>
-          <button class="button" type="button" :disabled="busy !== 'idle'" @click="cancelUnprotectedSave">
+          <button
+            class="button"
+            type="button"
+            :disabled="busy !== 'idle'"
+            @click="cancelUnprotectedSave"
+          >
             Не сохранять
           </button>
         </div>
@@ -262,7 +272,9 @@ onBeforeUnmount(() => {
         <div class="step-body">
           <template v-if="isBound">
             <strong>Чат привязан</strong>
-            <p>Приложение хранит идентификатор внутри worker-контура; вводить его вручную не нужно.</p>
+            <p>
+              Приложение хранит идентификатор внутри worker-контура; вводить его вручную не нужно.
+            </p>
           </template>
           <template v-else-if="candidate">
             <strong>Найден чат — подтвердите</strong>
