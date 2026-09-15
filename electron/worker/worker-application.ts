@@ -205,7 +205,9 @@ export function createWorkerApplication(
       await telegram.sendTestMessage()
     },
     async createMonitor(input) {
-      return createMonitorConfigAndSync(prisma, scheduler, input)
+      const result = await createMonitorConfigAndSync(prisma, scheduler, input)
+      publish({ type: 'monitor-changed', monitorId: result.monitorId })
+      return result
     },
     async setMonitorState(monitorId, state) {
       await updateMonitorConfigAndSync(prisma, scheduler, monitorId, { state })
