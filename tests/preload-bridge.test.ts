@@ -67,7 +67,7 @@ class FakeIpcRenderer {
   }
 
   emitMonitorChanged(monitorId: number): void {
-    for (const listener of this.listeners.get('monitors:changed') ?? []) {
+    for (const listener of this.listeners.get(IPC.monitorChangedEvent) ?? []) {
       listener({ sender: 'not-exposed' }, monitorId)
     }
   }
@@ -196,15 +196,11 @@ describe('preload desktop bridge', () => {
     const ipcRenderer = new FakeIpcRenderer()
     const api = createDesktopApi(ipcRenderer)
     const listener = vi.fn()
-    const channel = Reflect.get(IPC, 'monitorChangedEvent')
-    const onChanged = Reflect.get(api.monitors, 'onChanged') as
-      | ((listener: (monitorId: number) => void) => () => void)
-      | undefined
 
-    expect(channel).toBe('monitors:changed')
-    expect(onChanged).toBeTypeOf('function')
+    expect(IPC.monitorChangedEvent).toBe('monitors:changed')
+    expect(api.monitors.onChanged).toBeTypeOf('function')
 
-    const unsubscribe = onChanged!(listener)
+    const unsubscribe = api.monitors.onChanged(listener)
     ipcRenderer.emitMonitorChanged(7)
     unsubscribe()
     ipcRenderer.emitMonitorChanged(8)
