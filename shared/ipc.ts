@@ -80,6 +80,7 @@ export interface KufarDesktopApi {
   }
   monitors: {
     create(input: MonitorCreateInput): Promise<MonitorCreateResult>
+    list(): Promise<MonitorListItem[]>
   }
 }
 
