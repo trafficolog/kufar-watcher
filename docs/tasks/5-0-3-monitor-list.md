@@ -2,9 +2,9 @@
 id: "5.0.3"
 phase: 5
 epic: "5.0"
-status: todo
-sync_state: drifted
-last_reviewed: 2026-09-05
+status: done
+sync_state: aligned
+last_reviewed: 2026-09-15
 roles: [FRONT]
 depends_on: ["5.0.1", "2.4.3"]
 estimated_hours: 3-4
@@ -14,7 +14,7 @@ tags: [ui, mvp]
 
 # Задача 5.0.3 — Минимальный список мониторов
 
-> Эпик 5.0 · Фаза 5 · ⬜ todo · зависит от: 5.0.1, 2.4.3 · оценка: 3-4 ч
+> Эпик 5.0 · Фаза 5 · ✅ done · зависит от: 5.0.1, 2.4.3 · оценка: 3-4 ч
 
 ## Цель
 
@@ -33,10 +33,19 @@ tags: [ui, mvp]
 
 ## Критерии приёмки
 
-- [ ] Состояние каждого монитора видно без открытия базы
-- [ ] Неуспешный последний обход виден с причиной
-- [ ] Приостановка снимает расписание, возобновление возвращает
-- [ ] Список обновляется при завершении обхода
+- [x] Состояние каждого монитора видно без открытия базы
+- [x] Неуспешный последний обход виден с причиной
+- [x] Приостановка снимает расписание, возобновление возвращает
+- [x] Список обновляется при завершении обхода
+
+## Результат
+
+- `/monitors` стал list-first экраном: показывает имя, интервал, `active/paused`, время и безопасно нормализованный результат последнего `Run`, сохраняя quick-create из `5.0.1` на том же маршруте.
+- Pause/resume проходит через типизированный preload/IPC/worker boundary; worker меняет `Monitor.state` и вызывает существующий `MonitorScheduler.syncMonitor`, поэтому pause снимает pg-boss schedule/worker, а resume восстанавливает их.
+- Worker публикует узкое событие `monitor-changed` после create/state mutation и завершения traversal; main broadcast-ит его renderer-окнам, а `/monitors` делает event-driven refetch без timer polling и отписывается от событий при unmount.
+- Индикаторы PostgreSQL и Telegram используют существующие boot/Telegram state snapshots и subscriptions; отдельная health-подсистема не дублируется.
+- Renderer не получает сырой `Run.error`: list contract переносит только структурированные `outcome`, `errorCategory` и `errorCode`, а пользовательская причина формируется из безопасного набора значений.
+- TDD-контракты покрывают list/state application, worker runtime, supervisor, IPC/preload, main event forwarding и `/monitors`; полный verify `#1768` прошёл unit, typecheck, lint/format, Dockerode/PostgreSQL integrations, build и оба Electron launch smoke.
 
 ## Подсказки
 

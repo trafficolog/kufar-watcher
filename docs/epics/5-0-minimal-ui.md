@@ -38,13 +38,13 @@ roles:
 ## Дочерние карточки (rollup)
 
 <!-- docs:ops:begin epic-5.0-tasks -->
-**Задач:** 4 · **done:** 1
+**Задач:** 4 · **done:** 2
 
 | ID | Задача | Статус | Sync |
 |----|--------|--------|------|
 | `5.0.1` | [Быстрое создание монитора](../tasks/5-0-1-quick-create.md) | ✅ done | 🟢 aligned |
 | `5.0.2` | [Настройка Telegram: токен и привязка чата](../tasks/5-0-2-telegram-setup.md) | 🔄 in_progress | 🟢 aligned |
-| `5.0.3` | [Минимальный список мониторов](../tasks/5-0-3-monitor-list.md) | ⬜ todo | 🟡 drifted |
+| `5.0.3` | [Минимальный список мониторов](../tasks/5-0-3-monitor-list.md) | ✅ done | 🟢 aligned |
 | `5.0.4` | [Приёмка среза MVP-1](../tasks/5-0-4-mvp-acceptance.md) | ⬜ todo | 🟡 drifted |
 <!-- docs:ops:end epic-5.0-tasks -->
 
