@@ -104,6 +104,12 @@ function broadcastTelegramState(state: TelegramDesktopState): void {
   for (const window of BrowserWindow.getAllWindows()) sendTelegramState(window, state)
 }
 
+function broadcastMonitorChanged(monitorId: number): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    window.webContents.send(IPC.monitorChangedEvent, monitorId)
+  }
+}
+
 function publishBootState(state: BootState): void {
   bootState = state
   if (app.isReady()) broadcastBootState(state)
@@ -171,6 +177,7 @@ app.whenReady().then(async () => {
     onEvent: (event) => {
       bootState = routeWorkerBootEvent(event, bootState, broadcastBootState)
       telegramState = routeWorkerTelegramEvent(event, telegramState, broadcastTelegramState)
+      if (event.type === 'monitor-changed') broadcastMonitorChanged(event.monitorId)
       if (event.type === 'ready') console.info('[worker] ready')
       if (event.type === 'journal') {
         console.info(`[worker:${event.level}] ${event.message}`)
