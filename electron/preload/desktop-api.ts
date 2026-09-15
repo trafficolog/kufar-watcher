@@ -42,6 +42,18 @@ export function createDesktopApi(ipcRenderer: IpcRendererLike): KufarDesktopApi 
       async getState() {
         return (await ipcRenderer.invoke(IPC.telegramStateGet)) as TelegramDesktopState
       },
+      async verifyToken(token) {
+        return (await ipcRenderer.invoke(IPC.telegramTokenVerify, token)) as Awaited<
+          ReturnType<KufarDesktopApi['telegram']['verifyToken']>
+        >
+      },
+      async saveToken(token, allowUnprotected) {
+        return (await ipcRenderer.invoke(
+          IPC.telegramTokenSave,
+          token,
+          allowUnprotected,
+        )) as Awaited<ReturnType<KufarDesktopApi['telegram']['saveToken']>>
+      },
       async bindCandidate() {
         return (await ipcRenderer.invoke(IPC.telegramBindCandidate)) as Awaited<
           ReturnType<KufarDesktopApi['telegram']['bindCandidate']>

@@ -1,4 +1,9 @@
-import type { TelegramBindResult, TelegramDesktopState } from './telegram'
+import type {
+  TelegramBindResult,
+  TelegramDesktopState,
+  TelegramTokenSaveResult,
+  TelegramTokenVerificationResult,
+} from './telegram'
 
 export type BootStepId = 'docker' | 'database' | 'migrations' | 'scheduler' | 'telegram'
 
@@ -51,6 +56,8 @@ export interface KufarDesktopApi {
   }
   telegram: {
     getState(): Promise<TelegramDesktopState>
+    verifyToken(token: string): Promise<TelegramTokenVerificationResult>
+    saveToken(token: string, allowUnprotected: boolean): Promise<TelegramTokenSaveResult>
     bindCandidate(): Promise<TelegramBindResult>
     onState(listener: (state: TelegramDesktopState) => void): () => void
   }
@@ -66,6 +73,8 @@ export const IPC = {
   journalOpen: 'system:journal:open',
   appExit: 'system:app:exit',
   telegramStateGet: 'telegram:state:get',
+  telegramTokenVerify: 'telegram:token:verify',
+  telegramTokenSave: 'telegram:token:save',
   telegramBindCandidate: 'telegram:candidate:bind',
   telegramStateEvent: 'telegram:state:event',
   monitorCreate: 'monitors:create',

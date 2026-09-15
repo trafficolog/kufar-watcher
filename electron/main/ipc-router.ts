@@ -5,7 +5,12 @@ import {
   type MonitorCreateResult,
 } from '../../shared/ipc'
 import type { WorkerEvent } from '../../shared/runtime'
-import type { TelegramBindResult, TelegramDesktopState } from '../../shared/telegram'
+import type {
+  TelegramBindResult,
+  TelegramDesktopState,
+  TelegramTokenSaveResult,
+  TelegramTokenVerificationResult,
+} from '../../shared/telegram'
 import { APP_HOST, APP_SCHEME } from './app-protocol'
 
 export interface SystemIpcServices {
@@ -17,6 +22,13 @@ export interface SystemIpcServices {
 
 export interface TelegramIpcServices {
   getTelegramState(): TelegramDesktopState | Promise<TelegramDesktopState>
+  verifyTelegramToken(token: string):
+    | TelegramTokenVerificationResult
+    | Promise<TelegramTokenVerificationResult>
+  saveTelegramToken(
+    token: string,
+    allowUnprotected: boolean,
+  ): TelegramTokenSaveResult | Promise<TelegramTokenSaveResult>
   bindTelegramCandidate(): TelegramBindResult | Promise<TelegramBindResult>
 }
 
@@ -152,6 +164,16 @@ export function registerTelegramIpcHandlers(
   ipcMain.handle(IPC.telegramStateGet, (event) => {
     assertTrustedRenderer(event, devRendererUrl)
     return services.getTelegramState()
+  })
+
+  ipcMain.handle(IPC.telegramTokenVerify, (event, ...args) => {
+    assertTrustedRenderer(event, devRendererUrl)
+    return services.verifyTelegramToken(args[0] as string)
+  })
+
+  ipcMain.handle(IPC.telegramTokenSave, (event, ...args) => {
+    assertTrustedRenderer(event, devRendererUrl)
+    return services.saveTelegramToken(args[0] as string, args[1] as boolean)
   })
 
   ipcMain.handle(IPC.telegramBindCandidate, (event) => {

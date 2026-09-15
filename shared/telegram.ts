@@ -39,3 +39,16 @@ export interface TelegramDesktopState {
   candidate: TelegramCandidate | null
   secret: 'missing' | 'protected' | 'unprotected' | 'unavailable'
 }
+
+export interface TelegramTokenVerificationResult {
+  username: string
+}
+
+export type TelegramTokenSaveResult =
+  | { state: 'protected' }
+  | { state: 'unprotected' }
+  | { state: 'confirmation-required'; reason: 'unprotected-backend' }
+  | {
+      state: 'unavailable'
+      reason: 'encryption-unavailable' | 'write-failed'
+    }

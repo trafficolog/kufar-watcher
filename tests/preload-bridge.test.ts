@@ -70,7 +70,13 @@ describe('preload desktop bridge', () => {
       'exit',
       'onBootState',
     ])
-    expect(Object.keys(api.telegram)).toEqual(['getState', 'bindCandidate', 'onState'])
+    expect(Object.keys(api.telegram)).toEqual([
+      'getState',
+      'verifyToken',
+      'saveToken',
+      'bindCandidate',
+      'onState',
+    ])
 
     const monitors = Reflect.get(api, 'monitors') as
       { create(input: unknown): Promise<{ monitorId: number }> } | undefined
