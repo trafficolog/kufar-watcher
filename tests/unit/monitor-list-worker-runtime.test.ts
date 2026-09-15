@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { startWorkerRuntime } from '../../electron/worker/runtime'
+import type { MonitorListItem } from '../../shared/ipc'
 
 class FakeParentPort {
   readonly messages: unknown[] = []
@@ -27,7 +28,7 @@ async function flushMicrotasks(): Promise<void> {
 describe('monitor list worker runtime', () => {
   it('returns a request-correlated monitor list snapshot', async () => {
     const parentPort = new FakeParentPort()
-    const snapshot = [
+    const snapshot: MonitorListItem[] = [
       {
         id: 7,
         name: 'PS5 Minsk',
