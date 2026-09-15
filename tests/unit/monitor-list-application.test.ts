@@ -88,12 +88,13 @@ describe('monitor list worker application', () => {
       vi.fn(),
       dependencies,
     )
-    const listMonitors = Reflect.get(app, 'listMonitors') as
-      | MonitorListApplication['listMonitors']
-      | undefined
+    const listMonitors = Reflect.get(
+      app,
+      'listMonitors',
+    ) as MonitorListApplication['listMonitors']
 
     expect(listMonitors).toBeTypeOf('function')
-    await expect(listMonitors!()).resolves.toEqual([
+    await expect(listMonitors()).resolves.toEqual([
       {
         id: 7,
         name: 'PS5 Minsk',
