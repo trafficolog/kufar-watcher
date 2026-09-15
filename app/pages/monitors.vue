@@ -34,8 +34,12 @@ const canSubmit = computed(
   () => name.value.trim().length > 0 && preview.value?.state === 'valid' && !saving.value,
 )
 
-const activeCount = computed(() => monitors.value.filter((monitor) => monitor.state === 'active').length)
-const pausedCount = computed(() => monitors.value.filter((monitor) => monitor.state === 'paused').length)
+const activeCount = computed(
+  () => monitors.value.filter((monitor) => monitor.state === 'active').length,
+)
+const pausedCount = computed(
+  () => monitors.value.filter((monitor) => monitor.state === 'paused').length,
+)
 
 const databaseStatus = computed(() => {
   const database = bootState.value?.steps.find((step) => step.id === 'database')
@@ -331,10 +335,12 @@ onUnmounted(() => {
 
             <label for="monitor-name">Название</label>
             <p class="help">Короткое имя, по которому правило легко узнать в уведомлениях.</p>
-            <input id="monitor-name" v-model="name" type="text" autocomplete="off" required>
+            <input id="monitor-name" v-model="name" type="text" autocomplete="off" required />
 
             <label for="monitor-url">Ссылка Kufar</label>
-            <p class="help">Откройте нужную выдачу на kufar.by и вставьте адрес из строки браузера.</p>
+            <p class="help">
+              Откройте нужную выдачу на kufar.by и вставьте адрес из строки браузера.
+            </p>
             <input
               id="monitor-url"
               v-model="sourceUrl"
@@ -343,7 +349,7 @@ onUnmounted(() => {
               spellcheck="false"
               required
               :aria-invalid="preview?.state === 'error' ? 'true' : undefined"
-            >
+            />
 
             <p v-if="preview?.state === 'error'" class="message error" role="alert">
               {{ preview.message }}
@@ -375,7 +381,9 @@ onUnmounted(() => {
             <legend>Частота</legend>
 
             <label for="monitor-interval">Интервал</label>
-            <p class="help">Частые обходы используйте только там, где скорость действительно важна.</p>
+            <p class="help">
+              Частые обходы используйте только там, где скорость действительно важна.
+            </p>
             <select id="monitor-interval" v-model.number="intervalSec">
               <option :value="60">Каждую минуту</option>
               <option :value="120">Каждые 2 минуты</option>
@@ -397,11 +405,11 @@ onUnmounted(() => {
               Через запятую. <strong>*</strong> заменяет часть одного слова:
               <code>playstation*</code> совпадёт с playstation5. Словоформы автоматически не ищутся.
             </p>
-            <input id="monitor-include" v-model="includeTerms" type="text" autocomplete="off">
+            <input id="monitor-include" v-model="includeTerms" type="text" autocomplete="off" />
 
             <label for="monitor-exclude">Исключающие термы</label>
             <p class="help">Через запятую. Совпадение здесь исключит объявление.</p>
-            <input id="monitor-exclude" v-model="excludeTerms" type="text" autocomplete="off">
+            <input id="monitor-exclude" v-model="excludeTerms" type="text" autocomplete="off" />
           </fieldset>
 
           <div class="actions">
