@@ -2,7 +2,7 @@ import type { PrismaClient } from '../../generated/prisma/client'
 import type { WorkerEvent } from '../../shared/runtime'
 import type { WorkerConfig } from './config'
 import { createGrammyTelegramBotFactory } from './grammy-telegram-bot'
-import { createMonitorConfigAndSync } from './monitor-config-sync'
+import { createMonitorConfigAndSync, updateMonitorConfigAndSync } from './monitor-config-sync'
 import {
   createPostgresMonitorRunLeaseAcquirer,
   type AcquireMonitorRunLease,
@@ -63,6 +63,7 @@ export interface MonitorListItem {
 export interface WorkerApplication extends WorkerRuntimeServices {
   scheduler: MonitorScheduler
   listMonitors(): Promise<MonitorListItem[]>
+  setMonitorState(monitorId: number, state: 'active' | 'paused'): Promise<void>
 }
 
 export interface WorkerApplicationDependencies {
@@ -220,6 +221,9 @@ export function createWorkerApplication(
     },
     async createMonitor(input) {
       return createMonitorConfigAndSync(prisma, scheduler, input)
+    },
+    async setMonitorState(monitorId, state) {
+      await updateMonitorConfigAndSync(prisma, scheduler, monitorId, { state })
     },
     async listMonitors() {
       const monitors = await prisma.monitor.findMany({
