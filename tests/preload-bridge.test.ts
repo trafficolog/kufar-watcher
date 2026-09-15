@@ -93,15 +93,19 @@ describe('preload desktop bridge', () => {
       | {
           create(input: unknown): Promise<{ monitorId: number }>
           list(): Promise<MonitorListItem[]>
+          setState(monitorId: number, state: 'active' | 'paused'): Promise<void>
         }
       | undefined
     const monitorCreateChannel = Reflect.get(IPC, 'monitorCreate')
     const monitorListChannel = Reflect.get(IPC, 'monitorList')
+    const monitorSetStateChannel = Reflect.get(IPC, 'monitorSetState')
     expect(monitors).toBeDefined()
     expect(Reflect.get(monitors ?? {}, 'create')).toBeTypeOf('function')
     expect(Reflect.get(monitors ?? {}, 'list')).toBeTypeOf('function')
+    expect(Reflect.get(monitors ?? {}, 'setState')).toBeTypeOf('function')
     expect(monitorCreateChannel).toBe('monitors:create')
     expect(monitorListChannel).toBe('monitors:list')
+    expect(monitorSetStateChannel).toBe('monitors:set-state')
 
     await expect(api.system.getBootState()).resolves.toEqual(ipcRenderer.bootState)
     await api.system.retryBoot()
@@ -120,8 +124,13 @@ describe('preload desktop bridge', () => {
     }
     await expect(monitors!.create(input)).resolves.toEqual({ monitorId: 17 })
     await expect(monitors!.list()).resolves.toEqual(ipcRenderer.monitorSnapshot)
+    await expect(monitors!.setState(7, 'paused')).resolves.toBeUndefined()
     expect(ipcRenderer.calls).toContainEqual({ channel: 'monitors:create', args: [input] })
     expect(ipcRenderer.calls).toContainEqual({ channel: 'monitors:list', args: [] })
+    expect(ipcRenderer.calls).toContainEqual({
+      channel: 'monitors:set-state',
+      args: [7, 'paused'],
+    })
     expect(ipcRenderer.calls).toContainEqual({ channel: 'telegram:test-message', args: [] })
 
     expect(ipcRenderer.invoked).toEqual([
@@ -134,6 +143,7 @@ describe('preload desktop bridge', () => {
       IPC.telegramTestMessage,
       'monitors:create',
       'monitors:list',
+      'monitors:set-state',
     ])
   })
 
