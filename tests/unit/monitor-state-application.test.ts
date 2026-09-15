@@ -43,12 +43,10 @@ describe('monitor state worker application', () => {
       },
     } as unknown as Prisma.TransactionClient
     const prisma = {
-      $transaction: vi.fn(
-        async (callback: (client: Prisma.TransactionClient) => Promise<void>) => {
-          await callback(tx)
-          events.push('transaction-commit')
-        },
-      ),
+      $transaction: vi.fn(async (callback: (client: Prisma.TransactionClient) => Promise<void>) => {
+        await callback(tx)
+        events.push('transaction-commit')
+      }),
       $disconnect: vi.fn(async () => undefined),
     } as unknown as PrismaClient
     const scheduler = {
