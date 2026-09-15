@@ -1,7 +1,20 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import type { BootState, MonitorListItem } from '../../shared/ipc'
+import type { TelegramDesktopState } from '../../shared/telegram'
 import { useDesktopApi } from '../composables/use-desktop-api'
 import { parseMonitorTerms, previewMonitorUrl } from '../lib/monitor-create-model'
+
+const monitors = ref<MonitorListItem[]>([])
+const bootState = ref<BootState | null>(null)
+const telegramState = ref<TelegramDesktopState | null>(null)
+const listError = ref('')
+const stateChangingId = ref<number | null>(null)
+const showCreate = ref(false)
+let monitorListRequest = 0
+let unsubscribeMonitors: (() => void) | undefined
+let unsubscribeBootState: (() => void) | undefined
+let unsubscribeTelegramState: (() => void) | undefined
 
 const name = ref('')
 const sourceUrl = ref('')
@@ -21,6 +34,138 @@ const canSubmit = computed(
   () => name.value.trim().length > 0 && preview.value?.state === 'valid' && !saving.value,
 )
 
+const activeCount = computed(() => monitors.value.filter((monitor) => monitor.state === 'active').length)
+const pausedCount = computed(() => monitors.value.filter((monitor) => monitor.state === 'paused').length)
+
+const databaseStatus = computed(() => {
+  const database = bootState.value?.steps.find((step) => step.id === 'database')
+  if (database?.state === 'success') return { tone: 'ok', label: 'подключена' }
+  if (database?.state === 'error' || bootState.value?.phase === 'error') {
+    return { tone: 'error', label: 'ошибка' }
+  }
+  if (database?.state === 'running') return { tone: 'pending', label: 'подключение…' }
+  return { tone: 'muted', label: 'ожидание' }
+})
+
+const telegramStatus = computed(() => {
+  switch (telegramState.value?.channel) {
+    case 'connected':
+      return { tone: 'ok', label: 'подключён' }
+    case 'reconnecting':
+      return { tone: 'pending', label: 'переподключение…' }
+    case 'error':
+      return { tone: 'error', label: 'ошибка' }
+    case 'disconnected':
+      return { tone: 'muted', label: 'отключён' }
+    default:
+      return { tone: 'muted', label: 'ожидание' }
+  }
+})
+
+const runDateFormatter = new Intl.DateTimeFormat('ru-RU', {
+  dateStyle: 'short',
+  timeStyle: 'short',
+})
+
+function intervalLabel(seconds: number): string {
+  if (seconds === 60) return '1 минута'
+  if (seconds < 3600 && seconds % 60 === 0) return `${seconds / 60} мин.`
+  if (seconds === 3600) return '1 час'
+  if (seconds % 3600 === 0) return `${seconds / 3600} ч.`
+  return `${seconds} сек.`
+}
+
+function lastRunTime(monitor: MonitorListItem): string {
+  const run = monitor.lastRun
+  if (!run) return 'ещё не было'
+  const timestamp = run.finishedAt ?? run.startedAt
+  return runDateFormatter.format(new Date(timestamp))
+}
+
+function lastRunReason(monitor: MonitorListItem): string {
+  if (!monitor.lastRun) return 'причина не указана'
+  const code = monitor.lastRun.errorCode
+  switch (code) {
+    case 'network':
+      return 'сетевая ошибка'
+    case 'timeout':
+      return 'тайм-аут запроса'
+    case 'http-4xx':
+      return 'Kufar отклонил запрос'
+    case 'http-5xx':
+      return 'ошибка на стороне Kufar'
+    case 'unexpected-http':
+      return 'неожиданный ответ Kufar'
+    case 'rate-limited':
+      return 'Kufar ограничил частоту запросов'
+    case 'description-budget-exhausted':
+      return 'исчерпан лимит загрузки описаний'
+    case 'unexpected':
+      return 'внутренняя ошибка обхода'
+    default:
+      if (code?.startsWith('resilient-')) return 'источники Kufar недоступны'
+      if (monitor.lastRun.errorCategory === 'source') return 'ошибка источника'
+      if (monitor.lastRun.errorCategory === 'policy') return 'ограничение обхода'
+      if (monitor.lastRun.errorCategory === 'internal') return 'внутренняя ошибка обхода'
+      return 'причина не указана'
+  }
+}
+
+function lastRunResult(monitor: MonitorListItem): { tone: string; label: string } {
+  const outcome = monitor.lastRun?.outcome
+  switch (outcome) {
+    case 'success':
+      return { tone: 'ok', label: 'успешно' }
+    case 'catchup':
+      return { tone: 'ok', label: 'догоняющий обход завершён' }
+    case 'running':
+      return { tone: 'pending', label: 'идёт сейчас' }
+    case 'skipped':
+      return { tone: 'pending', label: 'пропущен — предыдущий обход ещё выполнялся' }
+    case 'interrupted':
+      return { tone: 'error', label: 'прерван при остановке приложения' }
+    case 'error':
+      return { tone: 'error', label: `ошибка — ${lastRunReason(monitor)}` }
+    case null:
+    case undefined:
+      return { tone: 'muted', label: 'ещё не запускался' }
+    default:
+      return { tone: 'muted', label: 'завершён' }
+  }
+}
+
+async function refreshMonitors(): Promise<void> {
+  const request = ++monitorListRequest
+  try {
+    const next = await useDesktopApi().monitors.list()
+    if (request !== monitorListRequest) return
+    monitors.value = next
+    listError.value = ''
+  } catch {
+    if (request !== monitorListRequest) return
+    listError.value = 'Не удалось получить список мониторов.'
+  }
+}
+
+async function toggleMonitorState(monitor: MonitorListItem): Promise<void> {
+  if (stateChangingId.value !== null || monitor.state === 'archived') return
+
+  const nextState = monitor.state === 'active' ? 'paused' : 'active'
+  stateChangingId.value = monitor.id
+  listError.value = ''
+  try {
+    await useDesktopApi().monitors.setState(monitor.id, nextState)
+    await refreshMonitors()
+  } catch {
+    listError.value =
+      nextState === 'paused'
+        ? 'Не удалось приостановить монитор.'
+        : 'Не удалось возобновить монитор.'
+  } finally {
+    stateChangingId.value = null
+  }
+}
+
 async function submit(): Promise<void> {
   if (!canSubmit.value) return
 
@@ -37,141 +182,277 @@ async function submit(): Promise<void> {
       exclude: parseMonitorTerms(excludeTerms.value),
     })
     createdMonitorId.value = result.monitorId
+    await refreshMonitors()
   } catch (error) {
     submitError.value = error instanceof Error ? error.message : 'Не удалось создать монитор.'
   } finally {
     saving.value = false
   }
 }
+
+onMounted(() => {
+  const api = useDesktopApi()
+
+  unsubscribeMonitors = api.monitors.onChanged(() => {
+    void refreshMonitors()
+  })
+  unsubscribeBootState = api.system.onBootState((next) => {
+    bootState.value = next
+  })
+  unsubscribeTelegramState = api.telegram.onState((next) => {
+    telegramState.value = next
+  })
+
+  void refreshMonitors()
+  void api.system
+    .getBootState()
+    .then((next) => {
+      bootState.value = next
+    })
+    .catch(() => {
+      bootState.value = null
+    })
+  void api.telegram
+    .getState()
+    .then((next) => {
+      telegramState.value = next
+    })
+    .catch(() => {
+      telegramState.value = null
+    })
+})
+
+onUnmounted(() => {
+  unsubscribeMonitors?.()
+  unsubscribeBootState?.()
+  unsubscribeTelegramState?.()
+})
 </script>
 
 <template>
-  <main class="monitor-create">
-    <header class="page-header">
-      <p class="eyebrow">Kufar Monitor / Мониторы</p>
-      <h1>Новое правило</h1>
-      <p class="lede">
-        Создайте монитор из ссылки на выдачу Kufar. Расписание подключится сразу после сохранения.
-      </p>
-    </header>
-
-    <form class="editor" novalidate @submit.prevent="submit">
-      <fieldset>
-        <legend>Что отслеживаем</legend>
-
-        <label for="monitor-name">Название</label>
-        <p class="help">Короткое имя, по которому правило легко узнать в уведомлениях.</p>
-        <input id="monitor-name" v-model="name" type="text" autocomplete="off" required />
-
-        <label for="monitor-url">Ссылка Kufar</label>
-        <p class="help">Откройте нужную выдачу на kufar.by и вставьте адрес из строки браузера.</p>
-        <input
-          id="monitor-url"
-          v-model="sourceUrl"
-          type="url"
-          inputmode="url"
-          spellcheck="false"
-          required
-          :aria-invalid="preview?.state === 'error' ? 'true' : undefined"
-        />
-
-        <p v-if="preview?.state === 'error'" class="message error" role="alert">
-          {{ preview.message }}
-        </p>
-        <dl
-          v-else-if="preview?.state === 'valid'"
-          class="url-preview"
-          aria-label="Разобранная ссылка"
-        >
-          <div>
-            <dt>Категория</dt>
-            <dd>{{ preview.category }}</dd>
-          </div>
-          <div>
-            <dt>Регион</dt>
-            <dd>{{ preview.region }}</dd>
-          </div>
-          <div>
-            <dt>Поисковая строка</dt>
-            <dd>{{ preview.query }}</dd>
-          </div>
-        </dl>
-        <p v-else class="help">
-          Вставьте ссылку — покажем категорию, регион и поисковую строку до сохранения.
-        </p>
-      </fieldset>
-
-      <fieldset>
-        <legend>Частота</legend>
-
-        <label for="monitor-interval">Интервал</label>
-        <p class="help">Частые обходы используйте только там, где скорость действительно важна.</p>
-        <select id="monitor-interval" v-model.number="intervalSec">
-          <option :value="60">Каждую минуту</option>
-          <option :value="120">Каждые 2 минуты</option>
-          <option :value="300">Каждые 5 минут</option>
-          <option :value="600">Каждые 10 минут</option>
-          <option :value="900">Каждые 15 минут</option>
-          <option :value="3600">Каждый час</option>
-        </select>
-      </fieldset>
-
-      <fieldset>
-        <legend>Ключевые слова</legend>
-        <p class="help">
-          Оставьте поля пустыми, чтобы получать всё, что попадает под фильтры ссылки.
-        </p>
-
-        <label for="monitor-include">Включающие термы</label>
-        <p class="help">
-          Через запятую. <strong>*</strong> заменяет часть одного слова: <code>playstation*</code>
-          совпадёт с playstation5. Словоформы автоматически не ищутся.
-        </p>
-        <input id="monitor-include" v-model="includeTerms" type="text" autocomplete="off" />
-
-        <label for="monitor-exclude">Исключающие термы</label>
-        <p class="help">Через запятую. Совпадение здесь исключит объявление.</p>
-        <input id="monitor-exclude" v-model="excludeTerms" type="text" autocomplete="off" />
-      </fieldset>
-
-      <div class="actions">
-        <button type="submit" :disabled="!canSubmit">
-          {{ saving ? 'Создаю…' : 'Создать монитор' }}
+  <main class="monitor-page">
+    <div class="page-shell">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">Kufar Monitor / Мониторы</p>
+          <h1>Мониторы</h1>
+          <p class="lede">Состояние правил и последнего обхода — без открытия базы данных.</p>
+        </div>
+        <button class="primary" type="button" @click="showCreate = !showCreate">
+          {{ showCreate ? 'Скрыть форму' : 'Новое правило' }}
         </button>
-        <NuxtLink to="/">На главную</NuxtLink>
-      </div>
+      </header>
 
-      <p v-if="submitError" class="message error" role="alert">{{ submitError }}</p>
-      <p v-if="createdMonitorId !== null" class="message success" role="status">
-        Монитор #{{ createdMonitorId }} создан. Первый обход начнётся по расписанию.
-      </p>
-    </form>
+      <section class="system-strip" aria-label="Состояние подключений">
+        <article class="system-card">
+          <span class="status-dot" :class="databaseStatus.tone" aria-hidden="true"></span>
+          <div>
+            <span class="system-label">PostgreSQL</span>
+            <strong>{{ databaseStatus.label }}</strong>
+          </div>
+        </article>
+        <article class="system-card">
+          <span class="status-dot" :class="telegramStatus.tone" aria-hidden="true"></span>
+          <div>
+            <span class="system-label">Telegram</span>
+            <strong>{{ telegramStatus.label }}</strong>
+          </div>
+        </article>
+      </section>
+
+      <section class="monitor-section" aria-labelledby="monitor-list-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Правила</p>
+            <h2 id="monitor-list-heading">{{ monitors.length }} мониторов</h2>
+          </div>
+          <p class="summary">{{ activeCount }} в работе · {{ pausedCount }} остановлено</p>
+        </div>
+
+        <p v-if="listError" class="message error" role="alert">{{ listError }}</p>
+        <p v-if="monitors.length === 0 && !listError" class="empty-state">
+          Мониторов пока нет. Создайте первое правило, чтобы начать обходы Kufar.
+        </p>
+
+        <div v-else class="monitor-list">
+          <article v-for="monitor in monitors" :key="monitor.id" class="monitor-row">
+            <div class="monitor-main">
+              <div class="monitor-title-row">
+                <h3>{{ monitor.name }}</h3>
+                <span class="state-pill" :class="monitor.state">
+                  {{ monitor.state === 'active' ? 'работает' : 'стоп' }}
+                </span>
+              </div>
+              <p class="monitor-meta">Интервал {{ intervalLabel(monitor.intervalSec) }}</p>
+            </div>
+
+            <dl class="run-summary">
+              <div>
+                <dt>Последний обход</dt>
+                <dd>{{ lastRunTime(monitor) }}</dd>
+              </div>
+              <div>
+                <dt>Результат</dt>
+                <dd :class="lastRunResult(monitor).tone">{{ lastRunResult(monitor).label }}</dd>
+              </div>
+            </dl>
+
+            <button
+              class="secondary"
+              type="button"
+              :disabled="stateChangingId !== null"
+              @click="toggleMonitorState(monitor)"
+            >
+              {{
+                stateChangingId === monitor.id
+                  ? 'Сохраняю…'
+                  : monitor.state === 'active'
+                    ? 'Приостановить'
+                    : 'Возобновить'
+              }}
+            </button>
+          </article>
+        </div>
+      </section>
+
+      <section v-if="showCreate" class="create-section" aria-labelledby="create-monitor-heading">
+        <header class="create-header">
+          <p class="eyebrow">Новое правило</p>
+          <h2 id="create-monitor-heading">Добавить монитор</h2>
+          <p class="lede">
+            Создайте монитор из ссылки на выдачу Kufar. Расписание подключится сразу после
+            сохранения.
+          </p>
+        </header>
+
+        <form class="editor" novalidate @submit.prevent="submit">
+          <fieldset>
+            <legend>Что отслеживаем</legend>
+
+            <label for="monitor-name">Название</label>
+            <p class="help">Короткое имя, по которому правило легко узнать в уведомлениях.</p>
+            <input id="monitor-name" v-model="name" type="text" autocomplete="off" required>
+
+            <label for="monitor-url">Ссылка Kufar</label>
+            <p class="help">Откройте нужную выдачу на kufar.by и вставьте адрес из строки браузера.</p>
+            <input
+              id="monitor-url"
+              v-model="sourceUrl"
+              type="url"
+              inputmode="url"
+              spellcheck="false"
+              required
+              :aria-invalid="preview?.state === 'error' ? 'true' : undefined"
+            >
+
+            <p v-if="preview?.state === 'error'" class="message error" role="alert">
+              {{ preview.message }}
+            </p>
+            <dl
+              v-else-if="preview?.state === 'valid'"
+              class="url-preview"
+              aria-label="Разобранная ссылка"
+            >
+              <div>
+                <dt>Категория</dt>
+                <dd>{{ preview.category }}</dd>
+              </div>
+              <div>
+                <dt>Регион</dt>
+                <dd>{{ preview.region }}</dd>
+              </div>
+              <div>
+                <dt>Поисковая строка</dt>
+                <dd>{{ preview.query }}</dd>
+              </div>
+            </dl>
+            <p v-else class="help">
+              Вставьте ссылку — покажем категорию, регион и поисковую строку до сохранения.
+            </p>
+          </fieldset>
+
+          <fieldset>
+            <legend>Частота</legend>
+
+            <label for="monitor-interval">Интервал</label>
+            <p class="help">Частые обходы используйте только там, где скорость действительно важна.</p>
+            <select id="monitor-interval" v-model.number="intervalSec">
+              <option :value="60">Каждую минуту</option>
+              <option :value="120">Каждые 2 минуты</option>
+              <option :value="300">Каждые 5 минут</option>
+              <option :value="600">Каждые 10 минут</option>
+              <option :value="900">Каждые 15 минут</option>
+              <option :value="3600">Каждый час</option>
+            </select>
+          </fieldset>
+
+          <fieldset>
+            <legend>Ключевые слова</legend>
+            <p class="help">
+              Оставьте поля пустыми, чтобы получать всё, что попадает под фильтры ссылки.
+            </p>
+
+            <label for="monitor-include">Включающие термы</label>
+            <p class="help">
+              Через запятую. <strong>*</strong> заменяет часть одного слова:
+              <code>playstation*</code> совпадёт с playstation5. Словоформы автоматически не ищутся.
+            </p>
+            <input id="monitor-include" v-model="includeTerms" type="text" autocomplete="off">
+
+            <label for="monitor-exclude">Исключающие термы</label>
+            <p class="help">Через запятую. Совпадение здесь исключит объявление.</p>
+            <input id="monitor-exclude" v-model="excludeTerms" type="text" autocomplete="off">
+          </fieldset>
+
+          <div class="actions">
+            <button class="primary" type="submit" :disabled="!canSubmit">
+              {{ saving ? 'Создаю…' : 'Создать монитор' }}
+            </button>
+            <button class="link-button" type="button" @click="showCreate = false">Отмена</button>
+            <NuxtLink to="/">На главную</NuxtLink>
+          </div>
+
+          <p v-if="submitError" class="message error" role="alert">{{ submitError }}</p>
+          <p v-if="createdMonitorId !== null" class="message success" role="status">
+            Монитор #{{ createdMonitorId }} создан. Первый обход начнётся по расписанию.
+          </p>
+        </form>
+      </section>
+    </div>
   </main>
 </template>
 
 <style scoped>
-.monitor-create {
+.monitor-page {
   min-height: 100vh;
-  padding: 48px clamp(20px, 5vw, 72px);
+  padding: 40px clamp(18px, 4vw, 56px) 64px;
   background: #080c11;
   color: #c9d6dc;
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-.page-header,
-.editor {
-  width: min(760px, 100%);
+.page-shell {
+  width: min(1120px, 100%);
   margin: 0 auto;
 }
 
+.page-header,
+.section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
 .page-header {
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .eyebrow,
 legend,
 label,
-dt {
+dt,
+.system-label {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -179,26 +460,208 @@ dt {
 .eyebrow,
 .help,
 dt,
-.actions a {
+.summary,
+.monitor-meta,
+.actions a,
+.empty-state,
+.system-label {
   color: #8fa3ac;
 }
 
 .eyebrow {
-  margin: 0 0 10px;
-  font-size: 12px;
+  margin: 0 0 8px;
+  font-size: 11px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
 }
 
 h1 {
-  margin: 0;
-  font-size: clamp(28px, 5vw, 44px);
+  margin-bottom: 0;
+  font-size: clamp(30px, 5vw, 46px);
+  font-weight: 600;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+h3 {
+  margin-bottom: 0;
+  font-size: 18px;
   font-weight: 600;
 }
 
 .lede {
-  max-width: 650px;
-  margin: 12px 0 0;
+  max-width: 700px;
+  margin: 10px 0 0;
   color: #8fa3ac;
   line-height: 1.6;
+}
+
+.system-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.system-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgb(139 188 180 / 16%);
+  background: #0d141a;
+}
+
+.system-card div {
+  display: grid;
+  gap: 2px;
+}
+
+.system-label {
+  font-size: 10px;
+}
+
+.system-card strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #62727a;
+}
+
+.status-dot.ok,
+.ok {
+  color: #4fd8c4;
+}
+
+.status-dot.ok {
+  background: #4fd8c4;
+}
+
+.status-dot.pending,
+.pending {
+  color: #e5b567;
+}
+
+.status-dot.pending {
+  background: #e5b567;
+}
+
+.status-dot.error,
+.error {
+  color: #e2705f;
+}
+
+.status-dot.error {
+  background: #e2705f;
+}
+
+.monitor-section,
+.create-section {
+  border-top: 1px solid rgb(139 188 180 / 16%);
+  padding-top: 24px;
+}
+
+.section-heading {
+  margin-bottom: 14px;
+}
+
+.summary {
+  margin-bottom: 2px;
+  font-size: 12px;
+}
+
+.monitor-list {
+  border-top: 1px solid rgb(139 188 180 / 16%);
+}
+
+.monitor-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.15fr) minmax(320px, 1.6fr) auto;
+  gap: 24px;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid rgb(139 188 180 / 16%);
+}
+
+.monitor-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.monitor-meta {
+  margin: 7px 0 0;
+  font-size: 12px;
+}
+
+.state-pill {
+  padding: 3px 7px;
+  border: 1px solid rgb(79 216 196 / 40%);
+  border-radius: 999px;
+  color: #4fd8c4;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.state-pill.paused {
+  border-color: rgb(143 163 172 / 32%);
+  color: #8fa3ac;
+}
+
+.run-summary {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.8fr) minmax(180px, 1.2fr);
+  gap: 18px;
+  margin: 0;
+}
+
+.run-summary div {
+  min-width: 0;
+}
+
+dt {
+  font-size: 9px;
+}
+
+dd {
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.empty-state {
+  padding: 28px 0;
+  border-top: 1px solid rgb(139 188 180 / 16%);
+  border-bottom: 1px solid rgb(139 188 180 / 16%);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.create-section {
+  margin-top: 44px;
+}
+
+.create-header,
+.editor {
+  width: min(760px, 100%);
+}
+
+.create-header {
+  margin-bottom: 24px;
 }
 
 .editor {
@@ -244,6 +707,7 @@ button {
 input,
 select {
   width: 100%;
+  box-sizing: border-box;
   padding: 11px 12px;
   border: 1px solid rgb(139 188 180 / 24%);
   border-radius: 4px;
@@ -276,36 +740,53 @@ input[aria-invalid='true'] {
   background: #111a21;
 }
 
-dt {
-  font-size: 10px;
-}
-
-dd {
+.url-preview dd {
   overflow: hidden;
-  margin: 4px 0 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
 }
 
 button {
-  padding: 11px 18px;
-  border: 1px solid #4fd8c4;
   border-radius: 4px;
-  background: #4fd8c4;
-  color: #080c11;
-  font-weight: 800;
   cursor: pointer;
 }
 
 button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.primary,
+.secondary {
+  padding: 10px 16px;
+  border: 1px solid #4fd8c4;
+  font-weight: 800;
+}
+
+.primary {
+  background: #4fd8c4;
+  color: #080c11;
+}
+
+.secondary {
+  background: transparent;
+  color: #4fd8c4;
+  font-size: 11px;
+}
+
+.link-button {
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: #8fa3ac;
+  font-size: 12px;
 }
 
 .actions a {
@@ -324,9 +805,45 @@ code {
   color: #c9d6dc;
 }
 
+@media (max-width: 820px) {
+  .monitor-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .run-summary {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
 @media (max-width: 640px) {
-  .monitor-create {
-    padding: 28px 16px;
+  .monitor-page {
+    padding: 28px 16px 48px;
+  }
+
+  .page-header,
+  .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .system-strip,
+  .run-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .monitor-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .run-summary {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .secondary {
+    justify-self: start;
   }
 
   fieldset {
