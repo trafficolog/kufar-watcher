@@ -129,10 +129,17 @@ export function createWorkerApplication(
       publish({ type: 'monitor-pause-required', monitorId, stage })
     },
   })
+  const scheduledRunMonitor: ScheduledMonitorRunExecutor = async (monitorId) => {
+    try {
+      return await runMonitor(monitorId)
+    } finally {
+      publish({ type: 'monitor-changed', monitorId })
+    }
+  }
   const scheduler = dependencies.createScheduler({
     repository,
     queue,
-    runMonitor,
+    runMonitor: scheduledRunMonitor,
     onReconcileError(monitorId, error) {
       publish({
         type: 'journal',
