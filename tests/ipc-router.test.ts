@@ -217,6 +217,10 @@ describe('typed IPC routing', () => {
     }
     const services = {
       getTelegramState: vi.fn(() => state),
+      verifyTelegramToken: vi.fn(async (_token: string) => ({ username: 'kufar_watch_bot' })),
+      saveTelegramToken: vi.fn(async (_token: string, _allowUnprotected: boolean) => ({
+        state: 'protected' as const,
+      })),
       bindTelegramCandidate: vi.fn(async () => 'bound' as const),
     }
     const devRendererUrl = 'http://127.0.0.1:3000'

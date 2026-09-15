@@ -21,15 +21,15 @@ describe('Telegram worker secret wiring', () => {
   it('decrypts the Telegram secret in Electron main and configures the supervisor in memory', async () => {
     const source = await readMainSource()
 
-    expect(source).toContain("import { readFile } from 'node:fs/promises'")
+    expect(source).toContain("import { readFile, writeFile } from 'node:fs/promises'")
     expect(source).toContain('safeStorage')
-    expect(source).toContain(
-      "import { configureTelegramFromSecret } from './telegram-main-runtime'",
-    )
+    expect(source).toContain('configureTelegramFromSecret,')
+    expect(source).toContain("from './telegram-main-runtime'")
     expect(source).toContain("import { createTelegramSecretStore } from './telegram-secret-store'")
     expect(source).toContain('const telegramSecretStore = createTelegramSecretStore(userDataDir, {')
     expect(source).toContain('platform: process.platform')
     expect(source).toContain('readFile')
+    expect(source).toContain('writeFile')
     expect(source).toContain('safeStorage')
     expect(source).toContain('await configureTelegramFromSecret(telegramSecretStore, supervisor)')
   })
