@@ -1,4 +1,4 @@
-import type { MonitorCreateInput, MonitorCreateResult } from './ipc'
+import type { MonitorCreateInput, MonitorCreateResult, MonitorListItem } from './ipc'
 import type {
   TelegramBindResult,
   TelegramCandidate,
@@ -14,6 +14,7 @@ export type WorkerControlMessage =
   | { type: 'telegram-bind-candidate'; requestId: string; chatId: string }
   | { type: 'telegram-test-message'; requestId: string }
   | { type: 'monitor-create'; requestId: string; input: MonitorCreateInput }
+  | { type: 'monitor-list'; requestId: string }
 
 export type WorkerEvent =
   | { type: 'ready' }
@@ -26,6 +27,8 @@ export type WorkerEvent =
     }
   | { type: 'monitor-create-result'; requestId: string; result: MonitorCreateResult }
   | { type: 'monitor-create-error'; requestId: string }
+  | { type: 'monitor-list-result'; requestId: string; result: MonitorListItem[] }
+  | { type: 'monitor-list-error'; requestId: string }
   | { type: 'telegram-state'; state: TelegramRuntimeState; boundChatId: string | null }
   | { type: 'telegram-channel-state'; state: TelegramChannelState }
   | { type: 'telegram-candidate'; candidate: TelegramCandidate | null }
