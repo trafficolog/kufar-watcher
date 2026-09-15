@@ -82,6 +82,7 @@ export interface KufarDesktopApi {
     create(input: MonitorCreateInput): Promise<MonitorCreateResult>
     list(): Promise<MonitorListItem[]>
     setState(monitorId: number, state: 'active' | 'paused'): Promise<void>
+    onChanged(listener: (monitorId: number) => void): () => void
   }
 }
 
@@ -100,4 +101,5 @@ export const IPC = {
   monitorCreate: 'monitors:create',
   monitorList: 'monitors:list',
   monitorSetState: 'monitors:set-state',
+  monitorChangedEvent: 'monitors:changed',
 } as const
