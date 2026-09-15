@@ -21,7 +21,7 @@ describe('Telegram settings page contract', () => {
   it('shows the discovered candidate and binds it without renderer-owned chat id input', async () => {
     const vue = await source()
 
-    expect(vue).toContain('.telegram.getState()')
+    expect(vue).toMatch(/\.telegram\s*\.getState\(\)/)
     expect(vue).toContain('.telegram.onState(')
     expect(vue).toContain('candidate.displayName')
     expect(vue).toContain('candidate.chatType')
