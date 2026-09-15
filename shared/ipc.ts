@@ -59,6 +59,7 @@ export interface KufarDesktopApi {
     verifyToken(token: string): Promise<TelegramTokenVerificationResult>
     saveToken(token: string, allowUnprotected: boolean): Promise<TelegramTokenSaveResult>
     bindCandidate(): Promise<TelegramBindResult>
+    sendTestMessage(): Promise<void>
     onState(listener: (state: TelegramDesktopState) => void): () => void
   }
   monitors: {
@@ -76,6 +77,7 @@ export const IPC = {
   telegramTokenVerify: 'telegram:token:verify',
   telegramTokenSave: 'telegram:token:save',
   telegramBindCandidate: 'telegram:candidate:bind',
+  telegramTestMessage: 'telegram:test-message',
   telegramStateEvent: 'telegram:state:event',
   monitorCreate: 'monitors:create',
 } as const
