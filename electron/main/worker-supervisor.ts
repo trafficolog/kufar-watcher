@@ -38,6 +38,7 @@ export interface WorkerSupervisor {
   resumeTelegram(): void
   verifyTelegramToken?(token: string): Promise<{ username: string }>
   bindTelegramCandidate(chatId: string): Promise<TelegramBindResult>
+  sendTelegramTestMessage(): Promise<void>
   createMonitor(input: MonitorCreateInput): Promise<MonitorCreateResult>
   shutdown(): Promise<WorkerShutdownResult>
 }
@@ -170,6 +171,11 @@ function parseWorkerEvent(message: unknown): WorkerEvent | undefined {
     if (typeof requestId === 'string') return { type, requestId }
   }
 
+  if (type === 'telegram-test-message-result' || type === 'telegram-test-message-error') {
+    const requestId = Reflect.get(message, 'requestId')
+    if (typeof requestId === 'string') return { type, requestId }
+  }
+
   return undefined
 }
 
@@ -233,6 +239,10 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
     string,
     { resolve(result: TelegramBindResult): void; reject(error: Error): void }
   >()
+  const pendingTelegramTestMessages = new Map<
+    string,
+    { resolve(): void; reject(error: Error): void }
+  >()
   const pendingMonitorCreates = new Map<
     string,
     { resolve(result: MonitorCreateResult): void; reject(error: Error): void }
@@ -246,6 +256,7 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
   let currentWorkerConfigurationSent = false
   let telegramVerifyRequestSequence = 0
   let telegramBindRequestSequence = 0
+  let telegramTestMessageRequestSequence = 0
   let monitorCreateRequestSequence = 0
 
   const rejectPendingTelegramVerifications = (message: string): void => {
@@ -260,6 +271,13 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
       pending.reject(new Error(message))
     }
     pendingTelegramBinds.clear()
+  }
+
+  const rejectPendingTelegramTestMessages = (message: string): void => {
+    for (const pending of pendingTelegramTestMessages.values()) {
+      pending.reject(new Error(message))
+    }
+    pendingTelegramTestMessages.clear()
   }
 
   const rejectPendingMonitorCreates = (message: string): void => {
@@ -324,6 +342,21 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
         return
       }
 
+      if (
+        event.type === 'telegram-test-message-result' ||
+        event.type === 'telegram-test-message-error'
+      ) {
+        const pending = pendingTelegramTestMessages.get(event.requestId)
+        if (!pending) return
+        pendingTelegramTestMessages.delete(event.requestId)
+        if (event.type === 'telegram-test-message-result') {
+          pending.resolve()
+        } else {
+          pending.reject(new Error('Telegram test message failed'))
+        }
+        return
+      }
+
       if (event.type === 'ready') {
         restartPolicy.reset()
         restartAttempt = 0
@@ -340,6 +373,7 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
         currentWorkerConfigurationSent = false
         rejectPendingTelegramVerifications('Worker became unavailable')
         rejectPendingTelegramBinds('Worker became unavailable')
+        rejectPendingTelegramTestMessages('Worker became unavailable')
         rejectPendingMonitorCreates('Worker became unavailable')
       }
       if (stopping) return
@@ -407,6 +441,17 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
         worker.postMessage({ type: 'telegram-bind-candidate', requestId, chatId })
       })
     },
+    sendTelegramTestMessage(): Promise<void> {
+      const worker = currentWorker
+      if (!worker) return Promise.reject(new Error('Worker is unavailable'))
+
+      telegramTestMessageRequestSequence += 1
+      const requestId = `telegram-test-${telegramTestMessageRequestSequence}`
+      return new Promise((resolve, reject) => {
+        pendingTelegramTestMessages.set(requestId, { resolve, reject })
+        worker.postMessage({ type: 'telegram-test-message', requestId })
+      })
+    },
     createMonitor(input: MonitorCreateInput): Promise<MonitorCreateResult> {
       const worker = currentWorker
       if (!worker) return Promise.reject(new Error('Worker is unavailable'))
@@ -422,6 +467,7 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
       stopping = true
       rejectPendingTelegramVerifications('Worker is shutting down')
       rejectPendingTelegramBinds('Worker is shutting down')
+      rejectPendingTelegramTestMessages('Worker is shutting down')
       rejectPendingMonitorCreates('Worker is shutting down')
       if (restartTimer) {
         clearTimeout(restartTimer)
