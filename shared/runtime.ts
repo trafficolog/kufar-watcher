@@ -15,6 +15,12 @@ export type WorkerControlMessage =
   | { type: 'telegram-test-message'; requestId: string }
   | { type: 'monitor-create'; requestId: string; input: MonitorCreateInput }
   | { type: 'monitor-list'; requestId: string }
+  | {
+      type: 'monitor-set-state'
+      requestId: string
+      monitorId: number
+      state: 'active' | 'paused'
+    }
 
 export type WorkerEvent =
   | { type: 'ready' }
@@ -29,6 +35,8 @@ export type WorkerEvent =
   | { type: 'monitor-create-error'; requestId: string }
   | { type: 'monitor-list-result'; requestId: string; result: MonitorListItem[] }
   | { type: 'monitor-list-error'; requestId: string }
+  | { type: 'monitor-set-state-result'; requestId: string }
+  | { type: 'monitor-set-state-error'; requestId: string }
   | { type: 'telegram-state'; state: TelegramRuntimeState; boundChatId: string | null }
   | { type: 'telegram-channel-state'; state: TelegramChannelState }
   | { type: 'telegram-candidate'; candidate: TelegramCandidate | null }
