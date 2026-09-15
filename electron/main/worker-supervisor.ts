@@ -46,6 +46,7 @@ export interface WorkerSupervisor {
   sendTelegramTestMessage(): Promise<void>
   createMonitor(input: MonitorCreateInput): Promise<MonitorCreateResult>
   listMonitors(): Promise<MonitorListItem[]>
+  setMonitorState(monitorId: number, state: 'active' | 'paused'): Promise<void>
   shutdown(): Promise<WorkerShutdownResult>
 }
 
@@ -202,6 +203,11 @@ function parseWorkerEvent(message: unknown): WorkerEvent | undefined {
     if (typeof requestId === 'string') return { type, requestId }
   }
 
+  if (type === 'monitor-set-state-result' || type === 'monitor-set-state-error') {
+    const requestId = Reflect.get(message, 'requestId')
+    if (typeof requestId === 'string') return { type, requestId }
+  }
+
   if (type === 'telegram-state') {
     const state = Reflect.get(message, 'state')
     const boundChatId = Reflect.get(message, 'boundChatId')
@@ -330,6 +336,10 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
     string,
     { resolve(result: MonitorListItem[]): void; reject(error: Error): void }
   >()
+  const pendingMonitorStateChanges = new Map<
+    string,
+    { resolve(): void; reject(error: Error): void }
+  >()
   let currentWorker: WorkerRuntimeHandle | undefined
   let restartTimer: ReturnType<typeof setTimeout> | undefined
   let restartAttempt = 0
@@ -342,6 +352,7 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
   let telegramTestMessageRequestSequence = 0
   let monitorCreateRequestSequence = 0
   let monitorListRequestSequence = 0
+  let monitorStateRequestSequence = 0
 
   const rejectPendingTelegramVerifications = (message: string): void => {
     for (const pending of pendingTelegramVerifications.values()) {
@@ -376,6 +387,13 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
       pending.reject(new Error(message))
     }
     pendingMonitorLists.clear()
+  }
+
+  const rejectPendingMonitorStateChanges = (message: string): void => {
+    for (const pending of pendingMonitorStateChanges.values()) {
+      pending.reject(new Error(message))
+    }
+    pendingMonitorStateChanges.clear()
   }
 
   const sendTelegramConfiguration = (worker: WorkerRuntimeHandle): void => {
@@ -433,6 +451,18 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
         return
       }
 
+      if (event.type === 'monitor-set-state-result' || event.type === 'monitor-set-state-error') {
+        const pending = pendingMonitorStateChanges.get(event.requestId)
+        if (!pending) return
+        pendingMonitorStateChanges.delete(event.requestId)
+        if (event.type === 'monitor-set-state-result') {
+          pending.resolve()
+        } else {
+          pending.reject(new Error('Monitor state update failed'))
+        }
+        return
+      }
+
       if (event.type === 'telegram-bind-result' || event.type === 'telegram-bind-error') {
         const pending = pendingTelegramBinds.get(event.requestId)
         if (!pending) return
@@ -479,6 +509,7 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
         rejectPendingTelegramTestMessages('Worker became unavailable')
         rejectPendingMonitorCreates('Worker became unavailable')
         rejectPendingMonitorLists('Worker became unavailable')
+        rejectPendingMonitorStateChanges('Worker became unavailable')
       }
       if (stopping) return
 
@@ -578,6 +609,17 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
         worker.postMessage({ type: 'monitor-list', requestId })
       })
     },
+    setMonitorState(monitorId: number, state: 'active' | 'paused'): Promise<void> {
+      const worker = currentWorker
+      if (!worker) return Promise.reject(new Error('Worker is unavailable'))
+
+      monitorStateRequestSequence += 1
+      const requestId = `monitor-state-${monitorStateRequestSequence}`
+      return new Promise((resolve, reject) => {
+        pendingMonitorStateChanges.set(requestId, { resolve, reject })
+        worker.postMessage({ type: 'monitor-set-state', requestId, monitorId, state })
+      })
+    },
     async shutdown(): Promise<WorkerShutdownResult> {
       stopping = true
       rejectPendingTelegramVerifications('Worker is shutting down')
@@ -585,6 +627,7 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
       rejectPendingTelegramTestMessages('Worker is shutting down')
       rejectPendingMonitorCreates('Worker is shutting down')
       rejectPendingMonitorLists('Worker is shutting down')
+      rejectPendingMonitorStateChanges('Worker is shutting down')
       if (restartTimer) {
         clearTimeout(restartTimer)
         restartTimer = undefined
