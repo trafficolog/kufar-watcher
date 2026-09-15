@@ -11,6 +11,7 @@ function createSupervisor() {
     resumeTelegram: vi.fn(),
     verifyTelegramToken: vi.fn(async () => ({ username: 'kufar_watch_bot' })),
     bindTelegramCandidate: vi.fn(),
+    sendTelegramTestMessage: vi.fn(async () => undefined),
     createMonitor: vi.fn(),
     shutdown: vi.fn(async () => 'acknowledged' as const),
   } satisfies WorkerSupervisor
