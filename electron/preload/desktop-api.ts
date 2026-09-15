@@ -82,6 +82,13 @@ export function createDesktopApi(ipcRenderer: IpcRendererLike): KufarDesktopApi 
       async setState(monitorId, state): Promise<void> {
         await ipcRenderer.invoke(IPC.monitorSetState, monitorId, state)
       },
+      onChanged(listener): () => void {
+        const handleChanged: RendererListener = (_event, monitorId) => listener(monitorId as number)
+        ipcRenderer.on(IPC.monitorChangedEvent, handleChanged)
+        return () => {
+          ipcRenderer.removeListener(IPC.monitorChangedEvent, handleChanged)
+        }
+      },
     },
   }
 }
