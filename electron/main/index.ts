@@ -261,6 +261,7 @@ app.whenReady().then(async () => {
         if (!candidate) return 'no-candidate'
         return supervisor.bindTelegramCandidate(candidate.chatId)
       },
+      sendTelegramTestMessage: () => supervisor.sendTelegramTestMessage(),
     },
     devRendererUrl,
   )
