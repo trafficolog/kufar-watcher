@@ -96,4 +96,5 @@ export const IPC = {
   telegramTestMessage: 'telegram:test-message',
   telegramStateEvent: 'telegram:state:event',
   monitorCreate: 'monitors:create',
+  monitorList: 'monitors:list',
 } as const
