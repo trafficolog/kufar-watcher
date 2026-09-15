@@ -22,10 +22,6 @@ const persistedQuery = {
   extraParams: {},
 }
 
-interface MonitorStateApplication {
-  setMonitorState(monitorId: number, state: 'active' | 'paused'): Promise<void>
-}
-
 describe('monitor state worker application', () => {
   it('persists pause before reconciling the monitor schedule', async () => {
     const events: string[] = []
@@ -47,10 +43,12 @@ describe('monitor state worker application', () => {
       },
     } as unknown as Prisma.TransactionClient
     const prisma = {
-      $transaction: vi.fn(async (callback: (client: Prisma.TransactionClient) => Promise<void>) => {
-        await callback(tx)
-        events.push('transaction-commit')
-      }),
+      $transaction: vi.fn(
+        async (callback: (client: Prisma.TransactionClient) => Promise<void>) => {
+          await callback(tx)
+          events.push('transaction-commit')
+        },
+      ),
       $disconnect: vi.fn(async () => undefined),
     } as unknown as PrismaClient
     const scheduler = {
@@ -105,12 +103,9 @@ describe('monitor state worker application', () => {
       vi.fn(),
       dependencies,
     )
-    const setMonitorState = Reflect.get(app, 'setMonitorState') as
-      | MonitorStateApplication['setMonitorState']
-      | undefined
 
-    expect(setMonitorState).toBeTypeOf('function')
-    await setMonitorState!(7, 'paused')
+    expect(app.setMonitorState).toBeTypeOf('function')
+    await app.setMonitorState(7, 'paused')
 
     expect(update).toHaveBeenCalledWith({ where: { id: 7 }, data: { state: 'paused' } })
     expect(events).toEqual(['transaction-update', 'transaction-commit', 'sync:7'])
