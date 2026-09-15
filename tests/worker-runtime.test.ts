@@ -242,4 +242,53 @@ describe('utility worker runtime', () => {
       message: 'Telegram candidate binding failed',
     })
   })
+
+  it('routes a request-correlated Telegram test message without a chat id', async () => {
+    const parentPort = new FakeParentPort()
+    const sendTelegramTestMessage = vi.fn(async () => undefined)
+    const services = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+      sendTelegramTestMessage,
+    }
+
+    await startWorkerRuntime(parentPort, services, () => undefined)
+    parentPort.receive({ type: 'telegram-test-message', requestId: 'test-1' })
+    await flushMicrotasks()
+
+    expect(sendTelegramTestMessage).toHaveBeenCalledOnce()
+    expect(sendTelegramTestMessage).toHaveBeenCalledWith()
+    expect(parentPort.messages).toContainEqual({
+      type: 'telegram-test-message-result',
+      requestId: 'test-1',
+    })
+  })
+
+  it('redacts Telegram test-message failures behind a request-correlated error', async () => {
+    const parentPort = new FakeParentPort()
+    const sendTelegramTestMessage = vi.fn(async () => {
+      throw new Error('400 Bad Request: SECRET_SENTINEL_5_0_2_TEST_MESSAGE')
+    })
+    const services = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+      sendTelegramTestMessage,
+    }
+
+    await startWorkerRuntime(parentPort, services, () => undefined)
+    parentPort.receive({ type: 'telegram-test-message', requestId: 'test-fail' })
+    await flushMicrotasks()
+
+    expect(parentPort.messages).toContainEqual({
+      type: 'telegram-test-message-error',
+      requestId: 'test-fail',
+    })
+    expect(parentPort.messages).toContainEqual({
+      type: 'journal',
+      level: 'error',
+      message: 'Telegram test message failed',
+    })
+    expect(JSON.stringify(parentPort.messages)).not.toContain('SECRET_SENTINEL_5_0_2_TEST_MESSAGE')
+    expect(JSON.stringify(parentPort.messages)).not.toContain('400 Bad Request')
+  })
 })
