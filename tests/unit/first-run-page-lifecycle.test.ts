@@ -6,7 +6,7 @@ describe('first-run route lifecycle', () => {
     const source = readFileSync('app/pages/index.vue', 'utf8')
     const telegramReadPattern = /api\.telegram\s*\.getState\(\)/
 
-    expect(source).toContain("import { onMounted, onUnmounted, ref } from 'vue'")
+    expect(source).toMatch(/import \{[^}]*onMounted[^}]*onUnmounted[^}]*ref[^}]*\} from 'vue'/)
     expect(source).toContain('api.monitors.onChanged(')
     expect(source).toContain('api.telegram.onState(')
     expect(source).toContain('api.monitors.list()')
