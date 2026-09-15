@@ -4,6 +4,7 @@ import type { TelegramDesktopState } from '../../shared/telegram'
 import { useDesktopApi } from '../composables/use-desktop-api'
 
 const telegramState = ref<TelegramDesktopState | null>(null)
+const monitorLoadState = ref<'loading' | 'ready' | 'error'>('loading')
 let monitorRequest = 0
 let unsubscribeMonitors: (() => void) | undefined
 let unsubscribeTelegram: (() => void) | undefined
@@ -14,6 +15,25 @@ const telegramConfigured = computed(
       telegramState.value?.secret === 'unprotected') &&
     telegramState.value?.boundChatId !== null,
 )
+
+async function refreshMonitors(): Promise<void> {
+  const api = useDesktopApi()
+  const request = ++monitorRequest
+  monitorLoadState.value = 'loading'
+
+  try {
+    const monitors = await api.monitors.list()
+    if (request !== monitorRequest) return
+    if (monitors.length > 0) {
+      await navigateTo('/monitors')
+      return
+    }
+    monitorLoadState.value = 'ready'
+  } catch {
+    if (request !== monitorRequest) return
+    monitorLoadState.value = 'error'
+  }
+}
 
 onMounted(() => {
   const api = useDesktopApi()
@@ -34,17 +54,6 @@ onMounted(() => {
     .catch(() => {
       telegramState.value = null
     })
-
-  async function refreshMonitors(): Promise<void> {
-    const request = ++monitorRequest
-    try {
-      const monitors = await api.monitors.list()
-      if (request !== monitorRequest) return
-      if (monitors.length > 0) await navigateTo('/monitors')
-    } catch {
-      return
-    }
-  }
 })
 
 onUnmounted(() => {
@@ -54,7 +63,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="first-run-shell">
+  <div v-if="monitorLoadState === 'loading'" class="route-state" aria-live="polite">
+    <p>Проверяем правила мониторинга…</p>
+  </div>
+
+  <div v-else-if="monitorLoadState === 'error'" class="route-state error-state" role="alert">
+    <p>Не удалось загрузить правила</p>
+    <button type="button" @click="refreshMonitors">Повторить</button>
+  </div>
+
+  <div v-else class="first-run-shell">
     <aside class="rail" aria-label="Разделы приложения">
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">KM</span>
@@ -155,6 +173,37 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.route-state {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: #080c11;
+  color: #8fa3ac;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  text-align: center;
+}
+
+.route-state p {
+  margin: 0;
+}
+
+.error-state {
+  align-content: center;
+  gap: 16px;
+}
+
+.error-state button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #4fd8c4;
+  background: transparent;
+  color: #4fd8c4;
+  font: inherit;
+  cursor: pointer;
+}
+
 .first-run-shell {
   min-height: 100vh;
   display: grid;
