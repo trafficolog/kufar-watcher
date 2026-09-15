@@ -92,13 +92,16 @@ describe('monitor state worker application', () => {
       createTelegramOutboxDeliveryRepository: () => ({}),
       createTelegramOutboxDelivery: () => vi.fn(async () => undefined),
     } as unknown as WorkerApplicationDependencies
+    const publish = vi.fn(() => {
+      events.push('publish')
+    })
     const app = createWorkerApplication(
       {
         databaseUrl: 'postgresql://fixture',
         rawResponseJournalDir: '/tmp/kufar-journal',
         monitorMaxPages: 5,
       },
-      vi.fn(),
+      publish,
       dependencies,
     )
 
@@ -106,6 +109,8 @@ describe('monitor state worker application', () => {
     await app.setMonitorState(7, 'paused')
 
     expect(update).toHaveBeenCalledWith({ where: { id: 7 }, data: { state: 'paused' } })
-    expect(events).toEqual(['transaction-update', 'transaction-commit', 'sync:7'])
+    expect(events).toEqual(['transaction-update', 'transaction-commit', 'sync:7', 'publish'])
+    expect(publish).toHaveBeenCalledOnce()
+    expect(publish).toHaveBeenCalledWith({ type: 'monitor-changed', monitorId: 7 })
   })
 })
