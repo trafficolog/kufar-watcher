@@ -137,6 +137,64 @@ describe('utility worker runtime', () => {
     expect(parentPort.messages).toEqual([{ type: 'ready' }])
   })
 
+  it('returns a request-correlated Telegram verification result without echoing the token', async () => {
+    const parentPort = new FakeParentPort()
+    const verifyTelegramToken = vi.fn(async (_token: string) => ({ username: 'kufar_watch_bot' }))
+    const services = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+      verifyTelegramToken,
+    }
+
+    await startWorkerRuntime(parentPort, services, () => undefined)
+    parentPort.receive({
+      type: 'telegram-verify-token',
+      requestId: 'verify-1',
+      token: 'SECRET_SENTINEL_5_0_2_RPC',
+    })
+    await flushMicrotasks()
+
+    expect(verifyTelegramToken).toHaveBeenCalledWith('SECRET_SENTINEL_5_0_2_RPC')
+    expect(parentPort.messages).toContainEqual({
+      type: 'telegram-verify-token-result',
+      requestId: 'verify-1',
+      username: 'kufar_watch_bot',
+    })
+    expect(JSON.stringify(parentPort.messages)).not.toContain('SECRET_SENTINEL_5_0_2_RPC')
+  })
+
+  it('redacts Telegram verification failures behind a request-correlated error', async () => {
+    const parentPort = new FakeParentPort()
+    const verifyTelegramToken = vi.fn(async () => {
+      throw new Error('400 Bad Request: token=SECRET_SENTINEL_5_0_2_RAW')
+    })
+    const services = {
+      start: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+      verifyTelegramToken,
+    }
+
+    await startWorkerRuntime(parentPort, services, () => undefined)
+    parentPort.receive({
+      type: 'telegram-verify-token',
+      requestId: 'verify-fail',
+      token: 'SECRET_SENTINEL_5_0_2_RAW',
+    })
+    await flushMicrotasks()
+
+    expect(parentPort.messages).toContainEqual({
+      type: 'telegram-verify-token-error',
+      requestId: 'verify-fail',
+    })
+    expect(parentPort.messages).toContainEqual({
+      type: 'journal',
+      level: 'error',
+      message: 'Telegram token verification failed',
+    })
+    expect(JSON.stringify(parentPort.messages)).not.toContain('SECRET_SENTINEL_5_0_2_RAW')
+    expect(JSON.stringify(parentPort.messages)).not.toContain('400 Bad Request')
+  })
+
   it('returns a request-correlated Telegram bind result', async () => {
     const parentPort = new FakeParentPort()
     const bindTelegramCandidate = vi.fn(async (_chatId: string) => 'bound' as const)
