@@ -44,8 +44,25 @@ import {
   type WorkerSourceRuntimeOptions,
 } from './worker-source-runtime'
 
+export interface MonitorRunSummary {
+  startedAt: string
+  finishedAt: string | null
+  outcome: string | null
+  errorCategory: string | null
+  errorCode: string | null
+}
+
+export interface MonitorListItem {
+  id: number
+  name: string
+  intervalSec: number
+  state: 'active' | 'paused' | 'archived'
+  lastRun: MonitorRunSummary | null
+}
+
 export interface WorkerApplication extends WorkerRuntimeServices {
   scheduler: MonitorScheduler
+  listMonitors(): Promise<MonitorListItem[]>
 }
 
 export interface WorkerApplicationDependencies {
@@ -203,6 +220,48 @@ export function createWorkerApplication(
     },
     async createMonitor(input) {
       return createMonitorConfigAndSync(prisma, scheduler, input)
+    },
+    async listMonitors() {
+      const monitors = await prisma.monitor.findMany({
+        where: { state: { not: 'archived' } },
+        orderBy: { id: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          intervalSec: true,
+          state: true,
+          runs: {
+            orderBy: { startedAt: 'desc' },
+            take: 1,
+            select: {
+              startedAt: true,
+              finishedAt: true,
+              outcome: true,
+              errorCategory: true,
+              errorCode: true,
+            },
+          },
+        },
+      })
+
+      return monitors.map((monitor) => {
+        const latestRun = monitor.runs[0]
+        return {
+          id: monitor.id,
+          name: monitor.name,
+          intervalSec: monitor.intervalSec,
+          state: monitor.state,
+          lastRun: latestRun
+            ? {
+                startedAt: latestRun.startedAt.toISOString(),
+                finishedAt: latestRun.finishedAt?.toISOString() ?? null,
+                outcome: latestRun.outcome,
+                errorCategory: latestRun.errorCategory,
+                errorCode: latestRun.errorCode,
+              }
+            : null,
+        }
+      })
     },
     async stop() {
       await scheduler.stop()
