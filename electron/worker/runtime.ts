@@ -17,6 +17,7 @@ export interface WorkerRuntimeServices {
   sendTelegramTestMessage?(): Promise<void>
   createMonitor?(input: MonitorCreateInput): Promise<MonitorCreateResult>
   listMonitors?(): Promise<MonitorListItem[]>
+  setMonitorState?(monitorId: number, state: 'active' | 'paused'): Promise<void>
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -62,6 +63,17 @@ function isWorkerControlMessage(message: unknown): message is WorkerControlMessa
     return (
       typeof Reflect.get(message, 'requestId') === 'string' &&
       isMonitorCreateInput(Reflect.get(message, 'input'))
+    )
+  }
+  if (type === 'monitor-set-state') {
+    const monitorId = Reflect.get(message, 'monitorId')
+    const state = Reflect.get(message, 'state')
+    return (
+      typeof Reflect.get(message, 'requestId') === 'string' &&
+      typeof monitorId === 'number' &&
+      Number.isInteger(monitorId) &&
+      monitorId > 0 &&
+      (state === 'active' || state === 'paused')
     )
   }
   return false
@@ -234,6 +246,30 @@ export async function startWorkerRuntime(
             type: 'journal',
             level: 'error',
             message: 'Monitor list failed',
+          })
+        })
+      return
+    }
+
+    if (data.type === 'monitor-set-state') {
+      if (!services.setMonitorState) return
+      void services
+        .setMonitorState(data.monitorId, data.state)
+        .then(() => {
+          parentPort.postMessage({
+            type: 'monitor-set-state-result',
+            requestId: data.requestId,
+          })
+        })
+        .catch(() => {
+          parentPort.postMessage({
+            type: 'monitor-set-state-error',
+            requestId: data.requestId,
+          })
+          parentPort.postMessage({
+            type: 'journal',
+            level: 'error',
+            message: 'Monitor state change failed',
           })
         })
       return
