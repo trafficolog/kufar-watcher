@@ -37,6 +37,7 @@ export interface TelegramIpcServices {
 export interface MonitorIpcServices {
   createMonitor(input: MonitorCreateInput): MonitorCreateResult | Promise<MonitorCreateResult>
   listMonitors(): MonitorListItem[] | Promise<MonitorListItem[]>
+  setMonitorState(monitorId: number, state: 'active' | 'paused'): void | Promise<void>
 }
 
 interface IpcInvokeEventLike {
@@ -203,5 +204,10 @@ export function registerMonitorIpcHandlers(
   ipcMain.handle(IPC.monitorList, (event) => {
     assertTrustedRenderer(event, devRendererUrl)
     return services.listMonitors()
+  })
+
+  ipcMain.handle(IPC.monitorSetState, (event, ...args) => {
+    assertTrustedRenderer(event, devRendererUrl)
+    return services.setMonitorState(args[0] as number, args[1] as 'active' | 'paused')
   })
 }
