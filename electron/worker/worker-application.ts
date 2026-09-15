@@ -198,6 +198,9 @@ export function createWorkerApplication(
     async bindTelegramCandidate(chatId) {
       return telegram.bindCandidate(chatId)
     },
+    async sendTelegramTestMessage() {
+      await telegram.sendTestMessage()
+    },
     async createMonitor(input) {
       return createMonitorConfigAndSync(prisma, scheduler, input)
     },

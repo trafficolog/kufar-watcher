@@ -14,6 +14,7 @@ export interface WorkerRuntimeServices {
   resumeTelegram?(): Promise<void>
   verifyTelegramToken?(token: string): Promise<{ username: string }>
   bindTelegramCandidate?(chatId: string): Promise<TelegramBindResult>
+  sendTelegramTestMessage?(): Promise<void>
   createMonitor?(input: MonitorCreateInput): Promise<MonitorCreateResult>
 }
 
@@ -52,6 +53,9 @@ function isWorkerControlMessage(message: unknown): message is WorkerControlMessa
       typeof Reflect.get(message, 'requestId') === 'string' &&
       typeof Reflect.get(message, 'chatId') === 'string'
     )
+  }
+  if (type === 'telegram-test-message') {
+    return typeof Reflect.get(message, 'requestId') === 'string'
   }
   if (type === 'monitor-create') {
     return (
@@ -144,6 +148,41 @@ export async function startWorkerRuntime(
             type: 'journal',
             level: 'error',
             message: 'Telegram token verification failed',
+          })
+        })
+      return
+    }
+
+    if (data.type === 'telegram-test-message') {
+      if (!services.sendTelegramTestMessage) {
+        parentPort.postMessage({
+          type: 'telegram-test-message-error',
+          requestId: data.requestId,
+        })
+        parentPort.postMessage({
+          type: 'journal',
+          level: 'error',
+          message: 'Telegram test message failed',
+        })
+        return
+      }
+      void services
+        .sendTelegramTestMessage()
+        .then(() => {
+          parentPort.postMessage({
+            type: 'telegram-test-message-result',
+            requestId: data.requestId,
+          })
+        })
+        .catch(() => {
+          parentPort.postMessage({
+            type: 'telegram-test-message-error',
+            requestId: data.requestId,
+          })
+          parentPort.postMessage({
+            type: 'journal',
+            level: 'error',
+            message: 'Telegram test message failed',
           })
         })
       return
