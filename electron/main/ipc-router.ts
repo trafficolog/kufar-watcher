@@ -3,6 +3,7 @@ import {
   type BootState,
   type MonitorCreateInput,
   type MonitorCreateResult,
+  type MonitorListItem,
 } from '../../shared/ipc'
 import type { WorkerEvent } from '../../shared/runtime'
 import type {
@@ -35,6 +36,7 @@ export interface TelegramIpcServices {
 
 export interface MonitorIpcServices {
   createMonitor(input: MonitorCreateInput): MonitorCreateResult | Promise<MonitorCreateResult>
+  listMonitors(): MonitorListItem[] | Promise<MonitorListItem[]>
 }
 
 interface IpcInvokeEventLike {
@@ -196,5 +198,10 @@ export function registerMonitorIpcHandlers(
   ipcMain.handle(IPC.monitorCreate, (event, ...args) => {
     assertTrustedRenderer(event, devRendererUrl)
     return services.createMonitor(args[0] as MonitorCreateInput)
+  })
+
+  ipcMain.handle(IPC.monitorList, (event) => {
+    assertTrustedRenderer(event, devRendererUrl)
+    return services.listMonitors()
   })
 }
