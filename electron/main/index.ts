@@ -270,6 +270,7 @@ app.whenReady().then(async () => {
     ipcMain,
     {
       createMonitor: (input) => supervisor.createMonitor(input),
+      listMonitors: () => supervisor.listMonitors(),
     },
     devRendererUrl,
   )
