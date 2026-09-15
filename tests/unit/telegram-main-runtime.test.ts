@@ -31,9 +31,9 @@ describe('Telegram main runtime', () => {
     }
     const supervisor = createSupervisor()
 
-    await expect(
-      telegramMainRuntime.configureTelegramFromSecret(store, supervisor),
-    ).resolves.toBe('protected')
+    await expect(telegramMainRuntime.configureTelegramFromSecret(store, supervisor)).resolves.toBe(
+      'protected',
+    )
 
     expect(supervisor.configureTelegram).toHaveBeenCalledOnce()
     expect(supervisor.configureTelegram).toHaveBeenCalledWith(token)
@@ -85,36 +85,29 @@ describe('Telegram main runtime', () => {
     const supervisor = createSupervisor()
     const saveTelegramToken = runtimeFunction('saveTelegramToken')
 
-    await expect(
-      saveTelegramToken(store, supervisor, token, false),
-    ).resolves.toEqual({
+    await expect(saveTelegramToken(store, supervisor, token, false)).resolves.toEqual({
       state: 'protected',
     })
     expect(store.write).toHaveBeenCalledWith(token, false)
     expect(supervisor.configureTelegram).toHaveBeenCalledWith(token)
   })
 
-  it(
-    'does not activate a token when unprotected persistence still needs consent',
-    async () => {
-      const token = 'SECRET_SENTINEL_5_0_2_MAIN_CONSENT'
-      const store: TelegramSecretStore = {
-        read: vi.fn(),
-        write: vi.fn(async () => ({
-          state: 'confirmation-required' as const,
-          reason: 'unprotected-backend' as const,
-        })),
-      }
-      const supervisor = createSupervisor()
-      const saveTelegramToken = runtimeFunction('saveTelegramToken')
+  it('does not activate a token when unprotected persistence still needs consent', async () => {
+    const token = 'SECRET_SENTINEL_5_0_2_MAIN_CONSENT'
+    const store: TelegramSecretStore = {
+      read: vi.fn(),
+      write: vi.fn(async () => ({
+        state: 'confirmation-required' as const,
+        reason: 'unprotected-backend' as const,
+      })),
+    }
+    const supervisor = createSupervisor()
+    const saveTelegramToken = runtimeFunction('saveTelegramToken')
 
-      await expect(
-        saveTelegramToken(store, supervisor, token, false),
-      ).resolves.toEqual({
-        state: 'confirmation-required',
-        reason: 'unprotected-backend',
-      })
-      expect(supervisor.configureTelegram).not.toHaveBeenCalled()
-    },
-  )
+    await expect(saveTelegramToken(store, supervisor, token, false)).resolves.toEqual({
+      state: 'confirmation-required',
+      reason: 'unprotected-backend',
+    })
+    expect(supervisor.configureTelegram).not.toHaveBeenCalled()
+  })
 })

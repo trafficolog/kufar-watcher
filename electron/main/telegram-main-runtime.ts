@@ -1,8 +1,5 @@
 import type { TelegramDesktopState } from '../../shared/telegram'
-import type {
-  TelegramSecretStore,
-  TelegramSecretWriteResult,
-} from './telegram-secret-store'
+import type { TelegramSecretStore, TelegramSecretWriteResult } from './telegram-secret-store'
 import type { WorkerSupervisor } from './worker-supervisor'
 
 export async function configureTelegramFromSecret(
@@ -24,8 +21,7 @@ export async function verifyTelegramToken(
   supervisor: Pick<WorkerSupervisor, 'verifyTelegramToken'>,
   token: string,
 ): Promise<{ username: string }> {
-  if (!supervisor.verifyTelegramToken)
-    throw new Error('Telegram token verification failed')
+  if (!supervisor.verifyTelegramToken) throw new Error('Telegram token verification failed')
   return supervisor.verifyTelegramToken(token)
 }
 
