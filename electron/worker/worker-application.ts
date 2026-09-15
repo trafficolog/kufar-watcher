@@ -191,6 +191,10 @@ export function createWorkerApplication(
     async resumeTelegram() {
       await telegram.resume()
     },
+    async verifyTelegramToken(token) {
+      if (!telegram.verifyToken) throw new Error('Telegram token verification failed')
+      return telegram.verifyToken(token)
+    },
     async bindTelegramCandidate(chatId) {
       return telegram.bindCandidate(chatId)
     },

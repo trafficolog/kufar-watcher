@@ -12,6 +12,7 @@ export interface WorkerRuntimeServices {
   stop(): Promise<void>
   configureTelegram?(token: string | null): Promise<void>
   resumeTelegram?(): Promise<void>
+  verifyTelegramToken?(token: string): Promise<{ username: string }>
   bindTelegramCandidate?(chatId: string): Promise<TelegramBindResult>
   createMonitor?(input: MonitorCreateInput): Promise<MonitorCreateResult>
 }
@@ -39,6 +40,12 @@ function isWorkerControlMessage(message: unknown): message is WorkerControlMessa
   if (type === 'telegram-configure') {
     const token = Reflect.get(message, 'token')
     return token === null || typeof token === 'string'
+  }
+  if (type === 'telegram-verify-token') {
+    return (
+      typeof Reflect.get(message, 'requestId') === 'string' &&
+      typeof Reflect.get(message, 'token') === 'string'
+    )
   }
   if (type === 'telegram-bind-candidate') {
     return (
@@ -103,6 +110,42 @@ export async function startWorkerRuntime(
           message: 'Telegram resume failed',
         })
       })
+      return
+    }
+
+    if (data.type === 'telegram-verify-token') {
+      if (!services.verifyTelegramToken) {
+        parentPort.postMessage({
+          type: 'telegram-verify-token-error',
+          requestId: data.requestId,
+        })
+        parentPort.postMessage({
+          type: 'journal',
+          level: 'error',
+          message: 'Telegram token verification failed',
+        })
+        return
+      }
+      void services
+        .verifyTelegramToken(data.token)
+        .then((identity) => {
+          parentPort.postMessage({
+            type: 'telegram-verify-token-result',
+            requestId: data.requestId,
+            username: identity.username,
+          })
+        })
+        .catch(() => {
+          parentPort.postMessage({
+            type: 'telegram-verify-token-error',
+            requestId: data.requestId,
+          })
+          parentPort.postMessage({
+            type: 'journal',
+            level: 'error',
+            message: 'Telegram token verification failed',
+          })
+        })
       return
     }
 

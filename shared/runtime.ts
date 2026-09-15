@@ -11,6 +11,11 @@ export type WorkerControlMessage =
   | { type: 'telegram-configure'; token: string | null }
   | { type: 'telegram-resume' }
   | {
+      type: 'telegram-verify-token'
+      requestId: string
+      token: string
+    }
+  | {
       type: 'telegram-bind-candidate'
       requestId: string
       chatId: string
@@ -43,6 +48,12 @@ export type WorkerEvent =
     }
   | { type: 'telegram-channel-state'; state: TelegramChannelState }
   | { type: 'telegram-candidate'; candidate: TelegramCandidate | null }
+  | {
+      type: 'telegram-verify-token-result'
+      requestId: string
+      username: string
+    }
+  | { type: 'telegram-verify-token-error'; requestId: string }
   | {
       type: 'telegram-bind-result'
       requestId: string
