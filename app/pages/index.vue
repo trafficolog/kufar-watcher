@@ -86,7 +86,7 @@ onUnmounted(() => {
       </nav>
 
       <div class="rail-status">
-        <span class="status-dot" aria-hidden="true"></span>
+        <span class="status-dot" aria-hidden="true" />
         База и планировщик готовы
       </div>
     </aside>
@@ -123,7 +123,9 @@ onUnmounted(() => {
               {{ telegramConfigured ? 'Проверить настройку' : 'Настроить Telegram' }}
             </NuxtLink>
           </div>
-          <span class="step-mark" aria-hidden="true">{{ telegramConfigured ? '✓' : '→' }}</span>
+          <span class="step-mark" aria-hidden="true">
+            {{ telegramConfigured ? '✓' : '→' }}
+          </span>
         </article>
 
         <article class="step-card">
