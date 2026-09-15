@@ -4,6 +4,7 @@ import {
   type KufarDesktopApi,
   type MonitorCreateInput,
   type MonitorCreateResult,
+  type MonitorListItem,
 } from '../../shared/ipc'
 import type { TelegramDesktopState } from '../../shared/telegram'
 
@@ -74,6 +75,9 @@ export function createDesktopApi(ipcRenderer: IpcRendererLike): KufarDesktopApi 
     monitors: {
       async create(input: MonitorCreateInput): Promise<MonitorCreateResult> {
         return (await ipcRenderer.invoke(IPC.monitorCreate, input)) as MonitorCreateResult
+      },
+      async list(): Promise<MonitorListItem[]> {
+        return (await ipcRenderer.invoke(IPC.monitorList)) as MonitorListItem[]
       },
     },
   }
