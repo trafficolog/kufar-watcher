@@ -16,7 +16,7 @@ describe('first-run page content', () => {
     expect(source).toContain('Телеграм настроен')
     expect(source).toContain('Настройте Telegram')
     expect(source).toContain('Создайте первое правило')
-    expect(source).toContain('Первый обход не пришлёт уведомлений')
+    expect(source).toMatch(/Первый\s+обход не пришлёт уведомлений/)
     expect(source).toContain('Избранное')
     expect(source).toContain('Архив')
     expect(source).toContain('>00<')
