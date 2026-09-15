@@ -1,16 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { PrismaClient } from '../../generated/prisma/client'
-import {
-  createLocalMonitorRunLeaseAcquirer,
-} from '../../electron/worker/monitor-run-lease'
+import { createLocalMonitorRunLeaseAcquirer } from '../../electron/worker/monitor-run-lease'
 import type { MonitorScheduler } from '../../electron/worker/monitor-scheduler'
-import type {
-  TelegramBotService,
-} from '../../electron/worker/telegram-bot-service'
-import type {
-  WorkerSourceRuntime,
-} from '../../electron/worker/worker-source-runtime'
+import type { TelegramBotService } from '../../electron/worker/telegram-bot-service'
+import type { WorkerSourceRuntime } from '../../electron/worker/worker-source-runtime'
 import {
   createWorkerApplication,
   type WorkerApplicationDependencies,
@@ -72,8 +66,7 @@ describe('monitor list worker application', () => {
       createSourceRuntime: () => sourceRuntime,
       createRunExecutor: () => vi.fn(async () => ({ status: 'completed' })),
       createScheduler: () => scheduler,
-      createRunRecoveryLeaseAcquirer: () =>
-        createLocalMonitorRunLeaseAcquirer(),
+      createRunRecoveryLeaseAcquirer: () => createLocalMonitorRunLeaseAcquirer(),
       createTelegramRepository: () => ({}),
       createTelegramBotFactory: () => ({}),
       createTelegramBotService: () => telegram,
