@@ -26,7 +26,9 @@ class FakeIpcMain {
 describe('monitor state IPC route', () => {
   it('updates monitor state only for trusted renderer callers', async () => {
     const ipcMain = new FakeIpcMain()
-    const setMonitorState = vi.fn(async (_monitorId: number, _state: 'active' | 'paused') => undefined)
+    const setMonitorState = vi.fn(
+      async (_monitorId: number, _state: 'active' | 'paused') => undefined,
+    )
     const services = {
       createMonitor: vi.fn(async (_input: MonitorCreateInput) => ({ monitorId: 17 })),
       listMonitors: vi.fn(async () => []),
