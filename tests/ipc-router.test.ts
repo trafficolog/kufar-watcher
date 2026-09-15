@@ -9,7 +9,7 @@ import {
   routeWorkerBootEvent,
   routeWorkerTelegramEvent,
 } from '../electron/main/ipc-router'
-import { IPC, type BootState, type MonitorCreateInput } from '../shared/ipc'
+import { IPC, type BootState, type MonitorCreateInput, type MonitorListItem } from '../shared/ipc'
 import type { TelegramDesktopState } from '../shared/telegram'
 
 type FakeInvokeEvent = {
@@ -270,5 +270,35 @@ describe('typed IPC routing', () => {
     ).resolves.toEqual({ monitorId: 17 })
     expect(createMonitor).toHaveBeenCalledOnce()
     expect(createMonitor).toHaveBeenCalledWith(input)
+  })
+
+  it('routes monitor list only for trusted renderer callers', async () => {
+    const ipcMain = new FakeIpcMain()
+    const snapshot: MonitorListItem[] = [
+      {
+        id: 7,
+        name: 'PS5 Минск',
+        intervalSec: 300,
+        state: 'active',
+        lastRun: null,
+      },
+    ]
+    const services = {
+      createMonitor: vi.fn(async (_input: MonitorCreateInput) => ({ monitorId: 17 })),
+      listMonitors: vi.fn(async () => snapshot),
+    }
+    const devRendererUrl = 'http://127.0.0.1:3000'
+
+    registerMonitorIpcHandlers(ipcMain, services, devRendererUrl)
+
+    await expect(ipcMain.invoke('monitors:list', 'https://example.com')).rejects.toThrow(
+      'Untrusted renderer',
+    )
+    expect(services.listMonitors).not.toHaveBeenCalled()
+
+    await expect(ipcMain.invoke('monitors:list', `${devRendererUrl}/monitors`)).resolves.toEqual(
+      snapshot,
+    )
+    expect(services.listMonitors).toHaveBeenCalledOnce()
   })
 })
