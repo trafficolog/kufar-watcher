@@ -30,6 +30,7 @@ export interface TelegramIpcServices {
     allowUnprotected: boolean,
   ): TelegramTokenSaveResult | Promise<TelegramTokenSaveResult>
   bindTelegramCandidate(): TelegramBindResult | Promise<TelegramBindResult>
+  sendTelegramTestMessage(): void | Promise<void>
 }
 
 export interface MonitorIpcServices {
@@ -179,6 +180,11 @@ export function registerTelegramIpcHandlers(
   ipcMain.handle(IPC.telegramBindCandidate, (event) => {
     assertTrustedRenderer(event, devRendererUrl)
     return services.bindTelegramCandidate()
+  })
+
+  ipcMain.handle(IPC.telegramTestMessage, (event) => {
+    assertTrustedRenderer(event, devRendererUrl)
+    return services.sendTelegramTestMessage()
   })
 }
 
