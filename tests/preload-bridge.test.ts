@@ -65,6 +65,12 @@ class FakeIpcRenderer {
       listener({ sender: 'not-exposed' }, state)
     }
   }
+
+  emitMonitorChanged(monitorId: number): void {
+    for (const listener of this.listeners.get('monitors:changed') ?? []) {
+      listener({ sender: 'not-exposed' }, monitorId)
+    }
+  }
 }
 
 describe('preload desktop bridge', () => {
@@ -184,5 +190,26 @@ describe('preload desktop bridge', () => {
     expect(listener).toHaveBeenCalledOnce()
     expect(listener).toHaveBeenCalledWith(ipcRenderer.telegramState)
     expect(JSON.stringify(listener.mock.calls)).not.toContain('token')
+  })
+
+  it('forwards monitor change ids without Electron event objects and unsubscribes', () => {
+    const ipcRenderer = new FakeIpcRenderer()
+    const api = createDesktopApi(ipcRenderer)
+    const listener = vi.fn()
+    const channel = Reflect.get(IPC, 'monitorChangedEvent')
+    const onChanged = Reflect.get(api.monitors, 'onChanged') as
+      | ((listener: (monitorId: number) => void) => () => void)
+      | undefined
+
+    expect(channel).toBe('monitors:changed')
+    expect(onChanged).toBeTypeOf('function')
+
+    const unsubscribe = onChanged!(listener)
+    ipcRenderer.emitMonitorChanged(7)
+    unsubscribe()
+    ipcRenderer.emitMonitorChanged(8)
+
+    expect(listener).toHaveBeenCalledOnce()
+    expect(listener).toHaveBeenCalledWith(7)
   })
 })
