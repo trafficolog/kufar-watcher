@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { PrismaClient } from '../../generated/prisma/client'
-import { createLocalMonitorRunLeaseAcquirer } from '../../electron/worker/monitor-run-lease'
+import {
+  createLocalMonitorRunLeaseAcquirer,
+} from '../../electron/worker/monitor-run-lease'
 import type { MonitorScheduler } from '../../electron/worker/monitor-scheduler'
 import type { TelegramBotService } from '../../electron/worker/telegram-bot-service'
 import type { WorkerSourceRuntime } from '../../electron/worker/worker-source-runtime'
@@ -9,10 +11,6 @@ import {
   createWorkerApplication,
   type WorkerApplicationDependencies,
 } from '../../electron/worker/worker-application'
-
-interface MonitorListApplication {
-  listMonitors(): Promise<unknown>
-}
 
 describe('monitor list worker application', () => {
   it('returns non-archived monitors with the latest run only', async () => {
@@ -88,13 +86,9 @@ describe('monitor list worker application', () => {
       vi.fn(),
       dependencies,
     )
-    const listMonitors = Reflect.get(
-      app,
-      'listMonitors',
-    ) as MonitorListApplication['listMonitors']
 
-    expect(listMonitors).toBeTypeOf('function')
-    await expect(listMonitors()).resolves.toEqual([
+    expect(app.listMonitors).toBeTypeOf('function')
+    await expect(app.listMonitors()).resolves.toEqual([
       {
         id: 7,
         name: 'PS5 Minsk',
