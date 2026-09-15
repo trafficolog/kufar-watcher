@@ -45,7 +45,7 @@ tags: [ui, mvp]
 - Worker публикует узкое событие `monitor-changed` после create/state mutation и завершения traversal; main broadcast-ит его renderer-окнам, а `/monitors` делает event-driven refetch без timer polling и отписывается от событий при unmount.
 - Индикаторы PostgreSQL и Telegram используют существующие boot/Telegram state snapshots и subscriptions; отдельная health-подсистема не дублируется.
 - Renderer не получает сырой `Run.error`: list contract переносит только структурированные `outcome`, `errorCategory` и `errorCode`, а пользовательская причина формируется из безопасного набора значений.
-- TDD-контракты покрывают list/state application, worker runtime, supervisor, IPC/preload, main event forwarding и `/monitors`; полный verify `#1768` прошёл unit, typecheck, lint/format, Dockerode/PostgreSQL integrations, build и оба Electron launch smoke.
+- TDD-контракты покрывают list/state application, worker runtime, supervisor, IPC/preload, main event forwarding и `/monitors`; review дополнительно выявил и закрыл regression-тестом forwarding `monitor-changed` через supervisor. Полный verify проходит unit, typecheck, lint/format, Dockerode/PostgreSQL integrations, build и оба Electron launch smoke.
 
 ## Подсказки
 
