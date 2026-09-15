@@ -79,6 +79,9 @@ export function createDesktopApi(ipcRenderer: IpcRendererLike): KufarDesktopApi 
       async list(): Promise<MonitorListItem[]> {
         return (await ipcRenderer.invoke(IPC.monitorList)) as MonitorListItem[]
       },
+      async setState(monitorId, state): Promise<void> {
+        await ipcRenderer.invoke(IPC.monitorSetState, monitorId, state)
+      },
     },
   }
 }
