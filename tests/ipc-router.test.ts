@@ -222,6 +222,7 @@ describe('typed IPC routing', () => {
         state: 'protected' as const,
       })),
       bindTelegramCandidate: vi.fn(async () => 'bound' as const),
+      sendTelegramTestMessage: vi.fn(async () => undefined),
     }
     const devRendererUrl = 'http://127.0.0.1:3000'
 
