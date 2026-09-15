@@ -24,7 +24,9 @@ describe('monitor traversal change event', () => {
       descriptionLoader: { ensureDescription: vi.fn() },
       close: vi.fn(async () => undefined),
     } as unknown as WorkerSourceRuntime
-    const runMonitor = vi.fn(async () => ({ status: 'completed' })) as unknown as ScheduledMonitorRunExecutor
+    const runMonitor = vi.fn(async () => ({
+      status: 'completed',
+    })) as unknown as ScheduledMonitorRunExecutor
     let scheduledRunMonitor: MonitorSchedulerOptions['runMonitor'] | undefined
     const scheduler = {
       start: vi.fn(async () => undefined),
