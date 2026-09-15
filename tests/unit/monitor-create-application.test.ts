@@ -63,13 +63,14 @@ describe('monitor create worker application', () => {
       createTelegramOutboxDeliveryRepository: () => ({}),
       createTelegramOutboxDelivery: () => vi.fn(async () => undefined),
     } as unknown as WorkerApplicationDependencies
+    const publish = vi.fn()
     const app = createWorkerApplication(
       {
         databaseUrl: 'postgresql://fixture',
         rawResponseJournalDir: '/tmp/kufar-journal',
         monitorMaxPages: 5,
       },
-      vi.fn(),
+      publish,
       dependencies,
     )
     const createMonitor = Reflect.get(app, 'createMonitor') as
@@ -86,5 +87,7 @@ describe('monitor create worker application', () => {
     await expect(createMonitor!(input)).resolves.toEqual({ monitorId: 17 })
     expect(create).toHaveBeenCalledOnce()
     expect(scheduler.syncMonitor).toHaveBeenCalledWith(17)
+    expect(publish).toHaveBeenCalledOnce()
+    expect(publish).toHaveBeenCalledWith({ type: 'monitor-changed', monitorId: 17 })
   })
 })
