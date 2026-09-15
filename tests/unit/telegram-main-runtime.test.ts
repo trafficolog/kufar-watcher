@@ -13,6 +13,7 @@ function createSupervisor() {
     bindTelegramCandidate: vi.fn(),
     sendTelegramTestMessage: vi.fn(async () => undefined),
     createMonitor: vi.fn(),
+    listMonitors: vi.fn(async () => []),
     shutdown: vi.fn(async () => 'acknowledged' as const),
   } satisfies WorkerSupervisor
 }
