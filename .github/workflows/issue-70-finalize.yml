@@ -1,0 +1,51 @@
+name: issue-70-finalize
+on:
+  push:
+    branches: [fix/70-renderer-csp]
+permissions:
+  contents: write
+jobs:
+  finalize:
+    if: "!contains(github.event.head_commit.message, '[finalized-70]')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/70-renderer-csp
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --global npm@11.4.2
+      - run: npm ci
+      - name: Format final sources
+        run: npx prettier --write nuxt.config.ts shared/renderer-csp.ts scripts/finalize-renderer-csp.mjs tests/unit/renderer-csp.test.ts tests/unit/renderer-csp-finalize.test.ts
+      - name: Focused tests and real production output
+        run: |
+          npm test -- tests/unit/renderer-csp.test.ts tests/unit/renderer-csp-finalize.test.ts
+          npm run build:renderer
+          node --input-type=module - <<'JS'
+          import { readFileSync } from 'node:fs'
+          import { createHash } from 'node:crypto'
+          const html = readFileSync('.output/public/index.html', 'utf8')
+          const csp = /<meta\b[^>]*http-equiv="Content-Security-Policy"[^>]*content="([^"]+)"/.exec(html)?.[1]
+          if (!csp) throw new Error('missing generated CSP')
+          const inline = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)]
+            .filter(([, attrs, body]) => !/\bsrc=/.test(attrs) && body.trim() && !/type="application\/json"/.test(attrs))
+          if (inline.length < 2) throw new Error(`missing inline bootstrap/importmap: ${inline.length}`)
+          for (const [, , body] of inline) {
+            const hash = `sha256-${createHash('sha256').update(body).digest('base64')}`
+            if (!csp.includes(hash)) throw new Error(`CSP missing ${hash}`)
+          }
+          if (/script-src[^;]*unsafe-inline/.test(csp)) throw new Error('production CSP too permissive')
+          console.log('Verified hashed production CSP for', inline.length, 'inline scripts')
+          JS
+      - name: Publish checked source without temporary workflows
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/issue-70-finalize.yml .github/workflows/issue-70-inspect-renderer.yml
+          git add nuxt.config.ts package.json shared/renderer-csp.ts scripts/finalize-renderer-csp.mjs tests/unit/renderer-csp.test.ts tests/unit/renderer-csp-finalize.test.ts
+          git diff --cached --check
+          git commit -m 'fix: hash Nuxt inline production bootstrap under strict CSP (#70) [finalized-70]'
+          git push origin HEAD:fix/70-renderer-csp
