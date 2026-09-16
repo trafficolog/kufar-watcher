@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../../generated/prisma/client'
 import { routeKufarQuery } from '../../shared/kufar-routing'
+import { KufarUrlBuildError } from '../../shared/kufar-url'
 import { RUN_OUTCOME } from '../../shared/run-outcome'
 import type { SourceAdapterRegistry } from '../../shared/source-adapter-registry'
 import { DescriptionRequestBudgetExceededError } from './description-request-budget'
@@ -103,6 +104,15 @@ function isRetryableSourceRequest(error: KufarSourceRequestError): boolean {
 }
 
 function classifyRunFailure(error: unknown): RunFailureJournal {
+  if (error instanceof KufarUrlBuildError) {
+    return {
+      error: 'Unsupported Kufar API mapping for this monitor URL',
+      errorCategory: 'policy',
+      errorCode: error.code,
+      httpStatus: null,
+    }
+  }
+
   if (error instanceof DescriptionRequestBudgetExceededError) {
     return {
       error: 'Listing detail request budget exhausted',
@@ -216,7 +226,10 @@ export function createScheduledMonitorRunExecutor(
           },
         })
 
-        if (error instanceof DescriptionRequestBudgetExceededError) {
+        if (
+          error instanceof KufarUrlBuildError ||
+          error instanceof DescriptionRequestBudgetExceededError
+        ) {
           return { cycleKind: 'failed-no-retry' }
         }
 
