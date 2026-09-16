@@ -407,7 +407,9 @@ onUnmounted(() => {
                 <div>
                   <dt>Включающие слова</dt>
                   <dd>
-                    {{ monitor.include.length ? monitor.include.join(', ') : 'Все объявления выдачи' }}
+                    {{
+                      monitor.include.length ? monitor.include.join(', ') : 'Все объявления выдачи'
+                    }}
                   </dd>
                 </div>
                 <div>
@@ -425,7 +427,8 @@ onUnmounted(() => {
                 :href="monitor.sourceUrl"
                 target="_blank"
                 rel="noopener noreferrer"
-              >Открыть выдачу Kufar</a>
+                >Открыть выдачу Kufar</a
+              >
               <p v-else class="message error">Ссылка не поддерживается для внешнего открытия.</p>
             </details>
           </article>
@@ -479,7 +482,9 @@ onUnmounted(() => {
                 <div>
                   <dt>Включающие слова</dt>
                   <dd>
-                    {{ monitor.include.length ? monitor.include.join(', ') : 'Все объявления выдачи' }}
+                    {{
+                      monitor.include.length ? monitor.include.join(', ') : 'Все объявления выдачи'
+                    }}
                   </dd>
                 </div>
                 <div>
@@ -497,7 +502,8 @@ onUnmounted(() => {
                 :href="monitor.sourceUrl"
                 target="_blank"
                 rel="noopener noreferrer"
-              >Открыть выдачу Kufar</a>
+                >Открыть выдачу Kufar</a
+              >
               <p v-else class="message error">Ссылка не поддерживается для внешнего открытия.</p>
             </details>
           </article>
