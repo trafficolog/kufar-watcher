@@ -5,7 +5,10 @@ import { buildRendererContentSecurityPolicy } from '../../shared/renderer-csp'
 const config = readFileSync(new URL('../../nuxt.config.ts', import.meta.url), 'utf8')
 
 function directive(csp: string, name: string): string | undefined {
-  return csp.split(';').map((item) => item.trim()).find((item) => item.startsWith(`${name} `))
+  return csp
+    .split(';')
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(`${name} `))
 }
 
 describe('renderer CSP source policy', () => {

@@ -45,8 +45,12 @@ describe('production renderer CSP finalization', () => {
   })
 
   it('derives different hashes when the Nuxt build ID changes', () => {
-    const first = finalize(`<html><head>${meta}</head><body><script>window.__NUXT__={buildId:'a'}</script></body></html>`)
-    const second = finalize(`<html><head>${meta}</head><body><script>window.__NUXT__={buildId:'b'}</script></body></html>`)
+    const first = finalize(
+      `<html><head>${meta}</head><body><script>window.__NUXT__={buildId:'a'}</script></body></html>`,
+    )
+    const second = finalize(
+      `<html><head>${meta}</head><body><script>window.__NUXT__={buildId:'b'}</script></body></html>`,
+    )
     expect(first).toContain(hash("window.__NUXT__={buildId:'a'}"))
     expect(second).toContain(hash("window.__NUXT__={buildId:'b'}"))
     expect(first).not.toContain(hash("window.__NUXT__={buildId:'b'}"))

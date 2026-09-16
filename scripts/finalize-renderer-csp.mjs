@@ -2,7 +2,13 @@ import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-const executableTypes = new Set(['', 'module', 'importmap', 'text/javascript', 'application/javascript'])
+const executableTypes = new Set([
+  '',
+  'module',
+  'importmap',
+  'text/javascript',
+  'application/javascript',
+])
 
 function htmlFiles(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -37,7 +43,10 @@ export function finalizeRendererHtml(html) {
     /(^|;\s*)script-src\s+'self'(?=;|$)/,
     (_, prefix) => `${prefix}script-src 'self'${hashes.size ? ` ${[...hashes].join(' ')}` : ''}`,
   )
-  return html.replace(meta, meta.replace(content[0], `content=${content[1]}${nextPolicy}${content[1]}`))
+  return html.replace(
+    meta,
+    meta.replace(content[0], `content=${content[1]}${nextPolicy}${content[1]}`),
+  )
 }
 
 export function finalizeRendererDirectory(root) {
