@@ -1,4 +1,6 @@
 import type { MonitorCreateInput, MonitorCreateResult, MonitorListItem } from '../../shared/ipc'
+import { KufarUrlBuildError } from '../../shared/kufar-url'
+import { MonitorStateBusyError, MonitorStateTransitionError } from './monitor-config-sync'
 import type { TelegramBindResult } from '../../shared/telegram'
 import type { WorkerControlMessage, WorkerEvent } from '../../shared/runtime'
 
@@ -16,8 +18,8 @@ export interface WorkerRuntimeServices {
   bindTelegramCandidate?(chatId: string): Promise<TelegramBindResult>
   sendTelegramTestMessage?(): Promise<void>
   createMonitor?(input: MonitorCreateInput): Promise<MonitorCreateResult>
-  listMonitors?(): Promise<MonitorListItem[]>
-  setMonitorState?(monitorId: number, state: 'active' | 'paused'): Promise<void>
+  listMonitors?(archived?: boolean): Promise<MonitorListItem[]>
+  setMonitorState?(monitorId: number, state: 'active' | 'paused' | 'archived'): Promise<void>
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -56,8 +58,15 @@ function isWorkerControlMessage(message: unknown): message is WorkerControlMessa
       typeof Reflect.get(message, 'chatId') === 'string'
     )
   }
-  if (type === 'telegram-test-message' || type === 'monitor-list') {
+  if (type === 'telegram-test-message') {
     return typeof Reflect.get(message, 'requestId') === 'string'
+  }
+  if (type === 'monitor-list') {
+    return (
+      typeof Reflect.get(message, 'requestId') === 'string' &&
+      (Reflect.get(message, 'archived') === undefined ||
+        typeof Reflect.get(message, 'archived') === 'boolean')
+    )
   }
   if (type === 'monitor-create') {
     return (
@@ -73,7 +82,7 @@ function isWorkerControlMessage(message: unknown): message is WorkerControlMessa
       typeof monitorId === 'number' &&
       Number.isInteger(monitorId) &&
       monitorId > 0 &&
-      (state === 'active' || state === 'paused')
+      (state === 'active' || state === 'paused' || state === 'archived')
     )
   }
   return false
@@ -229,7 +238,7 @@ export async function startWorkerRuntime(
     if (data.type === 'monitor-list') {
       if (!services.listMonitors) return
       void services
-        .listMonitors()
+        .listMonitors(data.archived ?? false)
         .then((result) => {
           parentPort.postMessage({
             type: 'monitor-list-result',
@@ -261,10 +270,19 @@ export async function startWorkerRuntime(
             requestId: data.requestId,
           })
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          const reason =
+            error instanceof MonitorStateBusyError
+              ? 'busy'
+              : error instanceof KufarUrlBuildError
+                ? 'unsupported-api-mapping'
+                : error instanceof MonitorStateTransitionError
+                  ? 'invalid-transition'
+                  : undefined
           parentPort.postMessage({
             type: 'monitor-set-state-error',
             requestId: data.requestId,
+            ...(reason ? { reason } : {}),
           })
           parentPort.postMessage({
             type: 'journal',

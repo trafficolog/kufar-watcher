@@ -7,6 +7,7 @@ export type { TelegramSendFailureKind } from './telegram-send-failure'
 
 export interface TelegramOutboxDeliveryRepository {
   getNotifiedAt(matchId: number): Promise<Date | null | undefined>
+  isMonitorNotArchived?(matchId: number): Promise<boolean>
   getSendingAt?(matchId: number): Promise<Date | null | undefined>
   markSending?(matchId: number, sendingAt: Date): Promise<void>
   markNotified(matchId: number, notifiedAt: Date): Promise<void>
@@ -42,6 +43,11 @@ export function createTelegramOutboxDelivery(
   return async (payload) => {
     const notifiedAt = await options.repository.getNotifiedAt(payload.matchId)
     if (notifiedAt === undefined || notifiedAt !== null) return
+    if (
+      options.repository.isMonitorNotArchived &&
+      !(await options.repository.isMonitorNotArchived(payload.matchId))
+    )
+      return
 
     if (options.repository.getSendingAt) {
       const sendingAt = await options.repository.getSendingAt(payload.matchId)
@@ -57,6 +63,12 @@ export function createTelegramOutboxDelivery(
       if (remainingDelayMs > 0) await sleep(remainingDelayMs)
     }
 
+    // The monitor may have been archived during the chat throttle delay.
+    if (
+      options.repository.isMonitorNotArchived &&
+      !(await options.repository.isMonitorNotArchived(payload.matchId))
+    )
+      return
     lastAttemptAtByChat.set(payload.chatId, now().getTime())
     await options.repository.markSending?.(payload.matchId, now())
 

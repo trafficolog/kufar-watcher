@@ -6,6 +6,8 @@ import { useDesktopApi } from '../composables/use-desktop-api'
 import { parseMonitorTerms, previewMonitorUrl } from '../lib/monitor-create-model'
 
 const monitors = ref<MonitorListItem[]>([])
+const archivedMonitors = ref<MonitorListItem[]>([])
+const archiveCandidateId = ref<number | null>(null)
 const bootState = ref<BootState | null>(null)
 const telegramState = ref<TelegramDesktopState | null>(null)
 const listError = ref('')
@@ -141,9 +143,13 @@ function lastRunResult(monitor: MonitorListItem): { tone: string; label: string 
 async function refreshMonitors(): Promise<void> {
   const request = ++monitorListRequest
   try {
-    const next = await useDesktopApi().monitors.list()
+    const [next, archived] = await Promise.all([
+      useDesktopApi().monitors.list(),
+      useDesktopApi().monitors.list(true),
+    ])
     if (request !== monitorListRequest) return
     monitors.value = next
+    archivedMonitors.value = archived
     listError.value = ''
   } catch {
     if (request !== monitorListRequest) return
@@ -165,6 +171,35 @@ async function toggleMonitorState(monitor: MonitorListItem): Promise<void> {
       nextState === 'paused'
         ? 'Не удалось приостановить монитор.'
         : 'Не удалось возобновить монитор.'
+  } finally {
+    stateChangingId.value = null
+  }
+}
+
+async function archiveMonitor(monitor: MonitorListItem): Promise<void> {
+  if (stateChangingId.value !== null || archiveCandidateId.value !== monitor.id) return
+  stateChangingId.value = monitor.id
+  listError.value = ''
+  try {
+    await useDesktopApi().monitors.setState(monitor.id, 'archived')
+    archiveCandidateId.value = null
+    await refreshMonitors()
+  } catch (error) {
+    listError.value = error instanceof Error ? error.message : 'Не удалось архивировать монитор.'
+  } finally {
+    stateChangingId.value = null
+  }
+}
+
+async function restoreMonitor(monitor: MonitorListItem): Promise<void> {
+  if (stateChangingId.value !== null) return
+  stateChangingId.value = monitor.id
+  listError.value = ''
+  try {
+    await useDesktopApi().monitors.setState(monitor.id, 'active')
+    await refreshMonitors()
+  } catch (error) {
+    listError.value = error instanceof Error ? error.message : 'Не удалось восстановить монитор.'
   } finally {
     stateChangingId.value = null
   }
@@ -301,19 +336,93 @@ onUnmounted(() => {
               </div>
             </dl>
 
+            <div class="monitor-actions">
+              <button
+                class="secondary"
+                type="button"
+                :disabled="stateChangingId !== null"
+                @click="toggleMonitorState(monitor)"
+              >
+                {{
+                  stateChangingId === monitor.id
+                    ? 'Сохраняю…'
+                    : monitor.state === 'active'
+                      ? 'Приостановить'
+                      : 'Возобновить'
+                }}
+              </button>
+              <div>
+                <button
+                  class="secondary"
+                  type="button"
+                  :disabled="stateChangingId !== null"
+                  @click="archiveCandidateId = monitor.id"
+                >
+                  В архив
+                </button>
+                <div
+                  v-if="archiveCandidateId === monitor.id"
+                  class="archive-confirmation"
+                  role="group"
+                  :aria-label="`Подтверждение архивирования ${monitor.name}`"
+                >
+                  <p>Монитор «{{ monitor.name }}» перестанет отслеживаться. История останется.</p>
+                  <button
+                    class="secondary"
+                    type="button"
+                    :disabled="stateChangingId !== null"
+                    @click="archiveMonitor(monitor)"
+                  >
+                    {{
+                      stateChangingId === monitor.id ? 'Архивирую…' : 'Подтвердить архивирование'
+                    }}
+                  </button>
+                  <button
+                    class="link-button"
+                    type="button"
+                    :disabled="stateChangingId !== null"
+                    @click="archiveCandidateId = null"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="monitor-section" aria-labelledby="archive-list-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">История</p>
+            <h2 id="archive-list-heading">Архив · {{ archivedMonitors.length }}</h2>
+          </div>
+        </div>
+        <p v-if="archivedMonitors.length === 0" class="empty-state">Архив пока пуст.</p>
+        <div v-else class="monitor-list">
+          <article v-for="monitor in archivedMonitors" :key="monitor.id" class="monitor-row">
+            <div class="monitor-main">
+              <h3>{{ monitor.name }}</h3>
+              <p class="monitor-meta">В архиве · обходы остановлены; история сохранена.</p>
+            </div>
+            <dl class="run-summary">
+              <div>
+                <dt>Последний обход</dt>
+                <dd>{{ lastRunTime(monitor) }}</dd>
+              </div>
+              <div>
+                <dt>Результат</dt>
+                <dd :class="lastRunResult(monitor).tone">{{ lastRunResult(monitor).label }}</dd>
+              </div>
+            </dl>
             <button
               class="secondary"
               type="button"
               :disabled="stateChangingId !== null"
-              @click="toggleMonitorState(monitor)"
+              @click="restoreMonitor(monitor)"
             >
-              {{
-                stateChangingId === monitor.id
-                  ? 'Сохраняю…'
-                  : monitor.state === 'active'
-                    ? 'Приостановить'
-                    : 'Возобновить'
-              }}
+              {{ stateChangingId === monitor.id ? 'Восстанавливаю…' : 'Вернуть в работу' }}
             </button>
           </article>
         </div>
@@ -587,6 +696,10 @@ h3 {
   margin-bottom: 14px;
 }
 
+.monitor-section + .monitor-section {
+  margin-top: 32px;
+}
+
 .summary {
   margin-bottom: 2px;
   font-size: 12px;
@@ -603,6 +716,17 @@ h3 {
   align-items: center;
   padding: 20px 0;
   border-bottom: 1px solid rgb(139 188 180 / 16%);
+}
+
+.monitor-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.archive-confirmation {
+  max-width: 250px;
+  overflow-wrap: anywhere;
 }
 
 .monitor-title-row {
