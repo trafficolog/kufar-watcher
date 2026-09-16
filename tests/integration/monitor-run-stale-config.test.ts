@@ -115,7 +115,7 @@ integrationDescribe('stale monitor-run commit after config reset', () => {
 
   it('rejects a stale result after source edit reset instead of recreating the cursor', async () => {
     await updateMonitorConfig(prisma, MONITOR_ID, {
-      sourceUrl: 'https://www.kufar.by/l/cars',
+      sourceUrl: 'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~replacement',
     })
     expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).toBeNull()
 
@@ -127,7 +127,7 @@ integrationDescribe('stale monitor-run commit after config reset', () => {
 
   it('rejects a stale result when a reset cursor has already been replaced', async () => {
     await updateMonitorConfig(prisma, MONITOR_ID, {
-      sourceUrl: 'https://www.kufar.by/l/cars',
+      sourceUrl: 'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~replacement',
     })
 
     const replacementUpdatedAt = new Date(expectedCursorUpdatedAt.getTime() + 1_000)
