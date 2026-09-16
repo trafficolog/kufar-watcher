@@ -72,7 +72,9 @@ describe('monitor persistence rejects unsupported API semantics', () => {
       },
       monitorCursor: { deleteMany },
     } as unknown as Prisma.TransactionClient
-    await expect(updateMonitorConfigTransaction(tx, 7, { sourceUrl: unsupported })).rejects.toMatchObject({
+    await expect(
+      updateMonitorConfigTransaction(tx, 7, { sourceUrl: unsupported }),
+    ).rejects.toMatchObject({
       code: 'unsupported-api-mapping',
     })
     expect(update).not.toHaveBeenCalled()

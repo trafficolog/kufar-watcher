@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from '../../generated/prisma/client'
 import type { CanonicalQuery } from '../../shared/canonical-query'
 import type { MonitorCreateInput, MonitorCreateResult } from '../../shared/ipc'
 import { routeKufarQuery } from '../../shared/kufar-routing'
-import { parseKufarListingUrl } from '../../shared/kufar-url'
+import { buildKufarApiUrl, parseKufarListingUrl } from '../../shared/kufar-url'
 import { assertSupportedMonitorInterval } from '../../shared/monitor-interval'
 import { matchingTermCompiler } from './matching-term-compiler'
 
@@ -20,6 +20,13 @@ export interface MonitorConfigPatch {
   keywords?: readonly string[]
   searchInDescription?: boolean
   state?: 'active' | 'paused' | 'archived'
+}
+
+export class MonitorSourceQueryMismatchError extends Error {
+  constructor() {
+    super('Monitor source URL and canonical query do not match')
+    this.name = 'MonitorSourceQueryMismatchError'
+  }
 }
 
 export class PersistedCanonicalQueryError extends Error {
@@ -163,6 +170,7 @@ export async function createMonitorConfig(
 
   const query = parseKufarListingUrl(input.sourceUrl)
   routeKufarQuery(query)
+  buildKufarApiUrl(query)
 
   const created = await prisma.monitor.create({
     data: {
@@ -202,6 +210,24 @@ export async function updateMonitorConfigTransaction(
     },
   })
   const currentQuery = parsePersistedCanonicalQuery(current.query)
+  const sourceQuery = patch.sourceUrl === undefined ? null : parseKufarListingUrl(patch.sourceUrl)
+  const nextQuery = patch.query ?? sourceQuery ?? currentQuery
+
+  if (patch.sourceUrl !== undefined || patch.query !== undefined) {
+    if (sourceQuery !== null) {
+      routeKufarQuery(sourceQuery)
+      buildKufarApiUrl(sourceQuery)
+    }
+    routeKufarQuery(nextQuery)
+    buildKufarApiUrl(nextQuery)
+    if (
+      sourceQuery !== null &&
+      patch.query !== undefined &&
+      !canonicalQueryEquals(sourceQuery, nextQuery)
+    ) {
+      throw new MonitorSourceQueryMismatchError()
+    }
+  }
 
   const before: MonitorSourceIdentity = {
     sourceUrl: current.sourceUrl,
@@ -210,14 +236,15 @@ export async function updateMonitorConfigTransaction(
   }
   const after: MonitorSourceIdentity = {
     sourceUrl: patch.sourceUrl ?? current.sourceUrl,
-    query: patch.query ?? currentQuery,
+    query: nextQuery,
     state: patch.state ?? current.state,
   }
 
   const data: Prisma.MonitorUpdateInput = {}
   if (patch.name !== undefined) data.name = patch.name
   if (patch.sourceUrl !== undefined) data.sourceUrl = patch.sourceUrl
-  if (patch.query !== undefined) data.query = canonicalQueryJson(patch.query)
+  if (patch.query !== undefined || patch.sourceUrl !== undefined)
+    data.query = canonicalQueryJson(nextQuery)
   if (patch.intervalSec !== undefined) data.intervalSec = patch.intervalSec
   if (patch.keywords !== undefined) data.keywords = [...patch.keywords]
   if (patch.searchInDescription !== undefined) data.searchInDescription = patch.searchInDescription

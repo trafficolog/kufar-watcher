@@ -31,9 +31,11 @@ describe('legacy unsupported Kufar mapping', () => {
       },
     } as unknown as PrismaClient
     const fetchPage = vi.fn()
-    const runCycle = vi.fn().mockRejectedValue(
-      new KufarUrlBuildError('unsupported-api-mapping', 'Do not persist URL or secret here'),
-    )
+    const runCycle = vi
+      .fn()
+      .mockRejectedValue(
+        new KufarUrlBuildError('unsupported-api-mapping', 'Do not persist URL or secret here'),
+      )
     const executor = createScheduledMonitorRunExecutor({
       prisma,
       createRunAdapters: vi.fn(() => ({ get: () => ({ fetchPage }) }) as never),
