@@ -213,6 +213,9 @@ export async function updateMonitorConfigTransaction(
   const sourceQuery = patch.sourceUrl === undefined ? null : parseKufarListingUrl(patch.sourceUrl)
   const nextQuery = patch.query ?? sourceQuery ?? currentQuery
 
+  // Preserve the typed canonical-query validation error before adapter routing.
+  if (patch.query !== undefined) canonicalQueryJson(patch.query)
+
   if (patch.sourceUrl !== undefined || patch.query !== undefined) {
     if (sourceQuery !== null) {
       routeKufarQuery(sourceQuery)
