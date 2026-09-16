@@ -85,6 +85,10 @@ function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === 'string'
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
 function parseMonitorRunSummary(value: unknown): MonitorRunSummary | null | undefined {
   if (value === null) return null
   if (!value || typeof value !== 'object') return undefined
@@ -112,6 +116,9 @@ function parseMonitorListItem(value: unknown): MonitorListItem | undefined {
 
   const id = Reflect.get(value, 'id')
   const name = Reflect.get(value, 'name')
+  const sourceUrl = Reflect.get(value, 'sourceUrl')
+  const include = Reflect.get(value, 'include')
+  const exclude = Reflect.get(value, 'exclude')
   const intervalSec = Reflect.get(value, 'intervalSec')
   const state = Reflect.get(value, 'state')
   const lastRun = parseMonitorRunSummary(Reflect.get(value, 'lastRun'))
@@ -120,6 +127,9 @@ function parseMonitorListItem(value: unknown): MonitorListItem | undefined {
     !Number.isInteger(id) ||
     id <= 0 ||
     typeof name !== 'string' ||
+    typeof sourceUrl !== 'string' ||
+    !isStringArray(include) ||
+    !isStringArray(exclude) ||
     typeof intervalSec !== 'number' ||
     !Number.isInteger(intervalSec) ||
     intervalSec <= 0 ||
@@ -129,7 +139,7 @@ function parseMonitorListItem(value: unknown): MonitorListItem | undefined {
     return undefined
   }
 
-  return { id, name, intervalSec, state, lastRun }
+  return { id, name, sourceUrl, include, exclude, intervalSec, state, lastRun }
 }
 
 function parseMonitorList(value: unknown): MonitorListItem[] | undefined {
