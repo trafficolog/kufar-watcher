@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { BootState, MonitorListItem } from '../../shared/ipc'
+import { isAllowedKufarListingUrl } from '../../shared/kufar-external-link'
 import type { TelegramDesktopState } from '../../shared/telegram'
 import { useDesktopApi } from '../composables/use-desktop-api'
 import { parseMonitorTerms, previewMonitorUrl } from '../lib/monitor-create-model'
@@ -273,7 +274,10 @@ onUnmounted(() => {
     <div class="page-shell">
       <header class="page-header">
         <div>
-          <p class="eyebrow">Kufar Monitor / Мониторы</p>
+          <nav class="eyebrow page-navigation" aria-label="Разделы приложения">
+            <span aria-current="page">Мониторы</span>
+            <NuxtLink to="/settings">Настройки</NuxtLink>
+          </nav>
           <h1>Мониторы</h1>
           <p class="lede">Состояние правил и последнего обхода — без открытия базы данных.</p>
         </div>
@@ -388,6 +392,40 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
+
+            <details class="monitor-details">
+              <summary>Параметры — {{ monitor.name }}</summary>
+              <dl class="monitor-parameters">
+                <div>
+                  <dt>Сохранённая ссылка Kufar</dt>
+                  <dd class="source-url">{{ monitor.sourceUrl }}</dd>
+                </div>
+                <div>
+                  <dt>Интервал</dt>
+                  <dd>{{ intervalLabel(monitor.intervalSec) }}</dd>
+                </div>
+                <div>
+                  <dt>Включающие слова</dt>
+                  <dd>{{ monitor.include.length ? monitor.include.join(', ') : 'Все объявления выдачи' }}</dd>
+                </div>
+                <div>
+                  <dt>Исключающие слова</dt>
+                  <dd>{{ monitor.exclude.length ? monitor.exclude.join(', ') : 'Нет' }}</dd>
+                </div>
+                <div>
+                  <dt>Последний обход</dt>
+                  <dd>{{ lastRunTime(monitor) }} · {{ lastRunResult(monitor).label }}</dd>
+                </div>
+              </dl>
+              <a
+                v-if="isAllowedKufarListingUrl(monitor.sourceUrl)"
+                class="source-link"
+                :href="monitor.sourceUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >Открыть выдачу Kufar</a>
+              <p v-else class="message error">Ссылка не поддерживается для внешнего открытия.</p>
+            </details>
           </article>
         </div>
       </section>
@@ -424,6 +462,40 @@ onUnmounted(() => {
             >
               {{ stateChangingId === monitor.id ? 'Восстанавливаю…' : 'Вернуть в работу' }}
             </button>
+
+            <details class="monitor-details">
+              <summary>Параметры — {{ monitor.name }}</summary>
+              <dl class="monitor-parameters">
+                <div>
+                  <dt>Сохранённая ссылка Kufar</dt>
+                  <dd class="source-url">{{ monitor.sourceUrl }}</dd>
+                </div>
+                <div>
+                  <dt>Интервал</dt>
+                  <dd>{{ intervalLabel(monitor.intervalSec) }}</dd>
+                </div>
+                <div>
+                  <dt>Включающие слова</dt>
+                  <dd>{{ monitor.include.length ? monitor.include.join(', ') : 'Все объявления выдачи' }}</dd>
+                </div>
+                <div>
+                  <dt>Исключающие слова</dt>
+                  <dd>{{ monitor.exclude.length ? monitor.exclude.join(', ') : 'Нет' }}</dd>
+                </div>
+                <div>
+                  <dt>Последний обход</dt>
+                  <dd>{{ lastRunTime(monitor) }} · {{ lastRunResult(monitor).label }}</dd>
+                </div>
+              </dl>
+              <a
+                v-if="isAllowedKufarListingUrl(monitor.sourceUrl)"
+                class="source-link"
+                :href="monitor.sourceUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >Открыть выдачу Kufar</a>
+              <p v-else class="message error">Ссылка не поддерживается для внешнего открытия.</p>
+            </details>
           </article>
         </div>
       </section>
@@ -590,6 +662,26 @@ dt,
   font-size: 11px;
 }
 
+.page-navigation {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.page-navigation a,
+.source-link {
+  color: #4fd8c4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.page-navigation a:focus-visible,
+.source-link:focus-visible,
+.monitor-details summary:focus-visible {
+  outline: 2px solid #4fd8c4;
+  outline-offset: 4px;
+}
+
 h1,
 h2,
 h3,
@@ -716,6 +808,44 @@ h3 {
   align-items: center;
   padding: 20px 0;
   border-bottom: 1px solid rgb(139 188 180 / 16%);
+}
+
+.monitor-details {
+  grid-column: 1 / -1;
+  min-width: 0;
+  border-top: 1px solid rgb(139 188 180 / 16%);
+  padding-top: 12px;
+}
+
+.monitor-details summary {
+  width: fit-content;
+  cursor: pointer;
+  color: #4fd8c4;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.monitor-parameters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.monitor-parameters div {
+  min-width: 0;
+}
+
+.monitor-parameters dd {
+  overflow-wrap: anywhere;
+}
+
+.source-url {
+  user-select: text;
+}
+
+.source-link {
+  font-size: 12px;
 }
 
 .monitor-actions {
@@ -960,7 +1090,8 @@ code {
   }
 
   .system-strip,
-  .run-summary {
+  .run-summary,
+  .monitor-parameters {
     grid-template-columns: 1fr;
   }
 
