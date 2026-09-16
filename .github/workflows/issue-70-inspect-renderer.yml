@@ -1,0 +1,46 @@
+name: issue-70-inspect-renderer
+on:
+  push:
+    branches:
+      - fix/70-renderer-csp
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --global npm@11.4.2
+      - run: npm ci
+      - run: npm run build:renderer
+      - name: Report effective production CSP and inline script hashes
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from hashlib import sha256
+          from base64 import b64encode
+          class Inspector(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.script = False; self.inline = []; self.buffer = ''; self.current = {}; self.policy = []
+              def handle_starttag(self, tag, attrs):
+                  attrs = dict(attrs)
+                  if tag == 'meta' and attrs.get('http-equiv','').lower() == 'content-security-policy': self.policy.append(attrs.get('content'))
+                  if tag == 'script': self.script = True; self.current = attrs; self.buffer = ''
+              def handle_data(self, data):
+                  if self.script: self.buffer += data
+              def handle_endtag(self, tag):
+                  if tag == 'script' and self.script:
+                      if not self.current.get('src') and self.buffer.strip(): self.inline.append((self.current, self.buffer))
+                      self.script = False
+          html = Path('.output/public/index.html').read_text()
+          i = Inspector(); i.feed(html)
+          print('PRODUCTION_CSP_COUNT',len(i.policy)); print('PRODUCTION_CSP',i.policy)
+          print('INLINE_SCRIPT_COUNT',len(i.inline))
+          for attrs, body in i.inline:
+              print('INLINE_SCRIPT_TYPE',attrs.get('type','js'),'SHA256',b64encode(sha256(body.encode()).digest()).decode(),'START',repr(body[:180]))
+          PY
