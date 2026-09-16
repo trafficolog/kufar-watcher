@@ -12,6 +12,7 @@ import {
   utilityProcess,
 } from 'electron'
 import { IPC, type BootState } from '../../shared/ipc'
+import { isAllowedKufarListingUrl } from '../../shared/kufar-external-link'
 import type { TelegramDesktopState } from '../../shared/telegram'
 import workerPath from '../worker/index?modulePath'
 import { APP_HOST, APP_ORIGIN, APP_SCHEME, registerRendererProtocol } from './app-protocol'
@@ -139,7 +140,14 @@ function createMainWindow(): BrowserWindow {
     },
   })
 
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (isAllowedKufarListingUrl(url)) {
+      void shell.openExternal(url).catch(() => {
+        console.error('[navigation] Failed to open Kufar search in external browser')
+      })
+    }
+    return { action: 'deny' }
+  })
   window.webContents.on('will-navigate', (event, url) => {
     if (!isAllowedNavigation(url)) event.preventDefault()
   })

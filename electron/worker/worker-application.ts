@@ -94,6 +94,16 @@ export function formatWorkerError(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+function persistedMonitorTerms(value: unknown): { include: string[]; exclude: string[] } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { include: [], exclude: [] }
+  }
+  const terms = value as Record<string, unknown>
+  const toStrings = (input: unknown): string[] =>
+    Array.isArray(input) ? input.filter((term): term is string => typeof term === 'string') : []
+  return { include: toStrings(terms.include), exclude: toStrings(terms.exclude) }
+}
+
 export function createWorkerApplication(
   config: WorkerConfig,
   publish: (event: WorkerEvent) => void,
@@ -227,6 +237,8 @@ export function createWorkerApplication(
         select: {
           id: true,
           name: true,
+          sourceUrl: true,
+          keywords: true,
           intervalSec: true,
           state: true,
           runs: {
@@ -245,9 +257,13 @@ export function createWorkerApplication(
 
       return monitors.map((monitor) => {
         const latestRun = monitor.runs[0]
+        const { include, exclude } = persistedMonitorTerms(monitor.keywords)
         return {
           id: monitor.id,
           name: monitor.name,
+          sourceUrl: monitor.sourceUrl,
+          include,
+          exclude,
           intervalSec: monitor.intervalSec,
           state: monitor.state,
           lastRun: latestRun

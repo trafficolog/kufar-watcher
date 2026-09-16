@@ -286,7 +286,10 @@ describe('typed IPC routing', () => {
       {
         id: 7,
         name: 'PS5 Минск',
+        sourceUrl: 'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5',
         intervalSec: 300,
+        include: ['playstation*'],
+        exclude: ['ремонт'],
         state: 'active',
         lastRun: null,
       },
