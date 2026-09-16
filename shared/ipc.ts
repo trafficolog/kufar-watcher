@@ -57,6 +57,9 @@ export interface MonitorRunSummary {
 export interface MonitorListItem {
   id: number
   name: string
+  sourceUrl: string
+  include: string[]
+  exclude: string[]
   intervalSec: number
   state: 'active' | 'paused' | 'archived'
   lastRun: MonitorRunSummary | null
