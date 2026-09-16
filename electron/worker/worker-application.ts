@@ -3,7 +3,7 @@ import type { MonitorListItem } from '../../shared/ipc'
 import type { WorkerEvent } from '../../shared/runtime'
 import type { WorkerConfig } from './config'
 import { createGrammyTelegramBotFactory } from './grammy-telegram-bot'
-import { createMonitorConfigAndSync, updateMonitorConfigAndSync } from './monitor-config-sync'
+import { createMonitorConfigAndSync, setMonitorStateAndSync } from './monitor-config-sync'
 import {
   createPostgresMonitorRunLeaseAcquirer,
   type AcquireMonitorRunLease,
@@ -47,8 +47,8 @@ import {
 
 export interface WorkerApplication extends WorkerRuntimeServices {
   scheduler: MonitorScheduler
-  listMonitors(): Promise<MonitorListItem[]>
-  setMonitorState(monitorId: number, state: 'active' | 'paused'): Promise<void>
+  listMonitors(archived?: boolean): Promise<MonitorListItem[]>
+  setMonitorState(monitorId: number, state: 'active' | 'paused' | 'archived'): Promise<void>
 }
 
 export interface WorkerApplicationDependencies {
@@ -217,12 +217,12 @@ export function createWorkerApplication(
       return result
     },
     async setMonitorState(monitorId, state) {
-      await updateMonitorConfigAndSync(prisma, scheduler, monitorId, { state })
+      await setMonitorStateAndSync(prisma, scheduler, acquireRunRecoveryLease, monitorId, state)
       publish({ type: 'monitor-changed', monitorId })
     },
-    async listMonitors() {
+    async listMonitors(archived = false) {
       const monitors = await prisma.monitor.findMany({
-        where: { state: { not: 'archived' } },
+        where: archived ? { state: 'archived' } : { state: { not: 'archived' } },
         orderBy: { id: 'asc' },
         select: {
           id: true,

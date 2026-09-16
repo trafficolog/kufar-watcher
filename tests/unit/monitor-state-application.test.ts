@@ -43,6 +43,12 @@ describe('monitor state worker application', () => {
       },
     } as unknown as Prisma.TransactionClient
     const prisma = {
+      monitor: {
+        findUniqueOrThrow: vi.fn(async () => ({
+          state: 'active' as const,
+          query: persistedQuery,
+        })),
+      },
       $transaction: vi.fn(async (callback: (client: Prisma.TransactionClient) => Promise<void>) => {
         await callback(tx)
         events.push('transaction-commit')
@@ -108,6 +114,10 @@ describe('monitor state worker application', () => {
     expect(app.setMonitorState).toBeTypeOf('function')
     await app.setMonitorState(7, 'paused')
 
+    expect(prisma.monitor.findUniqueOrThrow).toHaveBeenCalledWith({
+      where: { id: 7 },
+      select: { state: true, query: true },
+    })
     expect(update).toHaveBeenCalledWith({ where: { id: 7 }, data: { state: 'paused' } })
     expect(events).toEqual(['transaction-update', 'transaction-commit', 'sync:7', 'publish'])
     expect(publish).toHaveBeenCalledOnce()

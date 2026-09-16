@@ -45,8 +45,8 @@ export interface WorkerSupervisor {
   bindTelegramCandidate(chatId: string): Promise<TelegramBindResult>
   sendTelegramTestMessage(): Promise<void>
   createMonitor(input: MonitorCreateInput): Promise<MonitorCreateResult>
-  listMonitors(): Promise<MonitorListItem[]>
-  setMonitorState(monitorId: number, state: 'active' | 'paused'): Promise<void>
+  listMonitors(archived?: boolean): Promise<MonitorListItem[]>
+  setMonitorState(monitorId: number, state: 'active' | 'paused' | 'archived'): Promise<void>
   shutdown(): Promise<WorkerShutdownResult>
 }
 
@@ -213,7 +213,17 @@ function parseWorkerEvent(message: unknown): WorkerEvent | undefined {
 
   if (type === 'monitor-set-state-result' || type === 'monitor-set-state-error') {
     const requestId = Reflect.get(message, 'requestId')
-    if (typeof requestId === 'string') return { type, requestId }
+    if (typeof requestId !== 'string') return undefined
+    if (type === 'monitor-set-state-result') return { type, requestId }
+    const reason = Reflect.get(message, 'reason')
+    if (
+      reason === 'busy' ||
+      reason === 'unsupported-api-mapping' ||
+      reason === 'invalid-transition'
+    ) {
+      return { type, requestId, reason }
+    }
+    return { type, requestId }
   }
 
   if (type === 'telegram-state') {
@@ -466,7 +476,17 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
         if (event.type === 'monitor-set-state-result') {
           pending.resolve()
         } else {
-          pending.reject(new Error('Monitor state update failed'))
+          const messages = {
+            busy: 'Монитор сейчас выполняет обход. Повторите действие после его завершения.',
+            'unsupported-api-mapping':
+              'Восстановление невозможно: ссылка не поддерживается текущей версией Kufar Monitor.',
+            'invalid-transition': 'Невозможно выполнить переход из архивного состояния.',
+          }
+          pending.reject(
+            new Error(
+              event.reason ? messages[event.reason] : 'Не удалось изменить состояние монитора.',
+            ),
+          )
         }
         return
       }
@@ -606,7 +626,7 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
         worker.postMessage({ type: 'monitor-create', requestId, input })
       })
     },
-    listMonitors(): Promise<MonitorListItem[]> {
+    listMonitors(archived = false): Promise<MonitorListItem[]> {
       const worker = currentWorker
       if (!worker) return Promise.reject(new Error('Worker is unavailable'))
 
@@ -614,10 +634,10 @@ export function createWorkerSupervisor(options: WorkerSupervisorOptions): Worker
       const requestId = `monitor-list-${monitorListRequestSequence}`
       return new Promise((resolve, reject) => {
         pendingMonitorLists.set(requestId, { resolve, reject })
-        worker.postMessage({ type: 'monitor-list', requestId })
+        worker.postMessage({ type: 'monitor-list', requestId, archived })
       })
     },
-    setMonitorState(monitorId: number, state: 'active' | 'paused'): Promise<void> {
+    setMonitorState(monitorId: number, state: 'active' | 'paused' | 'archived'): Promise<void> {
       const worker = currentWorker
       if (!worker) return Promise.reject(new Error('Worker is unavailable'))
 

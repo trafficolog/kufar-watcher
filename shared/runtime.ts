@@ -14,12 +14,12 @@ export type WorkerControlMessage =
   | { type: 'telegram-bind-candidate'; requestId: string; chatId: string }
   | { type: 'telegram-test-message'; requestId: string }
   | { type: 'monitor-create'; requestId: string; input: MonitorCreateInput }
-  | { type: 'monitor-list'; requestId: string }
+  | { type: 'monitor-list'; requestId: string; archived?: boolean }
   | {
       type: 'monitor-set-state'
       requestId: string
       monitorId: number
-      state: 'active' | 'paused'
+      state: 'active' | 'paused' | 'archived'
     }
 
 export type WorkerEvent =
@@ -37,7 +37,11 @@ export type WorkerEvent =
   | { type: 'monitor-list-result'; requestId: string; result: MonitorListItem[] }
   | { type: 'monitor-list-error'; requestId: string }
   | { type: 'monitor-set-state-result'; requestId: string }
-  | { type: 'monitor-set-state-error'; requestId: string }
+  | {
+      type: 'monitor-set-state-error'
+      requestId: string
+      reason?: 'busy' | 'unsupported-api-mapping' | 'invalid-transition'
+    }
   | { type: 'telegram-state'; state: TelegramRuntimeState; boundChatId: string | null }
   | { type: 'telegram-channel-state'; state: TelegramChannelState }
   | { type: 'telegram-candidate'; candidate: TelegramCandidate | null }

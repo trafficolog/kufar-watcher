@@ -35,6 +35,10 @@ export interface SkippedOverlapMonitorRunResult {
   cycleKind: 'skipped-overlap'
 }
 
+export interface SkippedInactiveMonitorRunResult {
+  cycleKind: 'skipped-inactive'
+}
+
 export interface FailedNoRetryMonitorRunResult {
   cycleKind: 'failed-no-retry'
 }
@@ -46,6 +50,7 @@ export interface PauseRequiredMonitorRunResult {
 export type ScheduledMonitorRunResult =
   | MonitorCycleResult
   | SkippedOverlapMonitorRunResult
+  | SkippedInactiveMonitorRunResult
   | FailedNoRetryMonitorRunResult
   | PauseRequiredMonitorRunResult
 export type ScheduledMonitorRunExecutor = (monitorId: number) => Promise<ScheduledMonitorRunResult>
@@ -154,6 +159,14 @@ export function createScheduledMonitorRunExecutor(
     }
 
     try {
+      const monitor = await options.prisma.monitor.findUniqueOrThrow({
+        where: { id: monitorId },
+        select: { query: true, state: true },
+      })
+      if (monitor.state === 'paused' || monitor.state === 'archived') {
+        return { cycleKind: 'skipped-inactive' }
+      }
+
       const startedAt = new Date()
       const journalRun = await options.prisma.run.create({
         data: {
@@ -174,14 +187,9 @@ export function createScheduledMonitorRunExecutor(
         degradationRecorded = true
         await options.onSourceDegradation?.(monitorId, event)
       }
-      const adapters = options.createRunAdapters(onDegradation)
-
       try {
-        const monitor = await options.prisma.monitor.findUniqueOrThrow({
-          where: { id: monitorId },
-          select: { query: true },
-        })
         const query = parsePersistedCanonicalQuery(monitor.query)
+        const adapters = options.createRunAdapters(onDegradation)
         const adapter = adapters.get(routeKufarQuery(query))
 
         return await runCycle({
