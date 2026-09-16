@@ -406,7 +406,9 @@ onUnmounted(() => {
                 </div>
                 <div>
                   <dt>Включающие слова</dt>
-                  <dd>{{ monitor.include.length ? monitor.include.join(', ') : 'Все объявления выдачи' }}</dd>
+                  <dd>
+                    {{ monitor.include.length ? monitor.include.join(', ') : 'Все объявления выдачи' }}
+                  </dd>
                 </div>
                 <div>
                   <dt>Исключающие слова</dt>
@@ -476,7 +478,9 @@ onUnmounted(() => {
                 </div>
                 <div>
                   <dt>Включающие слова</dt>
-                  <dd>{{ monitor.include.length ? monitor.include.join(', ') : 'Все объявления выдачи' }}</dd>
+                  <dd>
+                    {{ monitor.include.length ? monitor.include.join(', ') : 'Все объявления выдачи' }}
+                  </dd>
                 </div>
                 <div>
                   <dt>Исключающие слова</dt>
