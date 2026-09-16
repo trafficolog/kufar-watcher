@@ -1,0 +1,24 @@
+name: issue-71-finalize
+on:
+  push:
+    branches: [fix/71-supported-url-validation]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: "!contains(github.event.head_commit.message, '[finalized-71]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/71-supported-url-validation
+      - run: python3 scripts/issue-71-finalize.py
+      - name: Publish corrected production file, no temporary files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f scripts/issue-71-finalize.py .github/workflows/issue-71-finalize.yml
+          git add electron/worker/monitor-config-persistence.ts
+          git diff --cached --check
+          git commit -m 'fix: validate canonical query before adapter route (#71) [finalized-71]'
+          git push origin HEAD:fix/71-supported-url-validation
