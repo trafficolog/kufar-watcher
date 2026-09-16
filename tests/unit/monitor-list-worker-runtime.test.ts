@@ -32,6 +32,9 @@ describe('monitor list worker runtime', () => {
       {
         id: 7,
         name: 'PS5 Minsk',
+        sourceUrl: 'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5',
+        include: ['ps5'],
+        exclude: [],
         intervalSec: 300,
         state: 'active',
         lastRun: null,
