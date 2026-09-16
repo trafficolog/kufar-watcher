@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../../generated/prisma/client'
 import { routeKufarQuery } from '../../shared/kufar-routing'
+import { KufarUrlBuildError } from '../../shared/kufar-url'
 import { RUN_OUTCOME } from '../../shared/run-outcome'
 import type { SourceAdapterRegistry } from '../../shared/source-adapter-registry'
 import { DescriptionRequestBudgetExceededError } from './description-request-budget'
@@ -35,6 +36,10 @@ export interface SkippedOverlapMonitorRunResult {
   cycleKind: 'skipped-overlap'
 }
 
+export interface SkippedInactiveMonitorRunResult {
+  cycleKind: 'skipped-inactive'
+}
+
 export interface FailedNoRetryMonitorRunResult {
   cycleKind: 'failed-no-retry'
 }
@@ -46,6 +51,7 @@ export interface PauseRequiredMonitorRunResult {
 export type ScheduledMonitorRunResult =
   | MonitorCycleResult
   | SkippedOverlapMonitorRunResult
+  | SkippedInactiveMonitorRunResult
   | FailedNoRetryMonitorRunResult
   | PauseRequiredMonitorRunResult
 export type ScheduledMonitorRunExecutor = (monitorId: number) => Promise<ScheduledMonitorRunResult>
@@ -98,6 +104,15 @@ function isRetryableSourceRequest(error: KufarSourceRequestError): boolean {
 }
 
 function classifyRunFailure(error: unknown): RunFailureJournal {
+  if (error instanceof KufarUrlBuildError) {
+    return {
+      error: 'Unsupported Kufar API mapping for this monitor URL',
+      errorCategory: 'policy',
+      errorCode: error.code,
+      httpStatus: null,
+    }
+  }
+
   if (error instanceof DescriptionRequestBudgetExceededError) {
     return {
       error: 'Listing detail request budget exhausted',
@@ -154,6 +169,14 @@ export function createScheduledMonitorRunExecutor(
     }
 
     try {
+      const monitor = await options.prisma.monitor.findUniqueOrThrow({
+        where: { id: monitorId },
+        select: { query: true, state: true },
+      })
+      if (monitor.state === 'paused' || monitor.state === 'archived') {
+        return { cycleKind: 'skipped-inactive' }
+      }
+
       const startedAt = new Date()
       const journalRun = await options.prisma.run.create({
         data: {
@@ -174,14 +197,9 @@ export function createScheduledMonitorRunExecutor(
         degradationRecorded = true
         await options.onSourceDegradation?.(monitorId, event)
       }
-      const adapters = options.createRunAdapters(onDegradation)
-
       try {
-        const monitor = await options.prisma.monitor.findUniqueOrThrow({
-          where: { id: monitorId },
-          select: { query: true },
-        })
         const query = parsePersistedCanonicalQuery(monitor.query)
+        const adapters = options.createRunAdapters(onDegradation)
         const adapter = adapters.get(routeKufarQuery(query))
 
         return await runCycle({
@@ -208,7 +226,10 @@ export function createScheduledMonitorRunExecutor(
           },
         })
 
-        if (error instanceof DescriptionRequestBudgetExceededError) {
+        if (
+          error instanceof KufarUrlBuildError ||
+          error instanceof DescriptionRequestBudgetExceededError
+        ) {
           return { cycleKind: 'failed-no-retry' }
         }
 

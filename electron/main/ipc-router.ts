@@ -36,8 +36,8 @@ export interface TelegramIpcServices {
 
 export interface MonitorIpcServices {
   createMonitor(input: MonitorCreateInput): MonitorCreateResult | Promise<MonitorCreateResult>
-  listMonitors(): MonitorListItem[] | Promise<MonitorListItem[]>
-  setMonitorState(monitorId: number, state: 'active' | 'paused'): void | Promise<void>
+  listMonitors(archived: boolean): MonitorListItem[] | Promise<MonitorListItem[]>
+  setMonitorState(monitorId: number, state: 'active' | 'paused' | 'archived'): void | Promise<void>
 }
 
 interface IpcInvokeEventLike {
@@ -201,13 +201,13 @@ export function registerMonitorIpcHandlers(
     return services.createMonitor(args[0] as MonitorCreateInput)
   })
 
-  ipcMain.handle(IPC.monitorList, (event) => {
+  ipcMain.handle(IPC.monitorList, (event, ...args) => {
     assertTrustedRenderer(event, devRendererUrl)
-    return services.listMonitors()
+    return services.listMonitors(args[0] === true)
   })
 
   ipcMain.handle(IPC.monitorSetState, (event, ...args) => {
     assertTrustedRenderer(event, devRendererUrl)
-    return services.setMonitorState(args[0] as number, args[1] as 'active' | 'paused')
+    return services.setMonitorState(args[0] as number, args[1] as 'active' | 'paused' | 'archived')
   })
 }

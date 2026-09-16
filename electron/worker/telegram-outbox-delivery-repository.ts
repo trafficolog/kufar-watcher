@@ -5,6 +5,14 @@ export function createPrismaTelegramOutboxDeliveryRepository(
   prisma: PrismaClient,
 ): TelegramOutboxDeliveryRepository {
   return {
+    async isMonitorNotArchived(matchId): Promise<boolean> {
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        select: { monitor: { select: { state: true } } },
+      })
+      return match !== null && match.monitor.state !== 'archived'
+    },
+
     async getNotifiedAt(matchId): Promise<Date | null | undefined> {
       const match = await prisma.match.findUnique({
         where: { id: matchId },

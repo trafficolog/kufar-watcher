@@ -80,8 +80,8 @@ export interface KufarDesktopApi {
   }
   monitors: {
     create(input: MonitorCreateInput): Promise<MonitorCreateResult>
-    list(): Promise<MonitorListItem[]>
-    setState(monitorId: number, state: 'active' | 'paused'): Promise<void>
+    list(archived?: boolean): Promise<MonitorListItem[]>
+    setState(monitorId: number, state: 'active' | 'paused' | 'archived'): Promise<void>
     onChanged(listener: (monitorId: number) => void): () => void
   }
 }

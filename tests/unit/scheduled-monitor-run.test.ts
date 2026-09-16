@@ -34,7 +34,7 @@ function executorDependencies() {
   const runUpdate = vi.fn().mockResolvedValue(undefined)
   const prisma = {
     monitor: {
-      findUniqueOrThrow: vi.fn().mockResolvedValue({ query: persistedQuery }),
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ query: persistedQuery, state: 'active' }),
     },
     run: {
       create: runCreate,
@@ -82,7 +82,7 @@ describe('createScheduledMonitorRunExecutor', () => {
 
     expect(prisma.monitor.findUniqueOrThrow).toHaveBeenCalledWith({
       where: { id: 17 },
-      select: { query: true },
+      select: { query: true, state: true },
     })
     expect(runInputs).toEqual([
       expect.objectContaining({

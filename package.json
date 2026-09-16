@@ -13,7 +13,7 @@
     "dev:renderer": "nuxt dev --host 127.0.0.1 --port 3000",
     "dev:electron": "wait-on http://127.0.0.1:3000 && cross-env KUFAR_RENDERER_URL=http://127.0.0.1:3000 electron-vite dev",
     "build": "npm run build:renderer && npm run build:electron",
-    "build:renderer": "nuxt generate",
+    "build:renderer": "nuxt generate && node scripts/finalize-renderer-csp.mjs",
     "build:electron": "electron-vite build",
     "start": "electron-vite preview --skipBuild",
     "lint": "eslint .",

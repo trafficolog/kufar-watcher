@@ -143,17 +143,17 @@ integrationDescribe('monitor config persistence', () => {
 
   it('deletes cursor and catch-up checkpoint atomically when sourceUrl changes', async () => {
     await updateMonitorConfig(prisma, MONITOR_ID, {
-      sourceUrl: 'https://www.kufar.by/l/cars',
+      sourceUrl: 'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~pixel',
     })
 
     const monitor = await prisma.monitor.findUniqueOrThrow({ where: { id: MONITOR_ID } })
-    expect(monitor.sourceUrl).toBe('https://www.kufar.by/l/cars')
+    expect(monitor.sourceUrl).toBe('https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~pixel')
     expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).toBeNull()
   })
 
   it('deletes cursor and catch-up checkpoint atomically when canonical query changes', async () => {
     await updateMonitorConfig(prisma, MONITOR_ID, {
-      query: { ...ORIGINAL_QUERY, region: 'gomel' },
+      query: { ...ORIGINAL_QUERY, category: 'igry-i-pristavki', pathFilters: [] },
     })
 
     expect(await prisma.monitorCursor.findUnique({ where: { monitorId: MONITOR_ID } })).toBeNull()
@@ -238,7 +238,7 @@ integrationDescribe('monitor config persistence', () => {
     await expect(
       prisma.$transaction(async (tx) => {
         await updateMonitorConfigTransaction(tx, MONITOR_ID, {
-          sourceUrl: 'https://www.kufar.by/l/cars',
+          sourceUrl: 'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~pixel',
         })
         throw sentinel
       }),
