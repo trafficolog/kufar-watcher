@@ -20,7 +20,7 @@ interface MonitorListSupervisor {
 }
 
 describe('monitor list worker supervisor', () => {
-  it('correlates a monitor list request with the worker result', async () => {
+  it('correlates a monitor list request with the worker result including exact source settings', async () => {
     const worker = new FakeWorker()
     const workerModule = await import('../../electron/main/worker-supervisor')
     const createWorkerSupervisor = Reflect.get(
@@ -32,6 +32,9 @@ describe('monitor list worker supervisor', () => {
       {
         id: 7,
         name: 'PS5 Minsk',
+        sourceUrl: 'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5',
+        include: ['ps5'],
+        exclude: ['ремонт'],
         intervalSec: 300,
         state: 'active',
         lastRun: null,
