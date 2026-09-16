@@ -1,0 +1,41 @@
+name: issue-71-materialize
+on:
+  push:
+    branches:
+      - fix/71-supported-url-validation
+permissions:
+  contents: write
+jobs:
+  apply-and-check:
+    if: "!contains(github.event.head_commit.message, '[materialized-71]')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/71-supported-url-validation
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --global npm@11.4.2
+      - run: npm ci
+      - name: Apply exact production anchors
+        run: python3 scripts/issue-71-apply.py
+      - name: Format changed sources
+        run: npx prettier --write electron/worker/monitor-config-persistence.ts electron/worker/scheduled-monitor-run.ts tests/integration/monitor-config-persistence.test.ts tests/unit/monitor-api-mapping-validation.test.ts tests/unit/unsupported-mapping-retry.test.ts
+      - name: Targeted regression tests
+        run: npm test -- tests/unit/monitor-api-mapping-validation.test.ts tests/unit/unsupported-mapping-retry.test.ts
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Publish verified sources only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f scripts/issue-71-apply.py .github/workflows/issue-71-materialize.yml
+          git add electron/worker/monitor-config-persistence.ts electron/worker/scheduled-monitor-run.ts tests/integration/monitor-config-persistence.test.ts tests/unit/monitor-api-mapping-validation.test.ts tests/unit/unsupported-mapping-retry.test.ts
+          git diff --cached --check
+          git commit -m 'fix: validate Kufar mapping and terminalize unsupported retries (#71) [materialized-71]'
+          git push origin HEAD:fix/71-supported-url-validation
