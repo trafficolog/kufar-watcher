@@ -11,11 +11,14 @@ import {
 } from '../../electron/worker/worker-application'
 
 describe('monitor list worker application', () => {
-  it('returns non-archived monitors with the latest run only', async () => {
+  it('returns non-archived monitors, exact source/filter settings and the latest run only', async () => {
+    const sourceUrl = 'https://www.kufar.by/l/r~minsk/igry-i-pristavki/q~ps5'
     const findMany = vi.fn(async () => [
       {
         id: 7,
         name: 'PS5 Minsk',
+        sourceUrl,
+        keywords: { include: ['ps5', 'playstation*'], exclude: ['ремонт'] },
         intervalSec: 300,
         state: 'active' as const,
         runs: [
@@ -90,6 +93,9 @@ describe('monitor list worker application', () => {
       {
         id: 7,
         name: 'PS5 Minsk',
+        sourceUrl,
+        include: ['ps5', 'playstation*'],
+        exclude: ['ремонт'],
         intervalSec: 300,
         state: 'active',
         lastRun: {
@@ -105,6 +111,7 @@ describe('monitor list worker application', () => {
       expect.objectContaining({
         where: { state: { not: 'archived' } },
         orderBy: { id: 'asc' },
+        select: expect.objectContaining({ sourceUrl: true, keywords: true }),
       }),
     )
   })
